@@ -10,7 +10,7 @@ class StrDataWrapper:
     value: str
 
     def __hash__(self) -> int:
-        return hash(self.value)
+        return hash((self.__class__.__name__, self.value))
 
     def __eq__(self, other) -> bool:
         return type(self) == type(other) and self.value == other.value
@@ -714,6 +714,17 @@ class TestCRDTs(unittest.TestCase):
         view2 = lwwmap.read()
         assert name in view1
         assert name not in view2
+
+    def test_LWWMap_history_returns_tuple_of_StateUpdateProtocol(self):
+        lwwmap = classes.LWWMap()
+        name = StrDataWrapper('foo')
+        value = StrDataWrapper('bar')
+        lwwmap.extend(name, value, 1)
+        lwwmap.extend(value, name, 1)
+        history = lwwmap.history()
+        assert type(history) is tuple
+        for update in history:
+            assert isinstance(update, interfaces.StateUpdateProtocol)
 
     # def test_LWWMap_
 

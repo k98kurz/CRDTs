@@ -13,6 +13,27 @@ from uuid import uuid1
 
 
 @dataclass
+class NoneWrapper:
+    """Implementation of DataWrapperProtocol for use in removing
+        registers from the LWWMap by setting them to a None value.
+    """
+    value: NoneType = field(default=None)
+
+    def __hash__(self) -> int:
+        return hash(None)
+
+    def __eq__(self, other) -> bool:
+        return type(self) == type(other)
+
+    def pack(self) -> bytes:
+        return b''
+
+    @classmethod
+    def unpack(cls, data: bytes) -> NoneWrapper:
+        return cls()
+
+
+@dataclass
 class StateUpdate:
     clock_uuid: bytes
     ts: Any
@@ -702,7 +723,7 @@ class RGArray:
 class LWWRegister:
     """Implements the Last Writer Wins Register CRDT."""
     name: str
-    value: DataWrapperProtocol = field(default=None)
+    value: DataWrapperProtocol = field(default_factory=NoneWrapper)
     clock: ClockProtocol = field(default_factory=ScalarClock)
     last_update: int = field(default=0)
     last_writer: int = field(default=0)
@@ -838,7 +859,7 @@ class LWWMap:
         https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crdt/-l-w-w-map/index.html
     """
     names: ORSet
-    registers: dict[LWWRegister]
+    registers: dict[DataWrapperProtocol, LWWRegister]
     clock: ClockProtocol
 
     def __init__(self, names: ORSet = None, registers: list = None,
@@ -976,17 +997,13 @@ class LWWMap:
             if name not in self.registers and name in self.names.read():
                 self.registers[name] = LWWRegister(name, value, self.clock, ts, writer)
 
-            # if the register exists, update it
-            if name in self.registers:
-                self.registers[name].update(StateUpdate(self.clock.uuid, ts, (writer, value)))
-
         if op == 'r':
             # try to remove from the names ORSet
             self.names.update(StateUpdate(self.clock.uuid, ts, ('r', name)))
 
-            # if name removed from ORSet, remove register
-            if name not in self.names.read() and name in self.registers:
-                del self.registers[name]
+        # if the register exists, update it
+        if name in self.registers:
+            self.registers[name].update(StateUpdate(self.clock.uuid, ts, (writer, value)))
 
         return self
 
@@ -1016,7 +1033,23 @@ class LWWMap:
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
-        ...
+        registers_history = {}
+        orset_history = self.names.history()
+        history = []
+
+        for name in self.registers:
+            registers_history[name] = self.registers[name].history()
+
+        for update in orset_history:
+            name = update.data[1]
+            register_update = registers_history[name][0]
+            history.append(StateUpdate(
+                update.clock_uuid,
+                register_update.ts,
+                (update.data[0], name, register_update.data[0], register_update.data[1])
+            ))
+
+        return tuple(history)
 
     def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
                 writer: int) -> StateUpdate:
@@ -1045,7 +1078,7 @@ class LWWMap:
         state_update = StateUpdate(
             self.clock.uuid,
             self.clock.read(),
-            ('r', name, writer, name)
+            ('r', name, writer, NoneWrapper())
         )
         self.update(state_update)
 

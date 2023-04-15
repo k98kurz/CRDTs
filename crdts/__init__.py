@@ -1,4 +1,5 @@
 from crdts.classes import (
+    NoneWrapper,
     StateUpdate,
     ScalarClock,
     GSet,
