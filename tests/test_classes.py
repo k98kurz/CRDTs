@@ -24,8 +24,20 @@ class StrDataWrapper:
         return cls(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8'))
 
 
+class BytesDataWrapper(StrDataWrapper):
+    value: bytes
+
+    def pack(self) -> bytes:
+        return struct.pack(f'!{len(self.value)}s', self.value)
+
+    @classmethod
+    def unpack(cls, data: bytes) -> BytesDataWrapper:
+        return cls(struct.unpack(f'!{len(data)}s', data)[0])
+
+
 # inject StrDataWrapper class for testing unpack in e.g. LWWRegister
 classes.StrDataWrapper = StrDataWrapper
+classes.BytesDataWrapper = BytesDataWrapper
 
 
 class TestCRDTs(unittest.TestCase):
@@ -92,7 +104,7 @@ class TestCRDTs(unittest.TestCase):
 
     # GSet tests
     def test_GSet_implements_CRDTProtocol(self):
-        assert isinstance(classes.GSet(), classes.CRDTProtocol)
+        assert isinstance(classes.GSet(), interfaces.CRDTProtocol)
 
     def test_GSet_read_returns_members(self):
         gset = classes.GSet()
@@ -195,7 +207,7 @@ class TestCRDTs(unittest.TestCase):
 
     # Counter tests
     def test_Counter_implements_CRDTProtocol(self):
-        assert isinstance(classes.Counter(), classes.CRDTProtocol)
+        assert isinstance(classes.Counter(), interfaces.CRDTProtocol)
 
     def test_Counter_read_returns_int_counter(self):
         counter = classes.Counter()
@@ -290,7 +302,7 @@ class TestCRDTs(unittest.TestCase):
 
     # ORSet tests
     def test_ORSet_implements_CRDTProtocol(self):
-        assert isinstance(classes.ORSet(), classes.CRDTProtocol)
+        assert isinstance(classes.ORSet(), interfaces.CRDTProtocol)
 
     def test_ORSet_read_returns_add_biased_set_difference(self):
         orset = classes.ORSet()
@@ -439,7 +451,7 @@ class TestCRDTs(unittest.TestCase):
 
     # PNCounter tests
     def test_PNCounter_implements_CRDTProtocol(self):
-        assert isinstance(classes.PNCounter(), classes.CRDTProtocol)
+        assert isinstance(classes.PNCounter(), interfaces.CRDTProtocol)
 
     def test_PNCounter_read_returns_int_positve_minus_negative(self):
         pncounter = classes.PNCounter()
@@ -546,7 +558,7 @@ class TestCRDTs(unittest.TestCase):
 
     # LWWRegister tests
     def test_LWWRegister_implements_CRDTProtocol(self):
-        assert isinstance(classes.LWWRegister('test'), classes.CRDTProtocol)
+        assert isinstance(classes.LWWRegister('test'), interfaces.CRDTProtocol)
 
     def test_LWWRegister_read_returns_DataWrapperProtocol(self):
         lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
@@ -554,10 +566,12 @@ class TestCRDTs(unittest.TestCase):
         assert lwwregister.read().value == 'foobar'
 
     def test_LWWRegister_write_returns_StateUpdate_and_sets_value(self):
-        lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
-        update = lwwregister.write(StrDataWrapper('barfoo'), 1)
+        # lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
+        lwwregister = classes.LWWRegister('test', BytesDataWrapper(b'foobar'))
+        # update = lwwregister.write(StrDataWrapper('barfoo'), 1)
+        update = lwwregister.write(BytesDataWrapper(b'barfoo'), 1)
         assert isinstance(update, classes.StateUpdate)
-        assert lwwregister.read().value == 'barfoo'
+        assert lwwregister.read().value == b'barfoo'
 
     def test_LWWRegister_history_returns_tuple_of_StateUpdate(self):
         lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
@@ -655,6 +669,17 @@ class TestCRDTs(unittest.TestCase):
         assert isinstance(unpacked, classes.LWWRegister)
         assert unpacked.clock == lwwregister.clock
         assert unpacked.read() == lwwregister.read()
+
+    # LWWMap tests
+    def test_LWWMap_implements_CRDTProtocol(self):
+        assert isinstance(classes.LWWMap(), interfaces.CRDTProtocol)
+
+    def test_LWWMap_read_returns_dict(self):
+        lwwmap = classes.LWWMap()
+        view = lwwmap.read()
+        assert isinstance(view, dict)
+
+    # def test_LWWMap_
 
 
 if __name__ == '__main__':
