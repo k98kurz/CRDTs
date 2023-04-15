@@ -679,6 +679,42 @@ class TestCRDTs(unittest.TestCase):
         view = lwwmap.read()
         assert isinstance(view, dict)
 
+    def test_LWWMap_extend_returns_StateUpdateProtocol(self):
+        lwwmap = classes.LWWMap()
+        name = StrDataWrapper('foo')
+        value = StrDataWrapper('bar')
+        update = lwwmap.extend(name, value, 1)
+        assert isinstance(update, interfaces.StateUpdateProtocol)
+
+    def test_LWWMap_read_after_extend_is_correct(self):
+        lwwmap = classes.LWWMap()
+        view1 = lwwmap.read()
+        name = StrDataWrapper('foo')
+        value = StrDataWrapper('bar')
+        lwwmap.extend(name, value, 1)
+        view2 = lwwmap.read()
+        assert isinstance(view2, dict)
+        assert view1 != view2
+        assert name in view2
+        assert view2[name] == value
+
+    def test_LWWMap_unset_returns_StateUpdateProtocol(self):
+        lwwmap = classes.LWWMap()
+        name = StrDataWrapper('foo')
+        update = lwwmap.unset(name, 1)
+        assert isinstance(update, interfaces.StateUpdateProtocol)
+
+    def test_LWWMap_read_after_unset_is_correct(self):
+        lwwmap = classes.LWWMap()
+        name = StrDataWrapper('foo')
+        value = StrDataWrapper('bar')
+        lwwmap.extend(name, value, 1)
+        view1 = lwwmap.read()
+        lwwmap.unset(name, 1)
+        view2 = lwwmap.read()
+        assert name in view1
+        assert name not in view2
+
     # def test_LWWMap_
 
 

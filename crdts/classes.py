@@ -834,7 +834,9 @@ class LWWRegister:
 
 
 class LWWMap:
-    """Implements the Last Writer Wins Map CRDT."""
+    """Implements the Last Writer Wins Map CRDT.
+        https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crdt/-l-w-w-map/index.html
+    """
     names: ORSet
     registers: dict[LWWRegister]
     clock: ClockProtocol
@@ -1015,6 +1017,39 @@ class LWWMap:
             replaying all updates from divergent nodes.
         """
         ...
+
+    def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
+                writer: int) -> StateUpdate:
+        """Extends the dict with name: value. Returns a StateUpdate."""
+        assert isinstance(name, DataWrapperProtocol) or name is None, \
+            'name must be a DataWrapperProtocol or None'
+        assert isinstance(value, DataWrapperProtocol) or value is None, \
+            'value must be a DataWrapperProtocol or None'
+        assert type(writer) is int, 'writer must be an int'
+
+        state_update = StateUpdate(
+            self.clock.uuid,
+            self.clock.read(),
+            ('o', name, writer, value)
+        )
+        self.update(state_update)
+
+        return state_update
+
+    def unset(self, name: DataWrapperProtocol, writer: int) -> StateUpdate:
+        """Removes the key name from the dict. Returns a StateUpdate."""
+        assert isinstance(name, DataWrapperProtocol) or name is None, \
+            'name must be a DataWrapperProtocol or None'
+        assert type(writer) is int, 'writer must be an int'
+
+        state_update = StateUpdate(
+            self.clock.uuid,
+            self.clock.read(),
+            ('r', name, writer, name)
+        )
+        self.update(state_update)
+
+        return state_update
 
 
 class ValidCRDTs(Enum):
