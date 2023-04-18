@@ -558,23 +558,21 @@ class TestCRDTs(unittest.TestCase):
 
     # LWWRegister tests
     def test_LWWRegister_implements_CRDTProtocol(self):
-        assert isinstance(classes.LWWRegister('test'), interfaces.CRDTProtocol)
+        assert isinstance(classes.LWWRegister(StrDataWrapper('test')), interfaces.CRDTProtocol)
 
     def test_LWWRegister_read_returns_DataWrapperProtocol(self):
-        lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
+        lwwregister = classes.LWWRegister(StrDataWrapper('test'), StrDataWrapper('foobar'))
         assert isinstance(lwwregister.read(), classes.DataWrapperProtocol)
         assert lwwregister.read().value == 'foobar'
 
     def test_LWWRegister_write_returns_StateUpdate_and_sets_value(self):
-        # lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
-        lwwregister = classes.LWWRegister('test', BytesDataWrapper(b'foobar'))
-        # update = lwwregister.write(StrDataWrapper('barfoo'), 1)
+        lwwregister = classes.LWWRegister(BytesDataWrapper(b'test'), BytesDataWrapper(b'foobar'))
         update = lwwregister.write(BytesDataWrapper(b'barfoo'), 1)
         assert isinstance(update, classes.StateUpdate)
         assert lwwregister.read().value == b'barfoo'
 
     def test_LWWRegister_history_returns_tuple_of_StateUpdate(self):
-        lwwregister = classes.LWWRegister('test', StrDataWrapper('foobar'))
+        lwwregister = classes.LWWRegister(StrDataWrapper('test'), StrDataWrapper('foobar'))
         lwwregister.write(StrDataWrapper('sdsd'), 2)
         lwwregister.write(StrDataWrapper('barfoo'), 1)
         history = lwwregister.history()
@@ -584,9 +582,9 @@ class TestCRDTs(unittest.TestCase):
             assert isinstance(item, classes.StateUpdate)
 
     def test_LWWRegister_concurrent_writes_bias_to_higher_writer(self):
-        lwwregister1 = classes.LWWRegister('test')
+        lwwregister1 = classes.LWWRegister(StrDataWrapper('test'))
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister('test', clock=clock)
+        lwwregister2 = classes.LWWRegister(StrDataWrapper('test'), clock=clock)
 
         update1 = lwwregister1.write(StrDataWrapper('foobar'), 1)
         update2 = lwwregister2.write(StrDataWrapper('barfoo'), 2)
@@ -597,15 +595,15 @@ class TestCRDTs(unittest.TestCase):
         assert lwwregister1.read().value == 'barfoo'
 
     def test_LWWRegister_checksums_returns_tuple_of_int(self):
-        lwwregister = classes.LWWRegister('test', StrDataWrapper('thing'))
+        lwwregister = classes.LWWRegister(StrDataWrapper('test'), StrDataWrapper('thing'))
         assert type(lwwregister.checksums()) is tuple
         for item in lwwregister.checksums():
             assert type(item) is int
 
     def test_LWWRegister_checksums_change_after_update(self):
-        lwwregister1 = classes.LWWRegister('test', StrDataWrapper(''))
+        lwwregister1 = classes.LWWRegister(StrDataWrapper('test'), StrDataWrapper(''))
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister('test', StrDataWrapper(''), clock=clock)
+        lwwregister2 = classes.LWWRegister(StrDataWrapper('test'), StrDataWrapper(''), clock=clock)
         checksums1 = lwwregister1.checksums()
 
         assert lwwregister2.checksums() == checksums1
@@ -618,9 +616,9 @@ class TestCRDTs(unittest.TestCase):
         assert lwwregister1.checksums() != lwwregister2.checksums()
 
     def test_LWWRegister_update_is_idempotent(self):
-        lwwregister1 = classes.LWWRegister('test')
+        lwwregister1 = classes.LWWRegister(StrDataWrapper('test'))
         clock1 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister('test', clock=clock1)
+        lwwregister2 = classes.LWWRegister(StrDataWrapper('test'), clock=clock1)
 
         update = lwwregister1.write(StrDataWrapper('foo1'), 1)
         view1 = lwwregister1.read()
@@ -642,11 +640,11 @@ class TestCRDTs(unittest.TestCase):
         assert lwwregister2.read() == view2
 
     def test_LWWRegister_update_from_history_converges(self):
-        lwwregister1 = classes.LWWRegister('test')
+        lwwregister1 = classes.LWWRegister(StrDataWrapper('test'))
         clock1 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
         clock2 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister('test', clock=clock1)
-        lwwregister3 = classes.LWWRegister('test', clock=clock2)
+        lwwregister2 = classes.LWWRegister(StrDataWrapper('test'), clock=clock1)
+        lwwregister3 = classes.LWWRegister(StrDataWrapper('test'), clock=clock2)
 
         update = lwwregister1.write(StrDataWrapper('foo1'), 1)
         lwwregister2.update(update)
@@ -662,7 +660,7 @@ class TestCRDTs(unittest.TestCase):
         assert lwwregister1.checksums() == lwwregister3.checksums()
 
     def test_LWWRegister_pack_unpack_e2e(self):
-        lwwregister = classes.LWWRegister('test', StrDataWrapper(''))
+        lwwregister = classes.LWWRegister(StrDataWrapper('test'), StrDataWrapper(''))
         packed = lwwregister.pack()
         unpacked = classes.LWWRegister.unpack(packed)
 
@@ -725,6 +723,73 @@ class TestCRDTs(unittest.TestCase):
         assert type(history) is tuple
         for update in history:
             assert isinstance(update, interfaces.StateUpdateProtocol)
+
+    def test_LWWMap_concurrent_writes_bias_to_higher_writer(self):
+        lwwmap = classes.LWWMap()
+        lwwmap2 = classes.LWWMap()
+        lwwmap2.clock.uuid = lwwmap.clock.uuid
+        name = StrDataWrapper('foo')
+        value1 = StrDataWrapper('bar')
+        value2 = StrDataWrapper('test')
+        update1 = lwwmap.extend(name, value1, 1)
+        update2 = lwwmap2.extend(name, value2, 3)
+        lwwmap.update(update2)
+        lwwmap2.update(update1)
+
+        assert lwwmap.checksums() == lwwmap2.checksums()
+        assert lwwmap.read()[name] == value2
+        assert lwwmap2.read()[name] == value2
+
+    def test_LWWMap_checksums_returns_tuple_of_int(self):
+        lwwmap = classes.LWWMap()
+        lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bar'), 1)
+        checksums = lwwmap.checksums()
+
+        assert type(checksums) is tuple
+        for item in checksums:
+            assert type(item) is int
+
+    def test_LWWMap_checksums_change_after_update(self):
+        lwwmap = classes.LWWMap()
+        lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bar'), 1)
+        checksums1 = lwwmap.checksums()
+        lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bruf'), 1)
+        checksums2 = lwwmap.checksums()
+        lwwmap.extend(StrDataWrapper('oof'), StrDataWrapper('bruf'), 1)
+        checksums3 = lwwmap.checksums()
+
+        assert checksums1 != checksums2
+        assert checksums1 != checksums3
+        assert checksums2 != checksums3
+
+    def test_LWWMap_update_is_idempotent(self):
+        lwwmap = classes.LWWMap()
+        update = lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bar'), 1)
+        checksums1 = lwwmap.checksums()
+        view1 = lwwmap.read()
+        lwwmap.update(update)
+        checksums2 = lwwmap.checksums()
+        view2 = lwwmap.read()
+
+        assert checksums1 == checksums2
+        assert view1 == view2
+
+    def test_LWWMap_updates_from_history_converge(self):
+        lwwmap1 = classes.LWWMap()
+        lwwmap2 = classes.LWWMap()
+        lwwmap2.clock.uuid = lwwmap1.clock.uuid
+        lwwmap1.extend(StrDataWrapper('foo'), StrDataWrapper('bar'), 1)
+        lwwmap1.extend(StrDataWrapper('foo'), StrDataWrapper('bruf'), 1)
+        lwwmap1.extend(StrDataWrapper('oof'), StrDataWrapper('bruf'), 1)
+
+        history = lwwmap1.history()
+        for update in history:
+            lwwmap2.update(update)
+
+        assert lwwmap1.checksums() == lwwmap2.checksums()
+
+    def test_LWWMap_pack_unpack_e2e(self):
+        ...
 
     # def test_LWWMap_
 

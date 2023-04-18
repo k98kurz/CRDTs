@@ -722,7 +722,7 @@ class RGArray:
 @dataclass
 class LWWRegister:
     """Implements the Last Writer Wins Register CRDT."""
-    name: str
+    name: DataWrapperProtocol
     value: DataWrapperProtocol = field(default_factory=NoneWrapper)
     clock: ClockProtocol = field(default_factory=ScalarClock)
     last_update: int = field(default=0)
@@ -730,7 +730,8 @@ class LWWRegister:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        name = bytes(self.name, 'utf-8')
+        name = self.name.__class__.__name__ + '_' + self.name.pack().hex()
+        name = bytes(name, 'utf-8')
         name_size = len(name)
         clock = self.clock.pack()
         clock_size = len(clock)
@@ -769,6 +770,8 @@ class LWWRegister:
             data
         )
         name = str(name, 'utf-8')
+        name_class, name_value = name.split('_')
+        name = globals()[name_class].unpack(bytes.fromhex(name_value))
         clock = ScalarClock.unpack(clock)
         value_type = str(value_type, 'utf-8')
 
@@ -899,7 +902,7 @@ class LWWMap:
         registers = {}
 
         for name in self.names.read():
-            name_class = name.__name__
+            name_class = name.__class__.__name__
             key = name_class + '_' + name.pack().hex()
             value_class = self.registers[name].__name__
             registers[key] = value_class + '_' + self.registers[name].pack().hex()
