@@ -19,3 +19,9 @@ from crdts.interfaces import (
     CRDTProtocol,
     DataWrapperProtocol
 )
+from crdts.datawrappers import (
+    BytesWrapper,
+    DecimalWrapper,
+    NoneWrapper,
+    StrWrapper
+)
