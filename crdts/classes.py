@@ -644,88 +644,6 @@ class PNCounter:
 
 
 @dataclass
-class FIArray:
-    """Implements a fractionally-indexed array CRDT."""
-    clock: ClockProtocol = field(default_factory=ScalarClock)
-
-    def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
-        ...
-
-    @classmethod
-    def unpack(cls, data: bytes) -> RGArray:
-        """Unpack the data bytes string into an instance."""
-        ...
-
-    def read(self):
-        """Return the eventually consistent data view."""
-        ...
-
-    def update(self, state_update: StateUpdateProtocol) -> RGArray:
-        """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        ...
-
-    def checksums(self) -> tuple[int]:
-        """Returns any checksums for the underlying data to detect
-            desynchronization due to message failure.
-        """
-        ...
-
-    def history(self) -> tuple[StateUpdate]:
-        """Returns a concise history of StateUpdates that will converge
-            to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
-        """
-        ...
-
-    @classmethod
-    def index_offset(cls, index: float) -> float:
-        """Adds/subtracts a small random offset."""
-        ...
-
-    def insert(self, item: DataWrapperProtocol, index: float) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
-            item at the index.
-        """
-        ...
-
-    def insert_between(self, item: DataWrapperProtocol,
-        first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
-            item at an index between first and second.
-        """
-        ...
-
-    def insert_first(self, item: DataWrapperProtocol) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
-            item at an index between 0 and the first item.
-        """
-        ...
-
-    def insert_last(self, item: DataWrapperProtocol) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
-            item at an index between the last item and 1.
-        """
-        ...
-
-    def delete(self, item: DataWrapperProtocol) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that deletes the
-            specified item.
-        """
-        ...
-
-    def move(self, item, index) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that moves the
-            specified item to the new index.
-        """
-        ...
-
-
-@dataclass
 class RGArray:
     """Implements the Replicated Growable Array CRDT."""
     items: list[tuple[bytes, DataWrapperProtocol, bool]] = field(default_factory=list)
@@ -1148,6 +1066,88 @@ class LWWMap:
         self.update(state_update)
 
         return state_update
+
+
+@dataclass
+class FIArray:
+    """Implements a fractionally-indexed array CRDT."""
+    clock: ClockProtocol = field(default_factory=ScalarClock)
+
+    def pack(self) -> bytes:
+        """Pack the data and metadata into a bytes string."""
+        ...
+
+    @classmethod
+    def unpack(cls, data: bytes) -> RGArray:
+        """Unpack the data bytes string into an instance."""
+        ...
+
+    def read(self):
+        """Return the eventually consistent data view."""
+        ...
+
+    def update(self, state_update: StateUpdateProtocol) -> RGArray:
+        """Apply an update and return self (monad pattern)."""
+        assert isinstance(state_update, StateUpdateProtocol), \
+            'state_update must be instance implementing StateUpdateProtocol'
+        assert state_update.clock_uuid == self.clock.uuid, \
+            'state_update.clock_uuid must equal CRDT.clock.uuid'
+        ...
+
+    def checksums(self) -> tuple[int]:
+        """Returns any checksums for the underlying data to detect
+            desynchronization due to message failure.
+        """
+        ...
+
+    def history(self) -> tuple[StateUpdate]:
+        """Returns a concise history of StateUpdates that will converge
+            to the underlying data. Useful for resynchronization by
+            replaying all updates from divergent nodes.
+        """
+        ...
+
+    @classmethod
+    def index_offset(cls, index: float) -> float:
+        """Adds/subtracts a small random offset."""
+        ...
+
+    def insert(self, item: DataWrapperProtocol, index: float) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at the index.
+        """
+        ...
+
+    def insert_between(self, item: DataWrapperProtocol,
+        first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at an index between first and second.
+        """
+        ...
+
+    def insert_first(self, item: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at an index between 0 and the first item.
+        """
+        ...
+
+    def insert_last(self, item: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at an index between the last item and 1.
+        """
+        ...
+
+    def delete(self, item: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that deletes the
+            specified item.
+        """
+        ...
+
+    def move(self, item, index) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that moves the
+            specified item to the new index.
+        """
+        ...
 
 
 class ValidCRDTs(Enum):
