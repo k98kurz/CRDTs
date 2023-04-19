@@ -27,6 +27,9 @@ class StrWrapper:
 class BytesWrapper(StrWrapper):
     value: bytes
 
+    def __init__(self, value: bytes) -> None:
+        self.value = value
+
     def pack(self) -> bytes:
         return struct.pack(f'!{len(self.value)}s', self.value)
 
@@ -37,6 +40,9 @@ class BytesWrapper(StrWrapper):
 
 class DecimalWrapper(StrWrapper):
     value: Decimal
+
+    def __init__(self, value: Decimal) -> None:
+        self.value = value
 
     def pack(self) -> bytes:
         return struct.pack(f'!{len(str(self.value))}s', bytes(str(self.value), 'utf-8'))
