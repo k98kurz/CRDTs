@@ -75,6 +75,16 @@ class TestDataWrappers(unittest.TestCase):
         unpacked = datawrappers.DecimalWrapper.unpack(packed)
         assert dw == unpacked
 
+    def test_DecimalWrapper_comparisons(self):
+        dw0 = datawrappers.DecimalWrapper(Decimal(0))
+        dw1 = datawrappers.DecimalWrapper(Decimal(1))
+
+        assert dw0 == dw0
+        assert dw1 > dw0
+        assert dw1 >= dw0
+        assert dw0 < dw1
+        assert dw0 <= dw1
+
 
 if __name__ == '__main__':
     unittest.main()

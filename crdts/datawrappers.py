@@ -15,6 +15,9 @@ class StrWrapper:
     def __eq__(self, other) -> bool:
         return type(self) == type(other) and self.value == other.value
 
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
     def pack(self) -> bytes:
         data = bytes(self.value, 'utf-8')
         return struct.pack(f'!{len(data)}s', data)
@@ -43,6 +46,18 @@ class DecimalWrapper(StrWrapper):
 
     def __init__(self, value: Decimal) -> None:
         self.value = value
+
+    def __gt__(self, other: DecimalWrapper) -> bool:
+        return self.value > other.value
+
+    def __ge__(self, other: DecimalWrapper) -> bool:
+        return self.value >= other.value
+
+    def __lt__(self, other: DecimalWrapper) -> bool:
+        return other.value > self.value
+
+    def __le__(self, other: DecimalWrapper) -> bool:
+        return other.value >= self.value
 
     def pack(self) -> bytes:
         return struct.pack(f'!{len(str(self.value))}s', bytes(str(self.value), 'utf-8'))
