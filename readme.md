@@ -93,6 +93,7 @@ style monad pattern.
     - `data: Hashable`
 
 ### Classes
+- NoneWrapper(DataWrapperProtocol)
 - StateUpdate(StateUpdateProtocol)
 - ScalarClock(ClockProtocol)
     - `counter: int`
@@ -124,16 +125,18 @@ style monad pattern.
 - RGArray (CRDTProtocol)
     - currently unimplemented
 - LWWRegister(CRDTProtocol)
-    - `name: str`
-    - `value: DataWrapperProtocol = field(default=None)`
+    - `name: DataWrapperProtocol`
+    - `value: DataWrapperProtocol = field(default=NoneWrapper)`
     - `clock: ClockProtocol = field(default_factory=ScalarClock)`
     - `last_update: int = field(default=0)`
     - `last_writer: int = field(default=0)`
     - `write(self, value: DataWrapperProtocol, writer: int) -> StateUpdate`
 - LWWMap(CRDTProtocol)
     - `names: ORSet`
-    - `registers: dict[LWWRegister]`
+    - `registers: dict[DataWrapperProtocol, LWWRegister]`
     - `clock: ClockProtocol`
+    - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `unset(self, name: DataWrapperProtocol, writer: int) -> StateUpdate`
 - ValidCRDTs(Enum)
 - CompositeCRDT(CRDTProtocol)
     - currently unimplemented
