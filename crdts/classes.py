@@ -682,13 +682,37 @@ class FIArray:
         """
         ...
 
-    def insert(self, index, item) -> StateUpdate:
+    @classmethod
+    def index_offset(cls, index: float) -> float:
+        """Adds/subtracts a small random offset."""
+        ...
+
+    def insert(self, item: DataWrapperProtocol, index: float) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that inserts the
             item at the index.
         """
         ...
 
-    def delete(self, index) -> StateUpdate:
+    def insert_between(self, item: DataWrapperProtocol,
+        first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at an index between first and second.
+        """
+        ...
+
+    def insert_first(self, item: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at an index between 0 and the first item.
+        """
+        ...
+
+    def insert_last(self, item: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that inserts the
+            item at an index between the last item and 1.
+        """
+        ...
+
+    def delete(self, item: DataWrapperProtocol) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that deletes the
             specified item.
         """
