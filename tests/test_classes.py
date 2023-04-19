@@ -418,7 +418,7 @@ class TestCRDTs(unittest.TestCase):
         orset2.update(update)
         assert orset2.read() == view2 == view1
 
-    def test_ORSet_update_from_history_converges(self):
+    def test_ORSet_updates_from_history_converge(self):
         orset1 = classes.ORSet()
         orset2 = classes.ORSet(clock=classes.ScalarClock(0, orset1.clock.uuid))
         orset1.observe(1)
@@ -433,7 +433,9 @@ class TestCRDTs(unittest.TestCase):
     def test_ORSet_pack_unpack_e2e(self):
         orset1 = classes.ORSet()
         orset1.observe(1)
+        orset1.observe(StrDataWrapper('hello'))
         orset1.remove(2)
+        orset1.remove(BytesDataWrapper(b'hello'))
         packed = orset1.pack()
         orset2 = classes.ORSet.unpack(packed)
 
@@ -782,14 +784,20 @@ class TestCRDTs(unittest.TestCase):
         lwwmap1.extend(StrDataWrapper('foo'), StrDataWrapper('bruf'), 1)
         lwwmap1.extend(StrDataWrapper('oof'), StrDataWrapper('bruf'), 1)
 
-        history = lwwmap1.history()
-        for update in history:
+        for update in lwwmap1.history():
             lwwmap2.update(update)
 
         assert lwwmap1.checksums() == lwwmap2.checksums()
 
     def test_LWWMap_pack_unpack_e2e(self):
-        ...
+        lwwmap = classes.LWWMap()
+        lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bar'), 1)
+        lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bruf'), 1)
+        lwwmap.extend(StrDataWrapper('oof'), StrDataWrapper('bruf'), 1)
+        packed = lwwmap.pack()
+        unpacked = classes.LWWMap.unpack(packed)
+
+        assert unpacked.checksums() == lwwmap.checksums()
 
     # def test_LWWMap_
 

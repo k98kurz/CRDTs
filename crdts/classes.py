@@ -303,11 +303,27 @@ class ORSet:
         """Pack the data and metadata into a bytes string."""
         clock_bytes = self.clock.pack()
         clock_size = len(clock_bytes)
+        observed_metadata = {}
+        removed_metadata = {}
+
+        for member in self.observed_metadata:
+            if isinstance(member, DataWrapperProtocol):
+                key = member.__class__.__name__ + '_' + member.pack().hex()
+            else:
+                key = member
+            observed_metadata[key] = self.observed_metadata[member]
+
+        for member in self.removed_metadata:
+            if isinstance(member, DataWrapperProtocol):
+                key = member.__class__.__name__ + '_' + member.pack().hex()
+            else:
+                key = member
+            removed_metadata[key] = self.removed_metadata[member]
 
         data = bytes(json.dumps(
             {
-                'o': self.observed_metadata,
-                'r': self.removed_metadata
+                'o': observed_metadata,
+                'r': removed_metadata
             },
             separators=(',', ':'),
             sort_keys=True
@@ -333,9 +349,28 @@ class ORSet:
         )
         clock = ScalarClock.unpack(clock)
         sets = json.loads(str(sets, 'utf-8'))
-        observed_metadata = sets['o']
+        observed_metadata = {}
+        removed_metadata = {}
+        o_metadata = sets['o']
+        r_metadata = sets['r']
+
+        for member in o_metadata:
+            if len(member.split('_')) == 2 and member.split('_')[0] in globals():
+                member_class, member_hex = member.split('_')
+                key = globals()[member_class].unpack(bytes.fromhex(member_hex))
+                observed_metadata[key] = o_metadata[member]
+            else:
+                observed_metadata[member] = o_metadata[member]
+
+        for member in r_metadata:
+            if len(member.split('_')) == 2 and member.split('_')[0] in globals():
+                member_class, member_hex = member.split('_')
+                key = globals()[member_class].unpack(bytes.fromhex(member_hex))
+                removed_metadata[key] = r_metadata[member]
+            else:
+                removed_metadata[member] = r_metadata[member]
+
         observed = set(observed_metadata.keys())
-        removed_metadata = sets['r']
         removed = set(removed_metadata.keys())
 
         return cls(observed, observed_metadata, removed, removed_metadata, clock)
@@ -381,13 +416,13 @@ class ORSet:
                 if self.clock.is_later(ts, oldts):
                     self.observed_metadata[member] = ts
 
-            # remove from removed
-            if member in self.removed and (
-                member in self.removed_metadata and
-                not self.clock.is_later(self.removed_metadata[member], ts)
-            ):
-                self.removed.remove(member)
-                del self.removed_metadata[member]
+                # remove from removed
+                if member in self.removed:
+                    self.removed.remove(member)
+                    del self.removed_metadata[member]
+
+                # invalidate cache
+                self.cache = None
 
         if op == 'r':
             # add to removed
@@ -400,13 +435,13 @@ class ORSet:
                 if self.clock.is_later(ts, oldts):
                     self.removed_metadata[member] = ts
 
-            # remove from observed
-            if member in self.observed and (
-                member in self.observed_metadata and
-                self.clock.is_later(ts, self.observed_metadata[member])
-            ):
-                self.observed.remove(member)
-                del self.observed_metadata[member]
+                # remove from observed
+                if member in self.observed:
+                    self.observed.remove(member)
+                    del self.observed_metadata[member]
+
+                # invalidate cache
+                self.cache = None
 
         self.clock.update(ts)
 
@@ -904,7 +939,7 @@ class LWWMap:
         for name in self.names.read():
             name_class = name.__class__.__name__
             key = name_class + '_' + name.pack().hex()
-            value_class = self.registers[name].__name__
+            value_class = self.registers[name].__class__.__name__
             registers[key] = value_class + '_' + self.registers[name].pack().hex()
 
         registers = json.dumps(registers, separators=(',', ':'), sort_keys=True)
@@ -916,6 +951,9 @@ class LWWMap:
 
         return struct.pack(
             f'!III{clock_size}s{names_size}s{registers_size}s',
+            clock_size,
+            names_size,
+            registers_size,
             clock,
             names,
             registers
