@@ -1095,8 +1095,8 @@ class LWWMap:
     def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
                 writer: int) -> StateUpdate:
         """Extends the dict with name: value. Returns a StateUpdate."""
-        assert isinstance(name, DataWrapperProtocol) or name is None, \
-            'name must be a DataWrapperProtocol or None'
+        assert isinstance(name, DataWrapperProtocol), \
+            'name must be a DataWrapperProtocol'
         assert isinstance(value, DataWrapperProtocol) or value is None, \
             'value must be a DataWrapperProtocol or None'
         assert type(writer) is int, 'writer must be an int'
@@ -1112,8 +1112,8 @@ class LWWMap:
 
     def unset(self, name: DataWrapperProtocol, writer: int) -> StateUpdate:
         """Removes the key name from the dict. Returns a StateUpdate."""
-        assert isinstance(name, DataWrapperProtocol) or name is None, \
-            'name must be a DataWrapperProtocol or None'
+        assert isinstance(name, DataWrapperProtocol), \
+            'name must be a DataWrapperProtocol'
         assert type(writer) is int, 'writer must be an int'
 
         state_update = StateUpdate(
