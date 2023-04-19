@@ -40,7 +40,7 @@ Each implementation must include a full test suite to be considered complete.
 - [ ] FIArray
 - [ ] RGArray
 - [x] LWWRegister
-- [ ] LWWMap
+- [x] LWWMap
 - [ ] CompositeCRDT
 - [ ] Decent documentation
 

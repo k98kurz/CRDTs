@@ -793,13 +793,13 @@ class TestCRDTs(unittest.TestCase):
         lwwmap = classes.LWWMap()
         lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bar'), 1)
         lwwmap.extend(StrDataWrapper('foo'), StrDataWrapper('bruf'), 1)
+        lwwmap.extend(StrDataWrapper('floof'), StrDataWrapper('bruf'), 1)
+        lwwmap.unset(StrDataWrapper('floof'), 1)
         lwwmap.extend(StrDataWrapper('oof'), StrDataWrapper('bruf'), 1)
         packed = lwwmap.pack()
         unpacked = classes.LWWMap.unpack(packed)
 
         assert unpacked.checksums() == lwwmap.checksums()
-
-    # def test_LWWMap_
 
 
 if __name__ == '__main__':
