@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import is_dataclass
+from decimal import Decimal
 from context import classes, interfaces, datawrappers
 import unittest
 
@@ -8,8 +9,9 @@ import unittest
 # classes.StrWrapper = StrWrapper
 # classes.BytesWrapper = BytesWrapper
 
-StrWrapper = datawrappers.StrWrapper
 BytesWrapper = datawrappers.BytesWrapper
+DecimalWrapper = datawrappers.DecimalWrapper
+StrWrapper = datawrappers.StrWrapper
 
 
 class TestCRDTs(unittest.TestCase):
@@ -771,9 +773,53 @@ class TestCRDTs(unittest.TestCase):
     def test_FIArray_implements_CRDTProtocol(self):
         assert isinstance(classes.FIArray(), interfaces.CRDTProtocol)
 
+    def test_FIArray_read_returns_list(self):
+        fiarray = classes.FIArray()
+        view = fiarray.read()
+        assert isinstance(view, list)
+
+    def test_FIArray_index_offset_returns_Decimal_within_10_percent(self):
+        index = Decimal('0.5')
+        new_index = classes.FIArray.index_offset(index)
+
+        assert new_index != index
+        assert new_index < index * Decimal('1.1')
+        assert new_index > index * Decimal('0.9')
+
+    def test_FIArray_insert_returns_StateUpdate_with_tuple(self):
+        fiarray = classes.FIArray()
+        update = fiarray.insert(StrWrapper('test'), 1, Decimal('0.5'))
+
+        assert isinstance(update, classes.StateUpdate)
+        assert type(update.data) is tuple
+        assert len(update.data) == 4
+        assert update.data[0] == 'o'
+        assert update.data[1] == StrWrapper('test')
+        assert update.data[2] == 1
+        assert update.data[3] == DecimalWrapper(Decimal('0.5'))
+
+    def test_FIArray_insert_changes_view(self):
+        fiarray = classes.FIArray()
+        view1 = fiarray.read()
+        fiarray.insert(StrWrapper('test'), 1, Decimal('0.5'))
+        view2 = fiarray.read()
+
+        assert view1 != view2
+
+    def test_FIArray_insert_results_in_correct_order_read(self):
+        fiarray = classes.FIArray()
+        fiarray.insert(StrWrapper('test'), 1, Decimal('0.5'))
+        fiarray.insert(StrWrapper('foo'), 1, Decimal('0.25'))
+        fiarray.insert(StrWrapper('bar'), 1, Decimal('0.375'))
+        view = fiarray.read()
+
+        assert len(view) == 3
+        assert view[0] == StrWrapper('foo')
+        assert view[1] == StrWrapper('bar')
+        assert view[2] == StrWrapper('test')
+
     # def test_FIArray_(self):
-    # def test_FIArray_(self):
-    # def test_FIArray_(self):
+
     # def test_FIArray_(self):
 
 

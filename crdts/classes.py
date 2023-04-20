@@ -1,6 +1,14 @@
 from __future__ import annotations
 from binascii import crc32
 from dataclasses import dataclass, field
+from decimal import Decimal
+from random import randrange
+from crdts.datawrappers import (
+    BytesWrapper,
+    DecimalWrapper,
+    NoneWrapper,
+    StrWrapper,
+)
 from crdts.interfaces import (
     ClockProtocol, CRDTProtocol, DataWrapperProtocol, StateUpdateProtocol
 )
@@ -10,27 +18,6 @@ import struct
 from types import NoneType
 from typing import Any, Hashable, Optional
 from uuid import uuid1
-
-
-@dataclass
-class NoneWrapper:
-    """Implementation of DataWrapperProtocol for use in removing
-        registers from the LWWMap by setting them to a None value.
-    """
-    value: NoneType = field(default=None)
-
-    def __hash__(self) -> int:
-        return hash(None)
-
-    def __eq__(self, other) -> bool:
-        return type(self) == type(other)
-
-    def pack(self) -> bytes:
-        return b''
-
-    @classmethod
-    def unpack(cls, data: bytes) -> NoneWrapper:
-        return cls()
 
 
 @dataclass
@@ -1068,10 +1055,27 @@ class LWWMap:
         return state_update
 
 
-@dataclass
 class FIArray:
     """Implements a fractionally-indexed array CRDT."""
-    clock: ClockProtocol = field(default_factory=ScalarClock)
+    positions: LWWMap
+    clock: ClockProtocol
+    cache: Optional[tuple]
+
+    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
+        """Initialize an FIArray from an ORSet of items, an LWWMap of
+            item positions, and a shared clock.
+        """
+        assert type(positions) is dict or positions is None, \
+            'positions must be an LWWMap or None'
+        assert isinstance(clock, ClockProtocol) or clock is None, \
+            'clock must be a ClockProtocol or None'
+
+        clock = ScalarClock() if clock is None else clock
+        positions = LWWMap(clock=clock) if positions is None else positions
+
+        self.positions = positions
+        self.clock = clock
+        self.cache = None
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
@@ -1082,17 +1086,48 @@ class FIArray:
         """Unpack the data bytes string into an instance."""
         ...
 
-    def read(self):
+    def read(self) -> list[DataWrapperProtocol]:
         """Return the eventually consistent data view."""
-        ...
+        if self.cache is not None:
+            if self.cache[0] == self.clock.read():
+                return self.cache[1]
 
-    def update(self, state_update: StateUpdateProtocol) -> RGArray:
+        base_map = self.positions.read()
+        reversed_map = {}
+        view = []
+
+        for item in base_map:
+            reversed_map[base_map[item]] = item
+            view.append(base_map[item])
+
+        view.sort()
+        view = [reversed_map[index] for index in view]
+
+        self.cache = (self.clock.read(), view)
+
+        return view
+
+    def update(self, state_update: StateUpdateProtocol) -> FIArray:
         """Apply an update and return self (monad pattern)."""
         assert isinstance(state_update, StateUpdateProtocol), \
             'state_update must be instance implementing StateUpdateProtocol'
         assert state_update.clock_uuid == self.clock.uuid, \
             'state_update.clock_uuid must equal CRDT.clock.uuid'
-        ...
+        assert type(state_update.data) is tuple, \
+            'state_update.data must be tuple'
+        assert state_update.data[0] in ('o', 'r'), \
+            'state_update.data[0] must be in (\'o\', \'r\')'
+        assert isinstance(state_update.data[1], DataWrapperProtocol), \
+            'state_update.data[1] must be instance implementing DataWrapperProtocol'
+        assert type(state_update.data[2]) is int, \
+            'state_update.data[2] must be writer int'
+        assert type(state_update.data[3]) in (DecimalWrapper, NoneWrapper), \
+            'state_update.data[3] must be DecimalWrapper or NoneWrapper'
+
+        self.positions.update(state_update)
+        self.cache = None
+
+        return self
 
     def checksums(self) -> tuple[int]:
         """Returns any checksums for the underlying data to detect
@@ -1108,44 +1143,90 @@ class FIArray:
         ...
 
     @classmethod
-    def index_offset(cls, index: float) -> float:
+    def index_offset(cls, index: Decimal) -> Decimal:
         """Adds/subtracts a small random offset."""
-        ...
+        assert type(index) is Decimal, 'index must be a Decimal'
 
-    def insert(self, item: DataWrapperProtocol, index: float) -> StateUpdate:
+        # get an offset within 10% no matter how many preceding zeroes
+        multiple = 1_000
+        new_index = index * multiple
+
+        while int(new_index) == 0:
+            multiple *= 1_000
+            new_index = index * multiple
+
+        offset = Decimal(randrange(int(new_index)))/(multiple * 10)
+
+        return index + offset if randrange(0, 2) else index - offset
+
+    def insert(self, item: DataWrapperProtocol, writer: int,
+        index: Decimal) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that inserts the
             item at the index.
         """
-        ...
+        state_update = StateUpdate(
+            self.clock.uuid,
+            self.clock.read(),
+            (
+                'o',
+                item,
+                writer,
+                DecimalWrapper(index)
+            )
+        )
 
-    def insert_between(self, item: DataWrapperProtocol,
+        self.update(state_update)
+
+        return state_update
+
+    def insert_between(self, item: DataWrapperProtocol, writer: int,
         first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that inserts the
             item at an index between first and second.
         """
         ...
 
-    def insert_first(self, item: DataWrapperProtocol) -> StateUpdate:
+    def insert_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that inserts the
             item at an index between 0 and the first item.
         """
         ...
 
-    def insert_last(self, item: DataWrapperProtocol) -> StateUpdate:
+    def insert_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that inserts the
             item at an index between the last item and 1.
         """
         ...
 
-    def delete(self, item: DataWrapperProtocol) -> StateUpdate:
+    def delete(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that deletes the
-            specified item.
+            item.
         """
         ...
 
-    def move(self, item, index) -> StateUpdate:
+    def move(self, item: DataWrapperProtocol, writer: int,
+        index: Decimal) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that moves the
-            specified item to the new index.
+            item to the new index.
+        """
+        ...
+
+    def move_between(self, item: DataWrapperProtocol, writer: int,
+        first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that moves the
+            item at an index between 0 and the first item.
+        """
+        ...
+
+    def move_to_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that moves the
+            item at an index between 0 and the first item.
+        """
+        ...
+
+    def move_to_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that moves the
+            item at an index between the last item and 1.
         """
         ...
 
