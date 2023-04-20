@@ -1159,6 +1159,14 @@ class FIArray:
 
         return index + offset if randrange(0, 2) else index - offset
 
+    @classmethod
+    def index_between(cls, first: Decimal, second: Decimal) -> Decimal:
+        """Return an index between first and second with a random offset."""
+        assert type(first) is Decimal, 'first must be a Decimal'
+        assert type(second) is Decimal, 'second must be a Decimal'
+
+        return cls.index_offset(Decimal(first + second)/Decimal(2))
+
     def put(self, item: DataWrapperProtocol, writer: int,
         index: Decimal) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that puts the item
@@ -1189,7 +1197,7 @@ class FIArray:
 
         first_index = self.positions.registers[first].value.value
         second_index = self.positions.registers[second].value.value
-        index = self.index_offset((first_index + second_index)/Decimal(2))
+        index = self.index_between(first_index, second_index)
 
         return self.put(item, writer, index)
 
@@ -1209,7 +1217,7 @@ class FIArray:
         else:
             prior_index = Decimal(0)
 
-        index = self.index_offset((before_index + prior_index)/Decimal(2))
+        index = self.index_between(before_index, prior_index)
 
         return self.put(item, writer, index)
 
@@ -1229,7 +1237,7 @@ class FIArray:
         else:
             next_index = Decimal(1)
 
-        index = self.index_offset((after_index + next_index)/Decimal(2))
+        index = self.index_between(after_index, next_index)
 
         return self.put(item, writer, index)
 
