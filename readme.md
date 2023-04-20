@@ -37,10 +37,10 @@ Each implementation must include a full test suite to be considered complete.
 - [x] Counter
 - [x] ORSet
 - [x] PNCounter
-- [ ] FIArray
 - [ ] RGArray
 - [x] LWWRegister
 - [x] LWWMap
+- [x] FIArray
 - [ ] CompositeCRDT
 - [ ] Decent documentation
 
@@ -120,8 +120,6 @@ style monad pattern.
     - `clock: ClockProtocol = field(default_factory=ScalarClock)`
     - `increase(self, amount: int = 1) -> StateUpdate`
     - `decrease(self, amount: int = 1) -> StateUpdate`
-- FIArray(CRDTProtocol)
-    - currently unimplemented
 - RGArray (CRDTProtocol)
     - currently unimplemented
 - LWWRegister(CRDTProtocol)
@@ -137,6 +135,19 @@ style monad pattern.
     - `clock: ClockProtocol`
     - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int) -> StateUpdate`
     - `unset(self, name: DataWrapperProtocol, writer: int) -> StateUpdate`
+- FIArray(CRDTProtocol)
+    - `positions: LWWMap`
+    - `clock: ClockProtocol`
+    - `cache: Optional[tuple]`
+    - `@classmethod index_offset(cls, index: Decimal) -> Decimal`
+    - `@classmethod index_between(cls, first: Decimal, second: Decimal) -> Decimal`
+    - `put(self, item: DataWrapperProtocol, writer: int, index: Decimal) -> StateUpdate`
+    - `put_between(self, item: DataWrapperProtocol, writer: int, first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate`
+    - `put_before(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol) -> StateUpdate`
+    - `put_after(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol) -> StateUpdate`
+    - `put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `put_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `delete(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
 - ValidCRDTs(Enum)
 - CompositeCRDT(CRDTProtocol)
     - currently unimplemented

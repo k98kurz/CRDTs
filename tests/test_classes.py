@@ -914,15 +914,18 @@ class TestCRDTs(unittest.TestCase):
         for update in history:
             assert isinstance(update, interfaces.StateUpdateProtocol)
 
-    def test_FIArray_concurrent_writes_bias_to_higher_writer(self):
+    def test_FIArray_concurrent_puts_bias_to_higher_writer(self):
         fiarray1 = classes.FIArray()
         fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
-        update1 = fiarray1.put(StrWrapper('foo'), 1, Decimal('0.25'))
-        update2 = fiarray2.put(StrWrapper('test'), 1, Decimal('0.15'))
+        update1 = fiarray1.put(StrWrapper('test'), 1, Decimal('0.75'))
+        update2 = fiarray2.put(StrWrapper('test'), 2, Decimal('0.25'))
+        update3 = fiarray1.put(StrWrapper('middle'), 1, Decimal('0.5'))
         fiarray1.update(update2)
         fiarray2.update(update1)
+        fiarray2.update(update3)
 
         assert fiarray1.checksums() == fiarray2.checksums()
+        assert fiarray1.read()[0] == StrWrapper('test')
 
     def test_FIArray_checksums_returns_tuple_of_int(self):
         fiarray = classes.FIArray()
@@ -971,7 +974,21 @@ class TestCRDTs(unittest.TestCase):
 
         assert fiarray1.read() == fiarray2.read()
 
-    # def test_FIArray_(self):
+    def test_FIArray_pack_unpack_e2e(self):
+        fiarray = classes.FIArray()
+        fiarray.put_first(StrWrapper('test'), 1)
+        fiarray.put_last(BytesWrapper(b'test'), 1)
+        packed = fiarray.pack()
+        unpacked = classes.FIArray.unpack(packed)
+
+        assert fiarray.checksums() == unpacked.checksums()
+        assert fiarray.read() == unpacked.read()
+
+        update = unpacked.put_last(StrWrapper('middle'), 2)
+        fiarray.update(update)
+
+        assert fiarray.checksums() == unpacked.checksums()
+        assert fiarray.read() == unpacked.read()
 
 
 if __name__ == '__main__':

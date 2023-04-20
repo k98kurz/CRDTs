@@ -1065,7 +1065,7 @@ class FIArray:
         """Initialize an FIArray from an ORSet of items, an LWWMap of
             item positions, and a shared clock.
         """
-        assert type(positions) is dict or positions is None, \
+        assert type(positions) is LWWMap or positions is None, \
             'positions must be an LWWMap or None'
         assert isinstance(clock, ClockProtocol) or clock is None, \
             'clock must be a ClockProtocol or None'
@@ -1079,12 +1079,13 @@ class FIArray:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        ...
+        return self.positions.pack()
 
     @classmethod
-    def unpack(cls, data: bytes) -> RGArray:
+    def unpack(cls, data: bytes) -> FIArray:
         """Unpack the data bytes string into an instance."""
-        ...
+        positions = LWWMap.unpack(data)
+        return cls(positions=positions, clock=positions.clock)
 
     def read(self) -> list[DataWrapperProtocol]:
         """Return the eventually consistent data view."""
