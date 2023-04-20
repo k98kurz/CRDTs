@@ -786,9 +786,9 @@ class TestCRDTs(unittest.TestCase):
         assert new_index < index * Decimal('1.1')
         assert new_index > index * Decimal('0.9')
 
-    def test_FIArray_insert_returns_StateUpdate_with_tuple(self):
+    def test_FIArray_put_returns_StateUpdate_with_tuple(self):
         fiarray = classes.FIArray()
-        update = fiarray.insert(StrWrapper('test'), 1, Decimal('0.5'))
+        update = fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
 
         assert isinstance(update, classes.StateUpdate)
         assert type(update.data) is tuple
@@ -798,19 +798,85 @@ class TestCRDTs(unittest.TestCase):
         assert update.data[2] == 1
         assert update.data[3] == DecimalWrapper(Decimal('0.5'))
 
-    def test_FIArray_insert_changes_view(self):
+    def test_FIArray_put_changes_view(self):
         fiarray = classes.FIArray()
         view1 = fiarray.read()
-        fiarray.insert(StrWrapper('test'), 1, Decimal('0.5'))
+        fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
         view2 = fiarray.read()
 
         assert view1 != view2
 
-    def test_FIArray_insert_results_in_correct_order_read(self):
+    def test_FIArray_put_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.insert(StrWrapper('test'), 1, Decimal('0.5'))
-        fiarray.insert(StrWrapper('foo'), 1, Decimal('0.25'))
-        fiarray.insert(StrWrapper('bar'), 1, Decimal('0.375'))
+        fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
+        fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        update = fiarray.put(StrWrapper('bar'), 1, Decimal('0.375'))
+        view = fiarray.read()
+
+        assert type(update) is classes.StateUpdate
+        assert len(view) == 3
+        assert view[0] == StrWrapper('foo')
+        assert view[1] == StrWrapper('bar')
+        assert view[2] == StrWrapper('test')
+
+    def test_FIArray_put_between_results_in_correct_order_read(self):
+        fiarray = classes.FIArray()
+        fiarray.put(StrWrapper('first'), 1, Decimal('0.5'))
+        fiarray.put(StrWrapper('last'), 1, Decimal('0.75'))
+        update = fiarray.put_between(StrWrapper('middle'), 1,
+            StrWrapper('first'), StrWrapper('last'))
+        view = fiarray.read()
+
+        assert type(update) is classes.StateUpdate
+        assert len(view) == 3
+        assert view[0] == StrWrapper('first')
+        assert view[1] == StrWrapper('middle')
+        assert view[2] == StrWrapper('last')
+
+    def test_FIArray_put_before_results_in_correct_order_read(self):
+        fiarray = classes.FIArray()
+        fiarray.put(StrWrapper('last'), 1, Decimal('0.5'))
+        fiarray.put(StrWrapper('middle'), 1, Decimal('0.25'))
+        update = fiarray.put_before(StrWrapper('first'), 1, StrWrapper('middle'))
+        view = fiarray.read()
+
+        assert type(update) is classes.StateUpdate
+        assert len(view) == 3
+        assert view[0] == StrWrapper('first')
+        assert view[1] == StrWrapper('middle')
+        assert view[2] == StrWrapper('last')
+
+    def test_FIArray_put_after_results_in_correct_order_read(self):
+        fiarray = classes.FIArray()
+        fiarray.put(StrWrapper('first'), 1, Decimal('0.5'))
+        fiarray.put(StrWrapper('middle'), 1, Decimal('0.75'))
+        update = fiarray.put_after(StrWrapper('last'), 1, StrWrapper('middle'))
+        view = fiarray.read()
+
+        assert type(update) is classes.StateUpdate
+        assert len(view) == 3
+        assert view[0] == StrWrapper('first')
+        assert view[1] == StrWrapper('middle')
+        assert view[2] == StrWrapper('last')
+
+    def test_FIArray_put_first_results_in_correct_order_read(self):
+        fiarray = classes.FIArray()
+        fiarray.put_first(StrWrapper('test'), 1)
+        fiarray.put_first(StrWrapper('bar'), 1)
+        update = fiarray.put_first(StrWrapper('foo'), 1)
+        view = fiarray.read()
+
+        assert type(update) is classes.StateUpdate
+        assert len(view) == 3
+        assert view[0] == StrWrapper('foo')
+        assert view[1] == StrWrapper('bar')
+        assert view[2] == StrWrapper('test')
+
+    def test_FIArray_put_last_results_in_correct_order_read(self):
+        fiarray = classes.FIArray()
+        fiarray.put_last(StrWrapper('foo'), 1)
+        fiarray.put_last(StrWrapper('bar'), 1)
+        fiarray.put_last(StrWrapper('test'), 1)
         view = fiarray.read()
 
         assert len(view) == 3
@@ -818,7 +884,25 @@ class TestCRDTs(unittest.TestCase):
         assert view[1] == StrWrapper('bar')
         assert view[2] == StrWrapper('test')
 
-    # def test_FIArray_(self):
+    def test_FIArray_delete_returns_StateUpdate_with_tuple(self):
+        fiarray = classes.FIArray()
+        update = fiarray.delete(StrWrapper('test'), 1)
+
+        assert type(update) is classes.StateUpdate
+        assert type(update.data) is tuple
+        assert len(update.data) == 4
+        assert update.data[0] == 'r'
+        assert update.data[1] == StrWrapper('test')
+        assert update.data[2] == 1
+        assert update.data[3] == datawrappers.NoneWrapper()
+
+    def test_FIArray_delete_removes_item(self):
+        fiarray = classes.FIArray()
+        fiarray.put_first(StrWrapper('test'), 1)
+
+        assert fiarray.read()[0] == StrWrapper('test')
+        fiarray.delete(StrWrapper('test'), 1)
+        assert fiarray.read() == []
 
     # def test_FIArray_(self):
 

@@ -1140,7 +1140,7 @@ class FIArray:
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
-        ...
+        return self.positions.history()
 
     @classmethod
     def index_offset(cls, index: Decimal) -> Decimal:
@@ -1159,10 +1159,10 @@ class FIArray:
 
         return index + offset if randrange(0, 2) else index - offset
 
-    def insert(self, item: DataWrapperProtocol, writer: int,
+    def put(self, item: DataWrapperProtocol, writer: int,
         index: Decimal) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
-            item at the index.
+        """Creates, applies, and returns a StateUpdate that puts the item
+            at the index.
         """
         state_update = StateUpdate(
             self.clock.uuid,
@@ -1179,56 +1179,114 @@ class FIArray:
 
         return state_update
 
-    def insert_between(self, item: DataWrapperProtocol, writer: int,
+    def put_between(self, item: DataWrapperProtocol, writer: int,
         first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
-            item at an index between first and second.
+        """Creates, applies, and returns a StateUpdate that puts the item
+            at an index between first and second.
         """
-        ...
+        assert first in self.read(), 'first must already be assigned a position'
+        assert second in self.read(), 'second must already be assigned a position'
 
-    def insert_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
+        first_index = self.positions.registers[first].value.value
+        second_index = self.positions.registers[second].value.value
+        index = self.index_offset((first_index + second_index)/Decimal(2))
+
+        return self.put(item, writer, index)
+
+    def put_before(self, item: DataWrapperProtocol, writer: int,
+        other: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the item
+            before the other item.
+        """
+        assert other in self.read(), 'other must already be assigned a position'
+
+        before_index = self.positions.registers[other].value.value
+        first_index = self.read().index(other)
+
+        if first_index > 0:
+            prior = self.read()[first_index-1]
+            prior_index = self.positions.registers[prior].value.value
+        else:
+            prior_index = Decimal(0)
+
+        index = self.index_offset((before_index + prior_index)/Decimal(2))
+
+        return self.put(item, writer, index)
+
+    def put_after(self, item: DataWrapperProtocol, writer: int,
+        other: DataWrapperProtocol) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the item
+            after the other item.
+        """
+        assert other in self.read(), 'other must already be assigned a position'
+
+        after_index = self.positions.registers[other].value.value
+        first_index = self.read().index(other)
+
+        if len(self.read()) > first_index+1:
+            next = self.read()[first_index+1]
+            next_index = self.positions.registers[next].value.value
+        else:
+            next_index = Decimal(1)
+
+        index = self.index_offset((after_index + next_index)/Decimal(2))
+
+        return self.put(item, writer, index)
+
+    def put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the
             item at an index between 0 and the first item.
         """
-        ...
+        if len(self.read()) > 0:
+            first = self.read()[0]
+            first_index = self.positions.registers[first].value.value
+            # average between 0 and first index
+            index = Decimal(Decimal(0) + first_index)/Decimal(2)
+        else:
+            # average between 0 and 1
+            index = Decimal('0.5')
 
-    def insert_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that inserts the
+        # add random offset
+        index = self.index_offset(index)
+
+        return self.put(item, writer, index)
+
+    def put_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the
             item at an index between the last item and 1.
         """
-        ...
+        if len(self.read()) > 0:
+            last = self.read()[-1]
+            last_index = self.positions.registers[last].value.value
+            # average between last index and 1
+            index = Decimal(last_index + Decimal(1))/Decimal(2)
+        else:
+            # average between 0 and 1
+            index = Decimal('0.5')
+
+        # add random offset
+        index = self.index_offset(index)
+
+        return self.put(item, writer, index)
 
     def delete(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that deletes the
             item.
         """
-        ...
+        state_update = StateUpdate(
+            self.clock.uuid,
+            self.clock.read(),
+            (
+                'r',
+                item,
+                writer,
+                NoneWrapper()
+            )
+        )
 
-    def move(self, item: DataWrapperProtocol, writer: int,
-        index: Decimal) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that moves the
-            item to the new index.
-        """
-        ...
+        self.update(state_update)
 
-    def move_between(self, item: DataWrapperProtocol, writer: int,
-        first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that moves the
-            item at an index between 0 and the first item.
-        """
-        ...
-
-    def move_to_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that moves the
-            item at an index between 0 and the first item.
-        """
-        ...
-
-    def move_to_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that moves the
-            item at an index between the last item and 1.
-        """
-        ...
+        return state_update
 
 
 class ValidCRDTs(Enum):
