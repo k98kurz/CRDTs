@@ -904,6 +904,73 @@ class TestCRDTs(unittest.TestCase):
         fiarray.delete(StrWrapper('test'), 1)
         assert fiarray.read() == []
 
+    def test_FIArray_history_returns_tuple_of_StateUpdateProtocol(self):
+        fiarray = classes.FIArray()
+        fiarray.put_first(StrWrapper('test'), 1)
+        fiarray.put_first(StrWrapper('fdfdf'), 1)
+        history = fiarray.history()
+
+        assert type(history) is tuple
+        for update in history:
+            assert isinstance(update, interfaces.StateUpdateProtocol)
+
+    def test_FIArray_concurrent_writes_bias_to_higher_writer(self):
+        fiarray1 = classes.FIArray()
+        fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
+        update1 = fiarray1.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        update2 = fiarray2.put(StrWrapper('test'), 1, Decimal('0.15'))
+        fiarray1.update(update2)
+        fiarray2.update(update1)
+
+        assert fiarray1.checksums() == fiarray2.checksums()
+
+    def test_FIArray_checksums_returns_tuple_of_int(self):
+        fiarray = classes.FIArray()
+        fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        checksums = fiarray.checksums()
+
+        assert type(checksums) is tuple
+        for item in checksums:
+            assert type(item) is int
+
+    def test_FIArray_checksums_change_after_update(self):
+        fiarray = classes.FIArray()
+        fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        checksums1 = fiarray.checksums()
+        fiarray.put(StrWrapper('foo'), 1, Decimal('0.5'))
+        checksums2 = fiarray.checksums()
+        fiarray.put(StrWrapper('oof'), 1, Decimal('0.35'))
+        checksums3 = fiarray.checksums()
+
+        assert checksums1 != checksums2
+        assert checksums1 != checksums3
+        assert checksums2 != checksums3
+
+    def test_FIArray_update_is_idempotent(self):
+        fiarray = classes.FIArray()
+        update = fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        checksums1 = fiarray.checksums()
+        view1 = fiarray.read()
+        fiarray.update(update)
+        checksums2 = fiarray.checksums()
+        view2 = fiarray.read()
+
+        assert checksums1 == checksums2
+        assert view1 == view2
+
+    def test_FIArray_converges_from_history(self):
+        fiarray1 = classes.FIArray()
+        fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
+        fiarray1.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        fiarray1.put(StrWrapper('test'), 1, Decimal('0.15'))
+        fiarray1.put(StrWrapper('bar'), 1, Decimal('0.5'))
+        fiarray1.delete(StrWrapper('test'), 1)
+
+        for state_update in fiarray1.history():
+            fiarray2.update(state_update)
+
+        assert fiarray1.read() == fiarray2.read()
+
     # def test_FIArray_(self):
 
 

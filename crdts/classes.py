@@ -1133,7 +1133,7 @@ class FIArray:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
-        ...
+        return self.positions.checksums()
 
     def history(self) -> tuple[StateUpdate]:
         """Returns a concise history of StateUpdates that will converge
