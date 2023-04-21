@@ -561,8 +561,21 @@ class TestCRDTs(unittest.TestCase):
         lwwregister1.update(update2)
         lwwregister2.update(update1)
 
-        assert lwwregister1.read().value == lwwregister2.read().value
+        assert lwwregister1.read() == lwwregister2.read()
         assert lwwregister1.read().value == 'barfoo'
+
+    def test_LWWRegister_concurrent_writes_bias_to_one_value(self):
+        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
+        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock)
+
+        update1 = lwwregister1.write(StrWrapper('foobar'), 1)
+        update2 = lwwregister2.write(StrWrapper('barfoo'), 1)
+        lwwregister1.update(update2)
+        lwwregister2.update(update1)
+
+        assert lwwregister1.read() == lwwregister2.read()
+        assert lwwregister1.read().value == 'foobar'
 
     def test_LWWRegister_checksums_returns_tuple_of_int(self):
         lwwregister = classes.LWWRegister(StrWrapper('test'), StrWrapper('thing'))
@@ -608,6 +621,18 @@ class TestCRDTs(unittest.TestCase):
         view2 = lwwregister2.read()
         lwwregister2.update(update)
         assert lwwregister2.read() == view2
+
+    def test_LWWRegister_updates_are_commutative(self):
+        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        clock1 = classes.ScalarClock(uuid=lwwregister1.clock.uuid)
+        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock1)
+
+        update1 = lwwregister1.write(StrWrapper('foo1'), 1)
+        update2 = lwwregister1.write(StrWrapper('foo2'), 1)
+        lwwregister2.update(update2)
+        lwwregister2.update(update1)
+
+        assert lwwregister1.read() == lwwregister2.read()
 
     def test_LWWRegister_update_from_history_converges(self):
         lwwregister1 = classes.LWWRegister(StrWrapper('test'))
@@ -743,6 +768,17 @@ class TestCRDTs(unittest.TestCase):
 
         assert checksums1 == checksums2
         assert view1 == view2
+
+    def test_LWWMap_updates_are_commutative(self):
+        lwwmap1 = classes.LWWMap()
+        lwwmap2 = classes.LWWMap(clock=classes.ScalarClock(uuid=lwwmap1.clock.uuid))
+        update1 = lwwmap1.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
+        update2 = lwwmap1.unset(StrWrapper('foo'), 1)
+
+        lwwmap2.update(update2)
+        lwwmap2.update(update1)
+
+        assert lwwmap2.read() == lwwmap1.read()
 
     def test_LWWMap_updates_from_history_converge(self):
         lwwmap1 = classes.LWWMap()
@@ -960,6 +996,23 @@ class TestCRDTs(unittest.TestCase):
 
         assert checksums1 == checksums2
         assert view1 == view2
+
+    def test_FIArray_updates_are_commutative(self):
+        fiarray1 = classes.FIArray()
+        fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
+        fiarray3 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
+        update1 = fiarray1.put(StrWrapper('test'), 1, Decimal('0.75'))
+        update2 = fiarray1.put(StrWrapper('test'), 2, Decimal('0.25'))
+        update3 = fiarray1.put(StrWrapper('middle'), 1, Decimal('0.5'))
+
+        fiarray2.update(update1)
+        fiarray2.update(update2)
+        fiarray2.update(update3)
+        fiarray3.update(update3)
+        fiarray3.update(update2)
+        fiarray3.update(update1)
+
+        assert fiarray1.read() == fiarray2.read() == fiarray3.read()
 
     def test_FIArray_converges_from_history(self):
         fiarray1 = classes.FIArray()
