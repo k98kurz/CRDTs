@@ -751,6 +751,10 @@ class LWWRegister:
         """Return the eventually consistent data view."""
         return self.value.__class__.unpack(self.value.pack())
 
+    @classmethod
+    def compare_values(cls, value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool:
+        return value1.pack() > value2.pack()
+
     def update(self, state_update: StateUpdateProtocol) -> LWWRegister:
         """Apply an update and return self (monad pattern)."""
         assert isinstance(state_update, StateUpdateProtocol), \
@@ -772,11 +776,14 @@ class LWWRegister:
             self.last_writer = state_update.data[0]
             self.value = state_update.data[1]
 
-        # use writer int as tie breaker for concurrent updates
-        if (self.clock.are_concurrent(state_update.ts, self.last_update)
-                and state_update.data[0] > self.last_writer):
-            self.last_writer = state_update.data[0]
-            self.value = state_update.data[1]
+        if self.clock.are_concurrent(state_update.ts, self.last_update):
+            # use writer int and value as tie breakers for concurrent updates
+            if (state_update.data[0] > self.last_writer) or (
+                    state_update.data[0] == self.last_writer and
+                    self.compare_values(state_update.data[1], self.value)
+                ):
+                self.last_writer = state_update.data[0]
+                self.value = state_update.data[1]
 
         self.clock.update(state_update.ts)
 
