@@ -68,6 +68,21 @@ class DecimalWrapper(StrWrapper):
         return cls(Decimal(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8')))
 
 
+class IntWrapper(DecimalWrapper):
+    value: int
+
+    def __init__(self, value: int) -> None:
+        assert type(value) is int, 'value must be int'
+        self.value = value
+
+    def pack(self) -> bytes:
+        return struct.pack('!i', self.value)
+
+    @classmethod
+    def unpack(cls, data: bytes) -> IntWrapper:
+        return cls(struct.unpack('!i', data)[0])
+
+
 class RGATupleWrapper(StrWrapper):
     value: tuple[DataWrapperProtocol, tuple[int, int]]
 

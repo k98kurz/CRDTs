@@ -85,6 +85,39 @@ class TestDataWrappers(unittest.TestCase):
         assert dw0 < dw1
         assert dw0 <= dw1
 
+    # IntWrapper tests
+    def test_IntWrapper_implements_DataWrapperProtocol(self):
+        assert isinstance(datawrappers.IntWrapper(1), interfaces.DataWrapperProtocol)
+
+    def test_IntWrapper_value_is_int_type(self):
+        dw = datawrappers.IntWrapper(1)
+        assert type(dw.value) is int
+
+    def test_IntWrapper_pack_returns_bytes(self):
+        dw = datawrappers.IntWrapper(1)
+        assert type(dw.pack()) is bytes
+
+    def test_IntWrapper_unpack_returns_instance(self):
+        data = struct.pack('!i', 123)
+        unpacked = datawrappers.IntWrapper.unpack(data)
+        assert type(unpacked) is datawrappers.IntWrapper
+
+    def test_IntWrapper_pack_unpack_e2e(self):
+        dw = datawrappers.IntWrapper(321)
+        packed = dw.pack()
+        unpacked = datawrappers.IntWrapper.unpack(packed)
+        assert dw == unpacked
+
+    def test_IntWrapper_comparisons(self):
+        dw0 = datawrappers.IntWrapper(123)
+        dw1 = datawrappers.IntWrapper(321)
+
+        assert dw0 == dw0
+        assert dw1 > dw0
+        assert dw1 >= dw0
+        assert dw0 < dw1
+        assert dw0 <= dw1
+
     # RGATupleWrapper tests
     def test_RGATupleWrapper_implements_DataWrapperProtocol(self):
         rgatw = datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 1)))
