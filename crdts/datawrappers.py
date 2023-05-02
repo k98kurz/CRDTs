@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
+from .interfaces import DataWrapperProtocol
 from types import NoneType
 import struct
 
@@ -65,6 +66,52 @@ class DecimalWrapper(StrWrapper):
     @classmethod
     def unpack(cls, data: bytes) -> DecimalWrapper:
         return cls(Decimal(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8')))
+
+
+class RGATupleWrapper(StrWrapper):
+    value: tuple[DataWrapperProtocol, tuple[int, int]]
+
+    def __init__(self, value: tuple[DataWrapperProtocol, tuple[int, int]]) -> None:
+        assert type(value) is tuple, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert len(value) == 2, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert isinstance(value[0], DataWrapperProtocol), 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value[1]) is tuple, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert len(value[1]) == 2, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value[1][0]) is int, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value[1][1]) is int, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+
+        self.value = value
+
+    def __gt__(self, other: RGATupleWrapper) -> bool:
+        return self.value > other.value
+
+    def __ge__(self, other: RGATupleWrapper) -> bool:
+        return self.value >= other.value
+
+    def __lt__(self, other: RGATupleWrapper) -> bool:
+        return other.value > self.value
+
+    def __le__(self, other: RGATupleWrapper) -> bool:
+        return other.value >= self.value
+
+    def pack(self) -> bytes:
+        packed = self.value[0].__class__.__name__ + '_' + self.value[0].pack().hex()
+        packed = bytes(packed, 'utf-8')
+        return struct.pack(
+            f'!i{len(packed)}sii',
+            len(packed),
+            packed,
+            *self.value[1]
+        )
+
+    @classmethod
+    def unpack(cls, data: bytes) -> RGATupleWrapper:
+        packed_len, _ = struct.unpack(f'!i{len(data)-4}s', data)
+        _, packed, ts, writer = struct.unpack(f'!i{packed_len}sii', data)
+        packed = str(packed, 'utf-8')
+        classname, hex = packed.split('_')
+        item = globals()[classname].unpack(bytes.fromhex(hex))
+        return cls((item, (ts, writer)))
 
 
 @dataclass
