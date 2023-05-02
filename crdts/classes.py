@@ -742,8 +742,9 @@ class RGArray:
             sets the cache_full list. Resets the cache.
         """
         # create sorted list of all items
+        # sorted by ((timestamp, writer), wrapper class name, wrapped value)
         items = list(self.items.observed)
-        items.sort(key=lambda item: item.value[1])
+        items.sort(key=lambda item: (item.value[1], item.value[0].__class__.__name__, item.value[0].value))
 
         # set instance values
         self.cache_full = items
@@ -762,7 +763,12 @@ class RGArray:
 
         if visible:
             if item not in self.cache_full:
-                index = bisect(self.cache_full, item.value[1], key=lambda a: a.value[1])
+                # sorted by ((timestamp, writer), wrapper class name, wrapped value)
+                index = bisect(
+                    self.cache_full,
+                    (item.value[1], item.value[0].__class__.__name__, item.value[0].value),
+                    key=lambda a: (a.value[1], a.value[0].__class__.__name__, a.value[0].value)
+                )
                 self.cache_full.insert(index, item)
         else:
             if item in self.cache_full:

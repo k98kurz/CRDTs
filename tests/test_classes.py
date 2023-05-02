@@ -580,6 +580,31 @@ class TestCRDTs(unittest.TestCase):
         assert rga1.read() == rga2.read()
         assert rga1.read() == ('item1', Decimal('0.1'))
 
+    def test_RGArray_concurrent_appends_with_same_writer_order_identically(self):
+        rga1 = classes.RGArray()
+        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+
+        # order alphabetically by wrapper class name as tie breaker
+        update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)
+        update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 1)
+        rga1.update(update2)
+        rga2.update(update1)
+
+        assert rga1.read() == rga2.read()
+        assert rga1.read() == (Decimal('0.1'), 'item1')
+
+        rga1 = classes.RGArray()
+        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+
+        # order by wrapped value ascending as final tie breaker
+        update1 = rga1.append(datawrappers.StrWrapper('item0'), 1)
+        update2 = rga2.append(datawrappers.StrWrapper('item1'), 1)
+        rga1.update(update2)
+        rga2.update(update1)
+
+        assert rga1.read() == rga2.read()
+        assert rga1.read() == ('item0', 'item1')
+
     def test_RGArray_checksums_returns_tuple_of_int(self):
         rga = classes.RGArray()
         checksums = rga.checksums()
