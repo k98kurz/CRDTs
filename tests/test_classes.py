@@ -601,15 +601,65 @@ class TestCRDTs(unittest.TestCase):
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
         update = rga1.append(b'item', 1)
-        view1 = rga1.read_full()
+        view = rga1.read_full()
         rga2.update(update)
 
-        assert rga1.read_full() == view1
-        assert rga2.read_full() == view1
+        assert rga1.read_full() == view
+        assert rga2.read_full() == view
 
         rga2.update(update)
         rga1.update(update)
-        assert rga1.read_full() == rga2.read_full() == view1
+        assert rga1.read_full() == rga2.read_full() == view
+
+        update = rga2.delete(rga2.read_full()[0])
+        rga1.update(update)
+        view = rga1.read_full()
+
+        assert rga2.read_full() == view
+
+        rga1.update(update)
+        rga2.update(update)
+        assert rga1.read_full() == rga2.read_full() == view
+
+    def test_RGArray_updates_are_commutative(self):
+        rga1 = classes.RGArray()
+        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+
+        update1 = rga1.append(b'item1', 1)
+        update2 = rga1.append(b'item2', 1)
+        rga2.update(update2)
+        rga2.update(update1)
+
+        assert rga1.read() == rga2.read()
+
+    def test_RGArray_update_from_history_converges(self):
+        rga1 = classes.RGArray()
+        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+
+        rga1.append(b'item1', 1)
+        rga1.append(b'item2', 1)
+        rga1.delete(rga1.read_full()[0])
+        rga1.append(b'item3', 1)
+
+        for update in rga1.history():
+            rga2.update(update)
+
+        assert rga1.read() == rga2.read()
+
+    def test_RGArray_pack_unpack_e2e(self):
+        rga = classes.RGArray()
+        rga.append(b'item1', 1)
+        rga.append(b'item2', 1)
+        rga.delete(rga.read_full()[0])
+        rga.append(b'item3', 1)
+
+        packed = rga.pack()
+        assert type(packed) is bytes
+        unpacked = classes.RGArray.unpack(packed)
+        assert isinstance(unpacked, classes.RGArray)
+
+        assert unpacked.read_full() == rga.read_full()
+        assert unpacked.checksums() == rga.checksums()
 
     # LWWRegister tests
     def test_LWWRegister_implements_CRDTProtocol(self):
