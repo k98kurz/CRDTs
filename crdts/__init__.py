@@ -1,5 +1,4 @@
 from crdts.classes import (
-    NoneWrapper,
     StateUpdate,
     ScalarClock,
     GSet,
@@ -22,6 +21,8 @@ from crdts.interfaces import (
 from crdts.datawrappers import (
     BytesWrapper,
     DecimalWrapper,
+    IntWrapper,
     NoneWrapper,
+    RGATupleWrapper,
     StrWrapper
 )
