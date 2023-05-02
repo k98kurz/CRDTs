@@ -638,7 +638,7 @@ class RGArray:
     """
     items: ORSet
     clock: ClockProtocol
-    cache_full: list[tuple[Hashable, tuple[int, int], bool]]
+    cache_full: list[RGATupleWrapper]
     cache: tuple[Any]
 
     def __init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None:
@@ -667,8 +667,10 @@ class RGArray:
         items = ORSet.unpack(data)
         return cls(items=items, clock=items.clock)
 
-    def read(self) -> tuple:
-        """Return the eventually consistent data view."""
+    def read(self) -> tuple[Any]:
+        """Return the eventually consistent data view. Cannot be used for
+            preparing deletion updates.
+        """
         if self.cache_full is None:
             self.calculate_cache()
 
@@ -677,8 +679,12 @@ class RGArray:
 
         return self.cache
 
-    def read_full(self) -> tuple:
-        """Return the full, eventually consistent list of items and tombstones."""
+    def read_full(self) -> tuple[RGATupleWrapper]:
+        """Return the full, eventually consistent list of items without
+            tombstones but with complete RGATupleWrappers rather than the
+            underlying values. Use this for preparing deletion updates --
+            only a RGATupleWrapper can be used for delete.
+        """
         if self.cache_full is None:
             self.calculate_cache()
 
@@ -763,6 +769,7 @@ class RGArray:
 
         if visible:
             if item not in self.cache_full:
+                # find correct insertion index
                 # sorted by ((timestamp, writer), wrapper class name, wrapped value)
                 index = bisect(
                     self.cache_full,
@@ -772,6 +779,7 @@ class RGArray:
                 self.cache_full.insert(index, item)
         else:
             if item in self.cache_full:
+                # remove the item
                 self.cache_full.remove(item)
 
         self.cache = None
