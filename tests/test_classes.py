@@ -557,6 +557,15 @@ class TestCRDTs(unittest.TestCase):
         assert item.value[0].value not in rga.read()
         assert item not in rga.read_full()
 
+    def test_RGArray_read_full_returns_tuple_of_RGATupleWrapper(self):
+        rga = classes.RGArray()
+        rga.append(datawrappers.BytesWrapper(b'hello'), 1)
+        view = rga.read_full()
+
+        assert type(view) is tuple
+        for item in view:
+            assert isinstance(item, datawrappers.RGATupleWrapper)
+
     def test_RGArray_history_returns_tuple_of_StateUpdateProtocol(self):
         rga = classes.RGArray()
         rga.append(datawrappers.BytesWrapper(b'item'), 1)
