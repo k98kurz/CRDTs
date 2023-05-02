@@ -37,7 +37,7 @@ Each implementation must include a full test suite to be considered complete.
 - [x] Counter
 - [x] ORSet
 - [x] PNCounter
-- [ ] RGArray
+- [x] RGArray
 - [x] LWWRegister
 - [x] LWWMap
 - [x] FIArray
@@ -121,7 +121,22 @@ style monad pattern.
     - `increase(self, amount: int = 1) -> StateUpdate`
     - `decrease(self, amount: int = 1) -> StateUpdate`
 - RGArray (CRDTProtocol)
-    - currently unimplemented
+    - `items: ORSet`
+    - `clock: ClockProtocol`
+    - `cache_full: list[RGATupleWrapper]`
+    - `cache: tuple[Any]`
+    - `__init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None`
+    - `pack(self) -> bytes`
+    - `@classmethod unpack(cls, data: bytes) -> RGArray`
+    - `read(self) -> tuple[RGATupleWrapper]`
+    - `read_full(self) -> tuple[RGATupleWrapper]`
+    - `update(self, state_update: StateUpdateProtocol) -> RGArray`
+    - `checksums(self) -> tuple[int]`
+    - `history(self) -> tuple[StateUpdate]`
+    - `append(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `delete(self, item: RGATupleWrapper) -> StateUpdate`
+    - `calculate_cache(self) -> None`
+    - `update_cache(self, item: RGATupleWrapper, visible: bool) -> None`
 - LWWRegister(CRDTProtocol)
     - `name: DataWrapperProtocol`
     - `value: DataWrapperProtocol = field(default=NoneWrapper)`
