@@ -536,31 +536,31 @@ class TestCRDTs(unittest.TestCase):
         rga = classes.RGArray()
         view1 = rga.read()
 
-        item = b'hello'
+        item = datawrappers.BytesWrapper(b'hello')
         state_update = rga.append(item, 1)
         assert isinstance(state_update, interfaces.StateUpdateProtocol)
 
         view2 = rga.read()
         assert view1 != view2
-        assert view2[0] == item
+        assert view2[0] == item.value
 
     def test_RGArray_delete_returns_StateUpdateProtocol_and_changes_read(self):
         rga = classes.RGArray()
-        rga.append(b'item', 1)
+        rga.append(datawrappers.StrWrapper('item'), 1)
 
         item = rga.read_full()[0]
-        assert item[0] in rga.read()
+        assert item.value[0].value in rga.read()
 
         state_update = rga.delete(item)
         assert isinstance(state_update, interfaces.StateUpdateProtocol)
 
-        assert item[0] not in rga.read()
+        assert item.value[0].value not in rga.read()
         assert item not in rga.read_full()
 
     def test_RGArray_history_returns_tuple_of_StateUpdateProtocol(self):
         rga = classes.RGArray()
-        rga.append(b'item', 1)
-        rga.append(b'item2', 1)
+        rga.append(datawrappers.BytesWrapper(b'item'), 1)
+        rga.append(datawrappers.StrWrapper('item2'), 1)
         rga.delete(rga.read_full()[0])
         history = rga.history()
 
@@ -572,13 +572,13 @@ class TestCRDTs(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
-        update1 = rga1.append(b'item1', 1)
-        update2 = rga2.append(b'item2', 2)
+        update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)
+        update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 2)
         rga1.update(update2)
         rga2.update(update1)
 
         assert rga1.read() == rga2.read()
-        assert rga1.read() == (b'item1', b'item2')
+        assert rga1.read() == ('item1', Decimal('0.1'))
 
     def test_RGArray_checksums_returns_tuple_of_int(self):
         rga = classes.RGArray()
@@ -591,7 +591,7 @@ class TestCRDTs(unittest.TestCase):
     def test_RGArray_checksums_change_after_update(self):
         rga = classes.RGArray()
         checksums1 = rga.checksums()
-        rga.append(b'item', 1)
+        rga.append(datawrappers.BytesWrapper(b'item'), 1)
         checksums2 = rga.checksums()
 
         assert checksums1 != checksums2
@@ -600,7 +600,7 @@ class TestCRDTs(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
-        update = rga1.append(b'item', 1)
+        update = rga1.append(datawrappers.StrWrapper('item'), 1)
         view = rga1.read_full()
         rga2.update(update)
 
@@ -625,8 +625,8 @@ class TestCRDTs(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
-        update1 = rga1.append(b'item1', 1)
-        update2 = rga1.append(b'item2', 1)
+        update1 = rga1.append(datawrappers.BytesWrapper(b'item1'), 1)
+        update2 = rga1.append(datawrappers.IntWrapper(321), 1)
         rga2.update(update2)
         rga2.update(update1)
 
@@ -636,10 +636,10 @@ class TestCRDTs(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
-        rga1.append(b'item1', 1)
-        rga1.append(b'item2', 1)
+        rga1.append(datawrappers.BytesWrapper(b'item1'), 1)
+        rga1.append(datawrappers.StrWrapper('item2'), 1)
         rga1.delete(rga1.read_full()[0])
-        rga1.append(b'item3', 1)
+        rga1.append(datawrappers.IntWrapper(3), 1)
 
         for update in rga1.history():
             rga2.update(update)
@@ -648,10 +648,12 @@ class TestCRDTs(unittest.TestCase):
 
     def test_RGArray_pack_unpack_e2e(self):
         rga = classes.RGArray()
-        rga.append(b'item1', 1)
-        rga.append(b'item2', 1)
+        rga.append(datawrappers.BytesWrapper(b'item1'), 1)
+        rga.append(datawrappers.StrWrapper('item2'), 1)
+        rga.append(datawrappers.IntWrapper(3), 1)
+        rga.append(datawrappers.DecimalWrapper(Decimal('4.44')), 1)
         rga.delete(rga.read_full()[0])
-        rga.append(b'item3', 1)
+        rga.append(datawrappers.BytesWrapper(b'item3'), 1)
 
         packed = rga.pack()
         assert type(packed) is bytes
