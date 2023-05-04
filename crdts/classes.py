@@ -1257,17 +1257,9 @@ class FIArray:
         """Adds/subtracts a small random offset."""
         assert type(index) is Decimal, 'index must be a Decimal'
 
-        # get an offset within 10% no matter how many preceding zeroes
-        multiple = 1_000
-        new_index = index * multiple
-
-        while int(new_index) == 0:
-            multiple *= 1_000
-            new_index = index * multiple
-
-        offset = Decimal(randrange(int(new_index)))/(multiple * 10)
-
-        return index + offset if randrange(0, 2) else index - offset
+        _, exponent = cls.least_significant_digit(index)
+        exponent -= 1
+        return index + Decimal(f'{randrange(1, 9)}E{exponent}')
 
     @classmethod
     def index_between(cls, first: Decimal, second: Decimal) -> Decimal:
@@ -1276,6 +1268,29 @@ class FIArray:
         assert type(second) is Decimal, 'second must be a Decimal'
 
         return cls.index_offset(Decimal(first + second)/Decimal(2))
+
+    @staticmethod
+    def least_significant_digit(number: Decimal) -> tuple[int, int]:
+        """Returns the least significant digit and its place as an exponent
+            of 10, e.g. 0.201 -> (1, -3).
+        """
+        num_string = str(number)
+        first_exponent = None
+
+        if 'E' in num_string:
+            first_exponent = int(num_string.split('E')[1])
+
+        if '.' in num_string:
+            digit = int(num_string.split('.')[1][-1])
+            exponent = -len(num_string.split('.')[1])
+        else:
+            exponent = len(num_string) - len(num_string.rstrip('0'))
+            digit = int(num_string[-exponent-1])
+
+        if first_exponent:
+            exponent += first_exponent
+
+        return (digit, exponent)
 
     def put(self, item: DataWrapperProtocol, writer: int,
         index: Decimal) -> StateUpdate:

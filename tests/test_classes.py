@@ -993,6 +993,14 @@ class TestCRDTs(unittest.TestCase):
         assert new_index < index * Decimal('1.1')
         assert new_index > index * Decimal('0.9')
 
+    def test_FIArray_index_between_returns_Decimal_between_first_and_second(self):
+        first =  Decimal('0.10001')
+        second = Decimal('0.10002')
+        index = classes.FIArray.index_between(first, second)
+
+        assert index > first
+        assert index < second
+
     def test_FIArray_put_returns_StateUpdate_with_tuple(self):
         fiarray = classes.FIArray()
         update = fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
