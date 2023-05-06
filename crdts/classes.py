@@ -3,7 +3,6 @@ from binascii import crc32
 from bisect import bisect
 from dataclasses import dataclass, field
 from decimal import Decimal
-from random import randrange
 from crdts.datawrappers import (
     BytesWrapper,
     DecimalWrapper,
@@ -15,11 +14,12 @@ from crdts.interfaces import (
     ClockProtocol, CRDTProtocol, DataWrapperProtocol, StateUpdateProtocol
 )
 from enum import Enum
-import json
-import struct
+from random import randrange
 from types import NoneType
 from typing import Any, Hashable, Optional
 from uuid import uuid1
+import json
+import struct
 
 
 @dataclass
