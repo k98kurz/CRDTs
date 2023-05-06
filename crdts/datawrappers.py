@@ -87,13 +87,20 @@ class RGATupleWrapper(StrWrapper):
     value: tuple[DataWrapperProtocol, tuple[int, int]]
 
     def __init__(self, value: tuple[DataWrapperProtocol, tuple[int, int]]) -> None:
-        assert type(value) is tuple, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert len(value) == 2, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert isinstance(value[0], DataWrapperProtocol), 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert type(value[1]) is tuple, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert len(value[1]) == 2, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert type(value[1][0]) is int, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert type(value[1][1]) is int, 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value) is tuple, \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert len(value) == 2, \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert isinstance(value[0], DataWrapperProtocol), \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value[1]) is tuple, \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert len(value[1]) == 2, \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value[1][0]) is int, \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert type(value[1][1]) is int, \
+            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
 
         self.value = value
 

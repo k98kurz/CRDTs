@@ -178,5 +178,6 @@ class TestDataWrappers(unittest.TestCase):
         unpacked = datawrappers.RGATupleWrapper.unpack(packed)
         assert rgatw == unpacked
 
+
 if __name__ == '__main__':
     unittest.main()
