@@ -980,18 +980,64 @@ class TestCRDTs(unittest.TestCase):
     def test_FIArray_implements_CRDTProtocol(self):
         assert isinstance(classes.FIArray(), interfaces.CRDTProtocol)
 
-    def test_FIArray_read_returns_list(self):
+    def test_FIArray_read_returns_tuple_of_underlying_items(self):
         fiarray = classes.FIArray()
+        fiarray.positions.extend(
+            datawrappers.StrWrapper('first'),
+            datawrappers.DecimalWrapper(Decimal('0.1')),
+            1
+        )
+        fiarray.positions.extend(
+            datawrappers.BytesWrapper(b'second'),
+            datawrappers.DecimalWrapper(Decimal('0.2')),
+            1
+        )
         view = fiarray.read()
-        assert isinstance(view, list)
+        assert isinstance(view, tuple)
+        assert view == ('first', b'second')
 
-    def test_FIArray_index_offset_returns_Decimal_within_10_percent(self):
+    def test_FIArray_read_full_returns_tuple_of_DataWrapperProtocol(self):
+        fiarray = classes.FIArray()
+        fiarray.positions.extend(
+            datawrappers.StrWrapper('first'),
+            datawrappers.DecimalWrapper(Decimal('0.1')),
+            1
+        )
+        fiarray.positions.extend(
+            datawrappers.BytesWrapper(b'second'),
+            datawrappers.DecimalWrapper(Decimal('0.2')),
+            1
+        )
+        view = fiarray.read_full()
+
+        assert isinstance(view, tuple)
+        assert len(view) == 2
+
+        for item in view:
+            assert isinstance(item, interfaces.DataWrapperProtocol)
+
+        assert view[0].value == 'first'
+        assert view[1].value == b'second'
+
+    def test_FIArray_least_significant_digit_returns_correct_values(self):
+        vectors = [
+            (classes.FIArray.least_significant_digit(Decimal('10')), (1, 1)),
+            (classes.FIArray.least_significant_digit(Decimal('2')), (2, 0)),
+            (classes.FIArray.least_significant_digit(Decimal('0.3')), (3, -1)),
+            (classes.FIArray.least_significant_digit(Decimal('0.08')), (8, -2)),
+        ]
+
+        for actual, expected in vectors:
+            assert actual == expected
+
+    def test_FIArray_index_offset_returns_Decimal_within_1_significant_digit(self):
         index = Decimal('0.5')
         new_index = classes.FIArray.index_offset(index)
+        lsd1 = classes.FIArray.least_significant_digit(index)
+        lsd2 = classes.FIArray.least_significant_digit(new_index)
 
         assert new_index != index
-        assert new_index < index * Decimal('1.1')
-        assert new_index > index * Decimal('0.9')
+        assert lsd2[1] == lsd1[1] - 1
 
     def test_FIArray_index_between_returns_Decimal_between_first_and_second(self):
         first =  Decimal('0.10001')
@@ -1030,9 +1076,9 @@ class TestCRDTs(unittest.TestCase):
 
         assert type(update) is classes.StateUpdate
         assert len(view) == 3
-        assert view[0] == StrWrapper('foo')
-        assert view[1] == StrWrapper('bar')
-        assert view[2] == StrWrapper('test')
+        assert view[0] == 'foo'
+        assert view[1] == 'bar'
+        assert view[2] == 'test'
 
     def test_FIArray_put_between_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
@@ -1044,9 +1090,9 @@ class TestCRDTs(unittest.TestCase):
 
         assert type(update) is classes.StateUpdate
         assert len(view) == 3
-        assert view[0] == StrWrapper('first')
-        assert view[1] == StrWrapper('middle')
-        assert view[2] == StrWrapper('last')
+        assert view[0] == 'first'
+        assert view[1] == 'middle'
+        assert view[2] == 'last'
 
     def test_FIArray_put_before_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
@@ -1057,9 +1103,9 @@ class TestCRDTs(unittest.TestCase):
 
         assert type(update) is classes.StateUpdate
         assert len(view) == 3
-        assert view[0] == StrWrapper('first')
-        assert view[1] == StrWrapper('middle')
-        assert view[2] == StrWrapper('last')
+        assert view[0] == 'first'
+        assert view[1] == 'middle'
+        assert view[2] == 'last'
 
     def test_FIArray_put_after_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
@@ -1070,9 +1116,9 @@ class TestCRDTs(unittest.TestCase):
 
         assert type(update) is classes.StateUpdate
         assert len(view) == 3
-        assert view[0] == StrWrapper('first')
-        assert view[1] == StrWrapper('middle')
-        assert view[2] == StrWrapper('last')
+        assert view[0] == 'first'
+        assert view[1] == 'middle'
+        assert view[2] == 'last'
 
     def test_FIArray_put_first_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
@@ -1083,16 +1129,16 @@ class TestCRDTs(unittest.TestCase):
 
         assert type(update) is classes.StateUpdate
         assert len(view) == 3
-        assert view[0] == StrWrapper('foo')
-        assert view[1] == StrWrapper('bar')
-        assert view[2] == StrWrapper('test')
+        assert view[0] == 'foo'
+        assert view[1] == 'bar'
+        assert view[2] == 'test'
 
     def test_FIArray_put_last_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
         fiarray.put_last(StrWrapper('foo'), 1)
         fiarray.put_last(StrWrapper('bar'), 1)
         fiarray.put_last(StrWrapper('test'), 1)
-        view = fiarray.read()
+        view = fiarray.read_full()
 
         assert len(view) == 3
         assert view[0] == StrWrapper('foo')
@@ -1115,9 +1161,9 @@ class TestCRDTs(unittest.TestCase):
         fiarray = classes.FIArray()
         fiarray.put_first(StrWrapper('test'), 1)
 
-        assert fiarray.read()[0] == StrWrapper('test')
+        assert fiarray.read()[0] == 'test'
         fiarray.delete(StrWrapper('test'), 1)
-        assert fiarray.read() == []
+        assert fiarray.read() == tuple()
 
     def test_FIArray_history_returns_tuple_of_StateUpdateProtocol(self):
         fiarray = classes.FIArray()
@@ -1140,7 +1186,7 @@ class TestCRDTs(unittest.TestCase):
         fiarray2.update(update3)
 
         assert fiarray1.checksums() == fiarray2.checksums()
-        assert fiarray1.read()[0] == StrWrapper('test')
+        assert fiarray1.read()[0] == 'test'
 
     def test_FIArray_checksums_returns_tuple_of_int(self):
         fiarray = classes.FIArray()

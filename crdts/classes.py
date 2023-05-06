@@ -1168,7 +1168,8 @@ class FIArray:
     """Implements a fractionally-indexed array CRDT."""
     positions: LWWMap
     clock: ClockProtocol
-    cache: Optional[tuple]
+    cache_full: list[DataWrapperProtocol]
+    cache: list[Any]
 
     def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
         """Initialize an FIArray from an ORSet of items, an LWWMap of
@@ -1184,6 +1185,7 @@ class FIArray:
 
         self.positions = positions
         self.clock = clock
+        self.cache_full = None
         self.cache = None
 
     def pack(self) -> bytes:
@@ -1197,25 +1199,26 @@ class FIArray:
         return cls(positions=positions, clock=positions.clock)
 
     def read(self) -> list[DataWrapperProtocol]:
-        """Return the eventually consistent data view."""
-        if self.cache is not None:
-            if self.cache[0] == self.clock.read():
-                return self.cache[1]
+        """Return the eventually consistent data view. Cannot be used for
+            preparing deletion updates.
+        """
+        if self.cache is None:
+            if self.cache_full is None:
+                self.calculate_cache()
+            self.cache = [item.value for item in self.cache_full]
 
-        base_map = self.positions.read()
-        reversed_map = {}
-        view = []
+        return tuple(self.cache)
 
-        for item in base_map:
-            reversed_map[base_map[item]] = item
-            view.append(base_map[item])
+    def read_full(self) -> tuple[DataWrapperProtocol]:
+        """Return the full, eventually consistent list of items without
+            tombstones but with complete DataWrapperProtocols rather than
+            the underlying values. Use this for preparing deletion
+            updates -- only a DataWrapperProtocol can be used for delete.
+        """
+        if self.cache_full is None:
+            self.calculate_cache()
 
-        view.sort()
-        view = [reversed_map[index] for index in view]
-
-        self.cache = (self.clock.read(), view)
-
-        return view
+        return tuple(self.cache_full)
 
     def update(self, state_update: StateUpdateProtocol) -> FIArray:
         """Apply an update and return self (monad pattern)."""
@@ -1235,7 +1238,7 @@ class FIArray:
             'state_update.data[3] must be DecimalWrapper or NoneWrapper'
 
         self.positions.update(state_update)
-        self.cache = None
+        self.update_cache(state_update.data[1], state_update.data[0] == 'o')
 
         return self
 
@@ -1317,8 +1320,8 @@ class FIArray:
         """Creates, applies, and returns a StateUpdate that puts the item
             at an index between first and second.
         """
-        assert first in self.read(), 'first must already be assigned a position'
-        assert second in self.read(), 'second must already be assigned a position'
+        assert first in self.read_full(), 'first must already be assigned a position'
+        assert second in self.read_full(), 'second must already be assigned a position'
 
         first_index = self.positions.registers[first].value.value
         second_index = self.positions.registers[second].value.value
@@ -1331,13 +1334,13 @@ class FIArray:
         """Creates, applies, and returns a StateUpdate that puts the item
             before the other item.
         """
-        assert other in self.read(), 'other must already be assigned a position'
+        assert other in self.read_full(), 'other must already be assigned a position'
 
         before_index = self.positions.registers[other].value.value
-        first_index = self.read().index(other)
+        first_index = self.read_full().index(other)
 
         if first_index > 0:
-            prior = self.read()[first_index-1]
+            prior = self.read_full()[first_index-1]
             prior_index = self.positions.registers[prior].value.value
         else:
             prior_index = Decimal(0)
@@ -1351,13 +1354,13 @@ class FIArray:
         """Creates, applies, and returns a StateUpdate that puts the item
             after the other item.
         """
-        assert other in self.read(), 'other must already be assigned a position'
+        assert other in self.read_full(), 'other must already be assigned a position'
 
         after_index = self.positions.registers[other].value.value
-        first_index = self.read().index(other)
+        first_index = self.read_full().index(other)
 
-        if len(self.read()) > first_index+1:
-            next = self.read()[first_index+1]
+        if len(self.read_full()) > first_index+1:
+            next = self.read_full()[first_index+1]
             next_index = self.positions.registers[next].value.value
         else:
             next_index = Decimal(1)
@@ -1370,8 +1373,8 @@ class FIArray:
         """Creates, applies, and returns a StateUpdate that puts the
             item at an index between 0 and the first item.
         """
-        if len(self.read()) > 0:
-            first = self.read()[0]
+        if len(self.read_full()) > 0:
+            first = self.read_full()[0]
             first_index = self.positions.registers[first].value.value
             # average between 0 and first index
             index = Decimal(Decimal(0) + first_index)/Decimal(2)
@@ -1388,8 +1391,8 @@ class FIArray:
         """Creates, applies, and returns a StateUpdate that puts the
             item at an index between the last item and 1.
         """
-        if len(self.read()) > 0:
-            last = self.read()[-1]
+        if len(self.read_full()) > 0:
+            last = self.read_full()[-1]
             last_index = self.positions.registers[last].value.value
             # average between last index and 1
             index = Decimal(last_index + Decimal(1))/Decimal(2)
@@ -1420,6 +1423,54 @@ class FIArray:
         self.update(state_update)
 
         return state_update
+
+    def calculate_cache(self) -> None:
+        """Reads the items from the underlying LWWMap, orders them, then
+            sets the cache_full list. Resets the cache.
+        """
+        # create list of all items
+        positions = self.positions.read()
+        items = [key for key in positions]
+        # sort by (index, wrapper class name, wrapped value)
+        items.sort(key=lambda item: (positions[item], item.__class__.__name__, item.value))
+
+        # set instance values
+        self.cache_full = items
+        self.cache = None
+
+    def update_cache(self, item: DataWrapperProtocol, visible: bool) -> None:
+        """Updates the cache by finding the correct insertion index for
+            the given item, then inserting it there or removing it. Uses
+            the bisect algorithm if necessary. Resets the cache.
+        """
+        assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
+        assert type(visible) is bool, 'visible must be bool'
+
+        positions = self.positions.read()
+
+        if self.cache_full is None:
+            self.calculate_cache()
+
+        if item in self.cache_full:
+            self.cache_full.remove(item)
+
+        if visible:
+            # find correct insertion index
+            # sort by (index, wrapper class name, wrapped value)
+            index = bisect(
+                self.cache_full,
+                (positions[item], item.__class__.__name__, item.value),
+                key=lambda a: (positions[a], a.__class__.__name__, a.value)
+            )
+            self.cache_full.insert(index, item)
+
+        self.cache = None
+
+
+class CausalTree:
+    """Implements a Causal Tree CRDT."""
+    ...
+    """@todo basically FIArray but with index of (parent_uuid, uuid)"""
 
 
 class ValidCRDTs(Enum):
