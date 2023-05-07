@@ -195,6 +195,75 @@ class TestDataWrappers(unittest.TestCase):
         unpacked = datawrappers.RGATupleWrapper.unpack(packed)
         assert rgatw == unpacked
 
+    # CTDataWrapper
+    def test_CTDataWrapper_implements_DataWrapperProtocol(self):
+        ctw = datawrappers.CTDataWrapper(
+            datawrappers.BytesWrapper(b'123'),
+            (b'321', b'123')
+        )
+        assert isinstance(ctw, interfaces.DataWrapperProtocol)
+
+    def test_CTDataWrapper_value_is_tuple_of_bytes_tuple_ints(self):
+        ctw = datawrappers.CTDataWrapper(
+            datawrappers.BytesWrapper(b'123'),
+            (b'321', b'123')
+        )
+        assert isinstance(ctw.value, interfaces.DataWrapperProtocol)
+        assert type(ctw.index) is tuple
+        assert len(ctw.index) == 2
+        assert type(ctw.index[0]) is bytes
+        assert type(ctw.index[1]) is bytes
+
+    def test_CTDataWrapper_raises_AssertionError_for_bad_value(self):
+        with self.assertRaises(AssertionError) as e:
+            datawrappers.CTDataWrapper(b'123', 'str')
+        assert str(e.exception) == 'value must be DataWrapperProtocol'
+
+        with self.assertRaises(AssertionError) as e:
+            datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), [b'321', b'123'])
+        assert str(e.exception) == 'index must be tuple[bytes, bytes]'
+
+        with self.assertRaises(AssertionError) as e:
+            datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), (1, 123))
+        assert str(e.exception) == 'index must be tuple[bytes, bytes]'
+
+    def test_CTDataWrapper_pack_returns_bytes(self):
+        ctw = datawrappers.CTDataWrapper(
+            datawrappers.BytesWrapper(b'123'),
+            (b'321', b'123')
+        )
+        packed = ctw.pack()
+        assert type(packed) is bytes
+
+    def test_CTDataWrapper_unpack_returns_instance(Self):
+        value = datawrappers.BytesWrapper(b'123')
+        index = (b'321', b'123')
+        value_type = bytes(value.__class__.__name__, 'utf-8')
+        value_packed = value.pack()
+        data = struct.pack(
+            f'!IIII{len(value_type)}s{len(value_packed)}s{len(index[0])}s' +
+            f'{len(index[1])}s',
+            len(value_type),
+            len(value_packed),
+            len(index[0]),
+            len(index[1]),
+            value_type,
+            value_packed,
+            index[0],
+            index[1],
+        )
+        unpacked = datawrappers.CTDataWrapper.unpack(data)
+        assert type(unpacked) is datawrappers.CTDataWrapper
+
+    def test_CTDataWrapper_pack_unpack_e2e(self):
+        ctw = datawrappers.CTDataWrapper(
+            datawrappers.BytesWrapper(b'123'),
+            (b'321', b'123')
+        )
+        packed = ctw.pack()
+        unpacked = datawrappers.CTDataWrapper.unpack(packed)
+        assert ctw == unpacked
+
 
 if __name__ == '__main__':
     unittest.main()

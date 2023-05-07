@@ -55,6 +55,58 @@ class BytesWrapper(StrWrapper):
         return cls(struct.unpack(f'!{len(data)}s', data)[0])
 
 
+class CTDataWrapper(StrWrapper):
+    value: DataWrapperProtocol
+    index: tuple[bytes]
+
+    def __init__(self, value: DataWrapperProtocol, index: tuple[bytes, bytes]) -> None:
+        assert isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol'
+        assert type(index) is tuple, 'index must be tuple[bytes, bytes]'
+        assert len(index) == 2, 'index must be tuple[bytes, bytes]'
+        assert type(index[0]) is bytes and type(index[1]) is bytes, \
+            'index must be tuple[bytes, bytes]'
+
+        self.value = value
+        self.index = index
+
+    def pack(self) -> bytes:
+        value_type = bytes(self.value.__class__.__name__, 'utf-8')
+        value_packed = self.value.pack()
+
+        return struct.pack(
+            f'!IIII{len(value_type)}s{len(value_packed)}s{len(self.index[0])}s' +
+            f'{len(self.index[1])}s',
+            len(value_type),
+            len(value_packed),
+            len(self.index[0]),
+            len(self.index[1]),
+            value_type,
+            value_packed,
+            self.index[0],
+            self.index[1],
+        )
+
+    @classmethod
+    def unpack(cls, data: bytes) -> CTDataWrapper:
+        value_type_len, value_len, idx0_len, idx1_len, _ = struct.unpack(
+            f'!IIII{len(data)-16}s',
+            data
+        )
+        _, value_type, value_packed, idx0, idx1 = struct.unpack(
+            f'!16s{value_type_len}s{value_len}s{idx0_len}s{idx1_len}s',
+            data
+        )
+
+        # parse value
+        value_type = str(value_type, 'utf-8')
+        assert value_type in globals(), f'{value_type} must be accessible from globals()'
+        assert hasattr(globals()[value_type], 'unpack'), \
+            f'{value_type} missing unpack method'
+        value = globals()[value_type].unpack(value_packed)
+
+        return cls(value, (idx0, idx1))
+
+
 class DecimalWrapper(StrWrapper):
     value: Decimal
 
