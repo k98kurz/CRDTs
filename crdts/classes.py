@@ -1279,8 +1279,8 @@ class FIArray:
     cache: list[Any]
 
     def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
-        """Initialize an FIArray from an ORSet of items, an LWWMap of
-            item positions, and a shared clock.
+        """Initialize an FIArray from an LWWMap of item positions and a
+            shared clock.
         """
         assert type(positions) is LWWMap or positions is None, \
             'positions must be an LWWMap or None'
