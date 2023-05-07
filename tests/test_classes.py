@@ -1408,10 +1408,20 @@ class TestCRDTs(unittest.TestCase):
         fiarray1.put(StrWrapper('foo'), 1, Decimal('0.25'))
         fiarray1.put(StrWrapper('test'), 1, Decimal('0.15'))
         fiarray1.put(StrWrapper('bar'), 1, Decimal('0.5'))
-        fiarray1.delete(StrWrapper('test'), 1)
+
+        for state_update in fiarray2.history():
+            fiarray1.update(state_update)
+        for state_update in fiarray1.history():
+            fiarray2.update(state_update)
+
+        fiarray2.delete(StrWrapper('test'), 1)
+        fiarray2.put(StrWrapper('something'), 2, Decimal('0.333'))
+        fiarray2.put(StrWrapper('something else'), 2, Decimal('0.777'))
 
         for state_update in fiarray1.history():
             fiarray2.update(state_update)
+        for state_update in fiarray2.history():
+            fiarray1.update(state_update)
 
         assert fiarray1.read() == fiarray2.read()
 

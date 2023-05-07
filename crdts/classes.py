@@ -1227,12 +1227,13 @@ class LWWMap:
 
         for update in orset_history:
             name = update.data[1]
-            register_update = registers_history[name][0]
-            history.append(StateUpdate(
-                update.clock_uuid,
-                register_update.ts,
-                (update.data[0], name, register_update.data[0], register_update.data[1])
-            ))
+            if name in registers_history:
+                register_update = registers_history[name][0]
+                history.append(StateUpdate(
+                    update.clock_uuid,
+                    register_update.ts,
+                    (update.data[0], name, register_update.data[0], register_update.data[1])
+                ))
 
         return tuple(history)
 
@@ -1304,7 +1305,7 @@ class FIArray:
         positions = LWWMap.unpack(data)
         return cls(positions=positions, clock=positions.clock)
 
-    def read(self) -> list[DataWrapperProtocol]:
+    def read(self) -> tuple[Any]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
@@ -1349,8 +1350,8 @@ class FIArray:
         return self
 
     def checksums(self) -> tuple[int]:
-        """Returns any checksums for the underlying data to detect
-            desynchronization due to message failure.
+        """Returns checksums for the underlying data to detect
+            desynchronization due to network partition.
         """
         return self.positions.checksums()
 
@@ -1363,7 +1364,7 @@ class FIArray:
 
     @classmethod
     def index_offset(cls, index: Decimal) -> Decimal:
-        """Adds/subtracts a small random offset."""
+        """Adds a small random offset."""
         assert type(index) is Decimal, 'index must be a Decimal'
 
         _, exponent = cls.least_significant_digit(index)
@@ -1560,7 +1561,7 @@ class FIArray:
         if item in self.cache_full:
             self.cache_full.remove(item)
 
-        if visible:
+        if visible and item in positions:
             # find correct insertion index
             # sort by (index, wrapper class name, wrapped value)
             index = bisect(
