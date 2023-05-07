@@ -120,7 +120,7 @@ class RGATupleWrapper(StrWrapper):
         packed = self.value[0].__class__.__name__ + '_' + self.value[0].pack().hex()
         packed = bytes(packed, 'utf-8')
         return struct.pack(
-            f'!i{len(packed)}sii',
+            f'!I{len(packed)}sII',
             len(packed),
             packed,
             *self.value[1]
@@ -128,8 +128,8 @@ class RGATupleWrapper(StrWrapper):
 
     @classmethod
     def unpack(cls, data: bytes) -> RGATupleWrapper:
-        packed_len, _ = struct.unpack(f'!i{len(data)-4}s', data)
-        _, packed, ts, writer = struct.unpack(f'!i{packed_len}sii', data)
+        packed_len, _ = struct.unpack(f'!I{len(data)-4}s', data)
+        _, packed, ts, writer = struct.unpack(f'!I{packed_len}sII', data)
         packed = str(packed, 'utf-8')
         classname, hex = packed.split('_')
         item = globals()[classname].unpack(bytes.fromhex(hex))
