@@ -6,12 +6,17 @@ from decimal import Decimal
 from crdts.datawrappers import (
     BytesWrapper,
     DecimalWrapper,
+    IntWrapper,
     NoneWrapper,
     RGATupleWrapper,
     StrWrapper,
 )
 from crdts.interfaces import (
-    ClockProtocol, CRDTProtocol, DataWrapperProtocol, StateUpdateProtocol
+    ClockProtocol,
+    CRDTProtocol,
+    DataWrapperProtocol,
+    PackableProtocol,
+    StateUpdateProtocol,
 )
 from enum import Enum
 from random import randrange
@@ -27,6 +32,166 @@ class StateUpdate:
     clock_uuid: bytes
     ts: Any
     data: Hashable
+
+    @classmethod
+    def serialize_part(cls, data: Any) -> bytes:
+        """Serializes an instance of a PackableProtocol implementation or
+            built-in type, recursively calling itself as necessary.
+        """
+        assert isinstance(data, PackableProtocol) or \
+            type(data) in (list, set, tuple, str, bytes, bytearray, int, float), \
+            'data type must be one of (PackableProtocol, list, set, tuple, ' +\
+            'str, bytes, bytearray, int, float)'
+
+        if isinstance(data, PackableProtocol):
+            packed = bytes(data.__class__.__name__, 'utf-8').hex()
+            packed = bytes(packed, 'utf-8') + b'_' + data.pack()
+            return struct.pack(
+                f'!1sI{len(packed)}s',
+                b'p',
+                len(packed),
+                packed
+            )
+
+        if type(data) in (list, set, tuple):
+            items = b''.join([cls.serialize_part(item) for item in data])
+            code = ({
+                list: b'l',
+                set: b'e',
+                tuple: b't'
+            })[type(data)]
+
+            return struct.pack(
+                f'!1sI{len(items)}s',
+                code,
+                len(items),
+                items
+            )
+
+        if type(data) in (bytes, bytearray):
+            return struct.pack(
+                f'!1sI{len(data)}s',
+                b'b' if type(data) is bytes else b'a',
+                len(data),
+                data
+            )
+
+        if type(data) is str:
+            data = bytes(data, 'utf-8')
+            return struct.pack(
+                f'!1sI{len(data)}s',
+                b's',
+                len(data),
+                data
+            )
+
+        if type(data) is int:
+            return struct.pack(
+                f'!1sII',
+                b'i',
+                4,
+                data
+            )
+
+        if type(data) is float:
+            return struct.pack(
+                f'!1sIf',
+                b'f',
+                4,
+                data
+            )
+
+    @classmethod
+    def unserialize_part(cls, data: bytes) -> Any:
+        """Deserializes an instance of a PackableProtocol implementation
+            or built-in type, recursively calling itself as necessary.
+        """
+        code, data = struct.unpack(f'!1s{len(data)-1}s', data)
+
+        if code == b'p':
+            packed_len, data = struct.unpack(f'!I{len(data)-4}s', data)
+            packed, _ = struct.unpack(f'!{packed_len}s{len(data)-packed_len}s', data)
+            packed_class, _, packed_data = packed.partition(b'_')
+            packed_class = str(bytes.fromhex(str(packed_class, 'utf-8')), 'utf-8')
+            assert packed_class in globals(), \
+                f'{packed_class} not found in globals; cannot unpack'
+            assert hasattr(globals()[packed_class], 'unpack'), \
+                f'{packed_class} must have unpack method'
+            return globals()[packed_class].unpack(packed_data)
+
+        if code in (b'l', b'e', b't'):
+            let_len, data = struct.unpack(f'!I{len(data)-4}s', data)
+            let_data, _ = struct.unpack(f'!{let_len}s{len(data)-let_len}s', data)
+            items = []
+            while len(let_data) > 0:
+                _, item_len, _ = struct.unpack(f'!1sI{len(let_data)-5}s', let_data)
+                # print(f'!{5+item_len}s{len(let_data)-5-item_len}s')
+                item, let_data = struct.unpack(
+                    f'!{5+item_len}s{len(let_data)-5-item_len}s',
+                    let_data
+                )
+                items += [cls.unserialize_part(item)]
+
+            if code == b'l':
+                return items
+            if code == b'e':
+                return set(items)
+            if code == b't':
+                return tuple(items)
+
+        if code in (b'b', b'a'):
+            bt_len, data = struct.unpack(f'!I{len(data)-4}s', data)
+            bt_data, _ = struct.unpack(f'!{bt_len}s{len(data)-bt_len}s', data)
+            return bt_data if code == b'b' else bytearray(bt_data)
+
+        if code == b's':
+            s_len, data = struct.unpack(f'!I{len(data)-4}s', data)
+            s, _ = struct.unpack(f'!{s_len}s{len(data)-s_len}s', data)
+            return str(s, 'utf-8')
+
+        if code == b'i':
+            return struct.unpack(f'!II{len(data)-8}s', data)[1]
+
+        if code == b'f':
+            return struct.unpack(f'!If{len(data)-8}s', data)[1]
+
+    def pack(self) -> bytes:
+        """Serialize a StateUpdate. Assumes that all types within
+            update.data and update.ts are either built-in types or
+            PackableProtocols accessible from this scope.
+        """
+        # serialize timestamp
+        uuid = self.serialize_part(self.clock_uuid)
+        ts = self.serialize_part(self.ts)
+        data = self.serialize_part(self.data)
+
+        return struct.pack(
+            f'!III{len(uuid)}s{len(ts)}s{len(data)}s',
+            len(uuid),
+            len(ts),
+            len(data),
+            uuid,
+            ts,
+            data
+        )
+
+    @classmethod
+    def unpack(cls, data: bytes) -> StateUpdate:
+        """Deserialize a StateUpdate. Assumes that all types within
+            update.data and update.ts are either built-in types or
+            PackableProtocols accessible from this scope.
+        """
+        assert type(data) in (bytes, bytearray), 'data must be bytes or bytearray'
+        assert len(data) >= 12, 'data must be at least 12 long'
+
+        uuid_len, ts_len, data_len, _ = struct.unpack(f'!III{len(data)-12}s', data)
+        _, _, _, uuid, ts, data = struct.unpack(f'III{uuid_len}s{ts_len}s{data_len}s', data)
+
+        uuid = cls.unserialize_part(uuid)
+        ts = cls.unserialize_part(ts)
+        data = cls.unserialize_part(data)
+
+        return cls(clock_uuid=uuid, ts=ts, data=data)
 
 
 @dataclass
