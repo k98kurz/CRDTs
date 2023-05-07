@@ -1561,6 +1561,54 @@ class TestCRDTs(unittest.TestCase):
         assert unpacked.clock == lwwr.clock
         assert unpacked.read() == lwwr.read()
 
+    def test_LWWMap_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        lwwm = classes.LWWMap(clock=StrClock())
+        lwwm.extend(
+            datawrappers.StrWrapper('first name'),
+            datawrappers.StrWrapper('first value'),
+            1
+        )
+        lwwm.extend(
+            datawrappers.StrWrapper('second name'),
+            datawrappers.StrWrapper('second value'),
+            1
+        )
+        packed = lwwm.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.LWWMap.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.LWWMap.unpack(packed)
+
+        assert unpacked.clock == lwwm.clock
+        assert unpacked.read() == lwwm.read()
+
+    def test_FIArray_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        fia = classes.FIArray(clock=StrClock())
+        fia.put_first(datawrappers.StrWrapper('first'), 1)
+        fia.put_last(datawrappers.StrWrapper('last'), 1)
+        packed = fia.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.FIArray.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.FIArray.unpack(packed)
+
+        assert unpacked.clock == fia.clock
+        assert unpacked.read() == fia.read()
+
 
 if __name__ == '__main__':
     unittest.main()
