@@ -120,60 +120,77 @@ class TestDataWrappers(unittest.TestCase):
 
     # RGATupleWrapper tests
     def test_RGATupleWrapper_implements_DataWrapperProtocol(self):
-        rgatw = datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 1)))
+        rgatw = datawrappers.RGATupleWrapper((
+            datawrappers.BytesWrapper(b'123'),
+            (datawrappers.IntWrapper(1), 1)
+        ))
         assert isinstance(rgatw, interfaces.DataWrapperProtocol)
 
     def test_RGATupleWrapper_value_is_tuple_of_bytes_tuple_ints(self):
-        rgatw = datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 1)))
+        rgatw = datawrappers.RGATupleWrapper((
+            datawrappers.BytesWrapper(b'123'),
+            (datawrappers.IntWrapper(1), 1)
+        ))
         assert type(rgatw.value) is tuple
         assert len(rgatw.value) == 2
         assert isinstance(rgatw.value[0], interfaces.DataWrapperProtocol)
         assert type(rgatw.value[1]) is tuple
         assert len(rgatw.value[1]) == 2
-        assert type(rgatw.value[1][0]) is int
+        assert isinstance(rgatw.value[1][0], datawrappers.IntWrapper)
         assert type(rgatw.value[1][1]) is int
 
     def test_RGATupleWrapper_raises_AssertionError_for_bad_value(self):
         with self.assertRaises(AssertionError) as e:
             datawrappers.RGATupleWrapper(b'123')
-        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
         with self.assertRaises(AssertionError) as e:
             datawrappers.RGATupleWrapper((b'123',))
-        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
         with self.assertRaises(AssertionError) as e:
             datawrappers.RGATupleWrapper((b'123', 1))
-        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
         with self.assertRaises(AssertionError) as e:
             datawrappers.RGATupleWrapper((b'123', (1, b'123')))
-        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
         with self.assertRaises(AssertionError) as e:
-            datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, b'123')))
-        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 123)))
+        assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
     def test_RGATupleWrapper_pack_returns_bytes(self):
-        rgatw = datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 1)))
+        rgatw = datawrappers.RGATupleWrapper((
+            datawrappers.BytesWrapper(b'123'),
+            (datawrappers.IntWrapper(1), 1)
+        ))
         packed = rgatw.pack()
         assert type(packed) is bytes
 
     def test_RGATupleWrapper_unpack_returns_instance(Self):
         bts = datawrappers.BytesWrapper(b'123')
-        data = bytes(f'{bts.__class__.__name__}_{bts.pack().hex()}', 'utf-8')
+        data = bytes(bts.__class__.__name__, 'utf-8')
+        data = bytes(data.hex() + '_', 'utf-8') + bts.pack()
+        intw = datawrappers.IntWrapper(1)
+        ts = bytes(intw.__class__.__name__, 'utf-8')
+        ts = bytes(ts.hex() + '_', 'utf-8') + intw.pack()
         data = struct.pack(
-            f'!i{len(data)}sii',
+            f'!II{len(data)}s{len(ts)}sI',
             len(data),
+            len(ts),
             data,
+            ts,
             1,
-            2
         )
         unpacked = datawrappers.RGATupleWrapper.unpack(data)
         assert type(unpacked) is datawrappers.RGATupleWrapper
 
     def test_RGATupleWrapper_pack_unpack_e2e(self):
-        rgatw = datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 1)))
+        rgatw = datawrappers.RGATupleWrapper((
+            datawrappers.BytesWrapper(b'123'),
+            (datawrappers.BytesWrapper(b'adfsf'), 1)
+        ))
         packed = rgatw.pack()
         unpacked = datawrappers.RGATupleWrapper.unpack(packed)
         assert rgatw == unpacked

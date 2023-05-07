@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from .interfaces import DataWrapperProtocol
 from types import NoneType
+from typing import Any
 import struct
 
 
@@ -13,11 +14,23 @@ class StrWrapper:
     def __hash__(self) -> int:
         return hash((self.__class__.__name__, self.value))
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: DataWrapperProtocol) -> bool:
         return type(self) == type(other) and self.value == other.value
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: DataWrapperProtocol) -> bool:
         return not self.__eq__(other)
+
+    def __gt__(self, other: DataWrapperProtocol) -> bool:
+        return self.value > other.value
+
+    def __ge__(self, other: DataWrapperProtocol) -> bool:
+        return self.value >= other.value
+
+    def __lt__(self, other: DataWrapperProtocol) -> bool:
+        return other.value > self.value
+
+    def __le__(self, other: DataWrapperProtocol) -> bool:
+        return other.value >= self.value
 
     def pack(self) -> bytes:
         data = bytes(self.value, 'utf-8')
@@ -48,18 +61,6 @@ class DecimalWrapper(StrWrapper):
     def __init__(self, value: Decimal) -> None:
         self.value = value
 
-    def __gt__(self, other: DecimalWrapper) -> bool:
-        return self.value > other.value
-
-    def __ge__(self, other: DecimalWrapper) -> bool:
-        return self.value >= other.value
-
-    def __lt__(self, other: DecimalWrapper) -> bool:
-        return other.value > self.value
-
-    def __le__(self, other: DecimalWrapper) -> bool:
-        return other.value >= self.value
-
     def pack(self) -> bytes:
         return struct.pack(f'!{len(str(self.value))}s', bytes(str(self.value), 'utf-8'))
 
@@ -84,55 +85,55 @@ class IntWrapper(DecimalWrapper):
 
 
 class RGATupleWrapper(StrWrapper):
-    value: tuple[DataWrapperProtocol, tuple[int, int]]
+    value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]
 
-    def __init__(self, value: tuple[DataWrapperProtocol, tuple[int, int]]) -> None:
+    def __init__(self, value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]) -> None:
         assert type(value) is tuple, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
         assert len(value) == 2, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
         assert isinstance(value[0], DataWrapperProtocol), \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
         assert type(value[1]) is tuple, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
         assert len(value[1]) == 2, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
-        assert type(value[1][0]) is int, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
+        assert isinstance(value[1][0], DataWrapperProtocol), \
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
         assert type(value[1][1]) is int, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[int, int]]'
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
         self.value = value
 
-    def __gt__(self, other: RGATupleWrapper) -> bool:
-        return self.value > other.value
-
-    def __ge__(self, other: RGATupleWrapper) -> bool:
-        return self.value >= other.value
-
-    def __lt__(self, other: RGATupleWrapper) -> bool:
-        return other.value > self.value
-
-    def __le__(self, other: RGATupleWrapper) -> bool:
-        return other.value >= self.value
-
     def pack(self) -> bytes:
-        packed = self.value[0].__class__.__name__ + '_' + self.value[0].pack().hex()
-        packed = bytes(packed, 'utf-8')
+        packed_val = bytes(self.value[0].__class__.__name__, 'utf-8').hex() + '_'
+        packed_val = bytes(packed_val, 'utf-8') + self.value[0].pack()
+        packed_ts = bytes(self.value[1][0].__class__.__name__, 'utf-8').hex() + '_'
+        packed_ts = bytes(packed_ts, 'utf-8') + self.value[1][0].pack()
         return struct.pack(
-            f'!I{len(packed)}sII',
-            len(packed),
-            packed,
-            *self.value[1]
+            f'!II{len(packed_val)}s{len(packed_ts)}sI',
+            len(packed_val),
+            len(packed_ts),
+            packed_val,
+            packed_ts,
+            self.value[1][1]
         )
 
     @classmethod
     def unpack(cls, data: bytes) -> RGATupleWrapper:
-        packed_len, _ = struct.unpack(f'!I{len(data)-4}s', data)
-        _, packed, ts, writer = struct.unpack(f'!I{packed_len}sII', data)
-        packed = str(packed, 'utf-8')
-        classname, hex = packed.split('_')
-        item = globals()[classname].unpack(bytes.fromhex(hex))
+        packed_len, ts_len, _ = struct.unpack(f'!II{len(data)-8}s', data)
+        _, packed, ts, writer = struct.unpack(f'!8s{packed_len}s{ts_len}sI', data)
+
+        # parse item value
+        classname, _, packed = packed.partition(b'_')
+        classname = str(bytes.fromhex(str(classname, 'utf-8')), 'utf-8')
+        item = globals()[classname].unpack(packed)
+
+        # parse ts
+        classname, _, ts = ts.partition(b'_')
+        classname = str(bytes.fromhex(str(classname, 'utf-8')), 'utf-8')
+        ts = globals()[classname].unpack(ts)
+
         return cls((item, (ts, writer)))
 
 

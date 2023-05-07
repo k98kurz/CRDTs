@@ -18,6 +18,7 @@ class PackableProtocol(Protocol):
 class ClockProtocol(Protocol):
     """Duck typed Protocol showing what a clock must do."""
     uuid: bytes
+    default_ts: Any
 
     def read(self) -> Any:
         """Return the current timestamp."""
@@ -51,6 +52,11 @@ class ClockProtocol(Protocol):
     @classmethod
     def unpack(cls, data: bytes) -> ClockProtocol:
         """Unpack a clock from bytes."""
+        ...
+
+    @classmethod
+    def wrap_ts(cls, ts: Any) -> DataWrapperProtocol:
+        """Wrap a timestamp in a data wrapper."""
         ...
 
 
@@ -105,6 +111,22 @@ class DataWrapperProtocol(Protocol):
         """Data type must be comparable."""
         ...
 
+    def __gt__(self, other) -> bool:
+        """Data type must be comparable."""
+        ...
+
+    def __ge__(self, other) -> bool:
+        """Data type must be comparable."""
+        ...
+
+    def __lt__(self, other) -> bool:
+        """Data type must be comparable."""
+        ...
+
+    def __le__(self, other) -> bool:
+        """Data type must be comparable."""
+        ...
+
     def pack(self) -> bytes:
         """Package value into bytes."""
         ...
@@ -120,3 +142,12 @@ class StateUpdateProtocol(Protocol):
     clock_uuid: bytes
     ts: Any
     data: Hashable
+
+    def pack(self) -> bytes:
+        """Pack the instance into bytes."""
+        ...
+
+    @classmethod
+    def unpack(cls, data: bytes) -> StateUpdateProtocol:
+        """Unpack an instance from bytes."""
+        ...
