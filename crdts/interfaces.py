@@ -3,6 +3,18 @@ from typing import Any, Hashable, Protocol, runtime_checkable
 
 
 @runtime_checkable
+class PackableProtocol(Protocol):
+    def pack(self) -> bytes:
+        """Packs the instance into bytes."""
+        ...
+
+    @classmethod
+    def unpack(cls, data: bytes) -> PackableProtocol:
+        """Unpacks an instance from bytes."""
+        ...
+
+
+@runtime_checkable
 class ClockProtocol(Protocol):
     """Duck typed Protocol showing what a clock must do."""
     uuid: bytes
