@@ -79,9 +79,9 @@ class StateUpdate:
 @dataclass
 class ScalarClock:
     """Implements a Lamport logical scalar clock."""
-    counter: int = field(default=0)
+    counter: int = field(default=1)
     uuid: bytes = field(default_factory=lambda: uuid1().bytes)
-    default_ts: int = field(default=-1)
+    default_ts: int = field(default=0)
 
     def read(self) -> int:
         """Return the current timestamp."""
@@ -867,14 +867,31 @@ class RGArray:
         self.cache = None
 
 
-@dataclass
 class LWWRegister:
     """Implements the Last Writer Wins Register CRDT."""
     name: DataWrapperProtocol
-    value: DataWrapperProtocol = field(default_factory=NoneWrapper)
-    clock: ClockProtocol = field(default_factory=ScalarClock)
-    last_update: int = field(default=0)
-    last_writer: int = field(default=0)
+    value: DataWrapperProtocol
+    clock: ClockProtocol
+    last_update: Any
+    last_writer: int
+
+    def __init__(self, name: DataWrapperProtocol,
+                 value: DataWrapperProtocol = None,
+                 clock: ClockProtocol = None,
+                 last_update: Any = None,
+                 last_writer: int = 0) -> None:
+        if value is None:
+            value = NoneWrapper()
+        if clock is None:
+            clock = ScalarClock()
+        if last_update is None:
+            last_update = clock.default_ts
+
+        self.name = name
+        self.value = value
+        self.clock = clock
+        self.last_update = last_update
+        self.last_writer = last_writer
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
@@ -894,9 +911,18 @@ class LWWRegister:
         value = self.value.pack()
         value_size = len(value)
 
+        # pack last_update
+        last_update = self.clock.wrap_ts(self.last_update)
+        ts_class = bytes(last_update.__class__.__name__, 'utf-8')
+        ts_class_size = len(ts_class)
+        last_update = last_update.pack()
+        last_update_size = len(last_update)
+
         return struct.pack(
-            f'!IIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s',
-            self.last_update,
+            f'!IIIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s' +
+            f'{ts_class_size}s{last_update_size}s',
+            ts_class_size,
+            last_update_size,
             self.last_writer,
             name_size,
             clock_size,
@@ -905,7 +931,9 @@ class LWWRegister:
             name,
             clock,
             value_type,
-            value
+            value,
+            ts_class,
+            last_update,
         )
 
     @classmethod
@@ -915,12 +943,13 @@ class LWWRegister:
         assert len(data) > 26, 'data must be at least 26 bytes'
 
         # parse
-        last_update, last_writer, name_size, clock_size, value_type_size, value_size, _ = struct.unpack(
-            f'!IIIIII{len(data)-24}s',
+        ts_class_size, last_update_size, last_writer, name_size, clock_size, value_type_size, value_size, _ = struct.unpack(
+            f'!IIIIIII{len(data)-28}s',
             data
         )
-        _, _, _, _, _, _, name, clock, value_type, value = struct.unpack(
-            f'!IIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s',
+        _, _, _, _, _, _, _, name, clock, value_type, value, ts_class, last_update = struct.unpack(
+            f'!IIIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s' +
+            f'{ts_class_size}s{last_update_size}s',
             data
         )
 
@@ -946,6 +975,17 @@ class LWWRegister:
         value = globals()[value_type].unpack(value)
         assert isinstance(value, DataWrapperProtocol), \
             'value_type must implement DataWrapperProtocol'
+
+        # parse last_update
+        ts_class = str(ts_class, 'utf-8')
+        assert ts_class in globals(), \
+            'last_update wrapped class must be resolvable from globals'
+        assert hasattr(globals()[ts_class], 'unpack'), \
+            f'{ts_class} missing unpack method'
+        last_update = globals()[ts_class].unpack(last_update)
+        assert isinstance(last_update, DataWrapperProtocol), \
+            'last_update class must implement DataWrapperProtocol'
+        last_update = last_update.value
 
         return cls(name, value, clock, last_update, last_writer)
 

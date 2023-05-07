@@ -741,7 +741,7 @@ class TestCRDTs(unittest.TestCase):
 
     def test_RGArray_concurrent_appends_order_by_writer_ascending(self):
         rga1 = classes.RGArray()
-        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+        rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
 
         update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)
         update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 2)
@@ -753,7 +753,7 @@ class TestCRDTs(unittest.TestCase):
 
     def test_RGArray_concurrent_appends_with_same_writer_order_identically(self):
         rga1 = classes.RGArray()
-        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+        rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
 
         # order alphabetically by wrapper class name as tie breaker
         update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)
@@ -765,7 +765,7 @@ class TestCRDTs(unittest.TestCase):
         assert rga1.read() == (Decimal('0.1'), 'item1')
 
         rga1 = classes.RGArray()
-        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+        rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
 
         # order by wrapped value ascending as final tie breaker
         update1 = rga1.append(datawrappers.StrWrapper('item0'), 1)
@@ -1340,7 +1340,7 @@ class TestCRDTs(unittest.TestCase):
 
     def test_FIArray_concurrent_puts_bias_to_higher_writer(self):
         fiarray1 = classes.FIArray()
-        fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
+        fiarray2 = classes.FIArray(clock=classes.ScalarClock(uuid=fiarray1.clock.uuid))
         update1 = fiarray1.put(StrWrapper('test'), 1, Decimal('0.75'))
         update2 = fiarray2.put(StrWrapper('test'), 2, Decimal('0.25'))
         update3 = fiarray1.put(StrWrapper('middle'), 1, Decimal('0.5'))
@@ -1537,6 +1537,29 @@ class TestCRDTs(unittest.TestCase):
 
         assert unpacked.clock == rga.clock
         assert unpacked.read() == rga.read()
+
+    def test_LWWRegister_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        lwwr = classes.LWWRegister(
+            name=datawrappers.StrWrapper('test register'),
+            clock=StrClock()
+        )
+        lwwr.write(datawrappers.StrWrapper('first'), 1)
+        lwwr.write(datawrappers.StrWrapper('second'), 1)
+        packed = lwwr.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.LWWRegister.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.LWWRegister.unpack(packed)
+
+        assert unpacked.clock == lwwr.clock
+        assert unpacked.read() == lwwr.read()
 
 
 if __name__ == '__main__':
