@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import is_dataclass
+from dataclasses import dataclass, field, is_dataclass
 from decimal import Decimal
 from context import classes, interfaces, datawrappers
 import unittest
@@ -12,6 +12,77 @@ import unittest
 BytesWrapper = datawrappers.BytesWrapper
 DecimalWrapper = datawrappers.DecimalWrapper
 StrWrapper = datawrappers.StrWrapper
+
+
+@dataclass
+class StrClock:
+    """Implements a logical clock using strs."""
+    counter: str = field(default='0')
+    uuid: bytes = field(default=b'1234567890')
+    default_ts: str = field(default='')
+
+    def read(self) -> str:
+        """Return the current timestamp."""
+        return self.counter
+
+    def update(self, data: str) -> str:
+        """Update the clock and return the current time stamp."""
+        assert type(data) is str, 'data must be str'
+
+        if len(data) >= len(self.counter):
+            self.counter = data + '1'
+
+        return self.counter
+
+    @staticmethod
+    def is_later(ts1: str, ts2: str) -> bool:
+        """Return True iff len(ts1) > len(ts2)."""
+        assert type(ts1) is str, 'ts1 must be str'
+        assert type(ts2) is str, 'ts2 must be str'
+
+        if len(ts1) > len(ts2):
+            return True
+        return False
+
+    @staticmethod
+    def are_concurrent(ts1: str, ts2: str) -> bool:
+        """Return True if len(ts1) == len(ts2)."""
+        assert type(ts1) is str, 'ts1 must be str'
+        assert type(ts2) is str, 'ts2 must be str'
+
+        return len(ts1) == len(ts2)
+
+    @staticmethod
+    def compare(ts1: str, ts2: str) -> int:
+        """Return 1 if ts1 is later than ts2; -1 if ts2 is later than
+            ts1; and 0 if they are concurrent/incomparable.
+        """
+        assert type(ts1) is str, 'ts1 must be str'
+        assert type(ts2) is str, 'ts2 must be str'
+
+        if len(ts1) > len(ts2):
+            return 1
+        elif len(ts2) > len(ts1):
+            return -1
+        return 0
+
+    def pack(self) -> bytes:
+        """Packs the clock into bytes."""
+        return bytes(self.counter, 'utf-8') + b'_' + self.uuid
+
+    @classmethod
+    def unpack(cls, data: bytes) -> StrClock:
+        """Unpacks a clock from bytes."""
+        assert type(data) is bytes, 'data must be bytes'
+        assert len(data) >= 5, 'data must be at least 5 bytes'
+
+        counter, _, uuid = data.partition(b'_')
+
+        return cls(counter=str(counter, 'utf-8'), uuid=uuid)
+
+    @classmethod
+    def wrap_ts(cls, ts: str) -> StrWrapper:
+        return StrWrapper(ts)
 
 
 class TestCRDTs(unittest.TestCase):
@@ -62,7 +133,7 @@ class TestCRDTs(unittest.TestCase):
             123,
             datawrappers.RGATupleWrapper((
                 datawrappers.StrWrapper('hello'),
-                (123, 321)
+                (datawrappers.IntWrapper(123), 321)
             ))
         )
         packed = update.pack()
@@ -785,6 +856,7 @@ class TestCRDTs(unittest.TestCase):
         unpacked = classes.RGArray.unpack(packed)
         assert isinstance(unpacked, classes.RGArray)
 
+        assert unpacked.clock == rga.clock
         assert unpacked.read_full() == rga.read_full()
         assert unpacked.checksums() == rga.checksums()
 
@@ -1358,6 +1430,103 @@ class TestCRDTs(unittest.TestCase):
 
         assert fiarray.checksums() == unpacked.checksums()
         assert fiarray.read() == unpacked.read()
+
+    # pack/unpack e2e test for injected clock
+    def test_GSet_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        gset = classes.GSet(clock=StrClock())
+        gset.add('test')
+        packed = gset.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.GSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.GSet.unpack(packed)
+
+        assert unpacked.clock == gset.clock
+        assert unpacked.read() == gset.read()
+
+    def test_Counter_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        ctr = classes.Counter(clock=StrClock())
+        ctr.increase()
+        packed = ctr.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.ORSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.Counter.unpack(packed)
+
+        assert unpacked.clock == ctr.clock
+        assert unpacked.read() == ctr.read()
+
+    def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        ors = classes.ORSet(clock=StrClock())
+        ors.observe('test')
+        packed = ors.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.ORSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.ORSet.unpack(packed)
+
+        assert unpacked.clock == ors.clock
+        assert unpacked.read() == ors.read()
+
+    def test_PNCounter_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        pnc = classes.PNCounter(clock=StrClock())
+        pnc.increase()
+        packed = pnc.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.PNCounter.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.PNCounter.unpack(packed)
+
+        assert unpacked.clock == pnc.clock
+        assert unpacked.read() == pnc.read()
+
+    def test_RGArray_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        rga = classes.RGArray(clock=StrClock())
+        rga.append(datawrappers.StrWrapper('first'), 1)
+        rga.append(datawrappers.StrWrapper('second'), 1)
+        packed = rga.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.RGArray.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.RGArray.unpack(packed)
+
+        assert unpacked.clock == rga.clock
+        assert unpacked.read() == rga.read()
 
 
 if __name__ == '__main__':

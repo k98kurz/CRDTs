@@ -81,6 +81,7 @@ class ScalarClock:
     """Implements a Lamport logical scalar clock."""
     counter: int = field(default=0)
     uuid: bytes = field(default_factory=lambda: uuid1().bytes)
+    default_ts: int = field(default=-1)
 
     def read(self) -> int:
         """Return the current timestamp."""
@@ -146,6 +147,11 @@ class ScalarClock:
             data
         ))
 
+    @classmethod
+    def wrap_ts(cls, ts: int) -> IntWrapper:
+        """Wrap a timestamp in an IntWrapper."""
+        return IntWrapper(ts)
+
 
 @dataclass
 class GSet:
@@ -155,7 +161,8 @@ class GSet:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = self.clock.pack()
+        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
+        clock += b'_' + self.clock.pack()
         members = bytes(json.dumps(list(self.members), separators=(',', ':')), 'utf-8')
         clock_size, set_size = len(clock), len(members)
 
@@ -177,12 +184,18 @@ class GSet:
             f'!II{len(data)-8}s',
             data
         )
-        _, _, clock_bytes, set_bytes = struct.unpack(
+        _, _, clock, set_bytes = struct.unpack(
             f'!II{clock_size}s{set_size}s',
             data
         )
 
-        clock = ScalarClock.unpack(clock_bytes)
+        # parse clock and members
+        clock_class, _, clock = clock.partition(b'_')
+        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
+        assert clock_class in globals(), f'cannot find {clock_class}'
+        assert hasattr(globals()[clock_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
+        clock = globals()[clock_class].unpack(clock)
         members = set(json.loads(str(set_bytes, 'utf-8')))
 
         return cls(members=members, clock=clock)
@@ -250,7 +263,8 @@ class Counter:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = self.clock.pack()
+        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
+        clock += b'_' + self.clock.pack()
         clock_size = len(clock)
 
         return struct.pack(
@@ -267,8 +281,13 @@ class Counter:
         assert len(data) > 8, 'data must be more than 8 bytes'
 
         clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
-        _, clock_bytes, counter = struct.unpack(f'!I{clock_size}sI', data)
-        clock = ScalarClock.unpack(clock_bytes)
+        _, clock, counter = struct.unpack(f'!I{clock_size}sI', data)
+        clock_class, _, clock = clock.partition(b'_')
+        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
+        assert clock_class in globals(), f'cannot find {clock_class}'
+        assert hasattr(globals()[clock_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
+        clock = globals()[clock_class].unpack(clock)
 
         return cls(counter=counter, clock=clock)
 
@@ -337,8 +356,9 @@ class ORSet:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock_bytes = self.clock.pack()
-        clock_size = len(clock_bytes)
+        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
+        clock += b'_' + self.clock.pack()
+        clock_size = len(clock)
         observed_metadata = {}
         removed_metadata = {}
 
@@ -368,7 +388,7 @@ class ORSet:
         return struct.pack(
             f'!I{clock_size}s{len(data)}s',
             clock_size,
-            clock_bytes,
+            clock,
             data
         )
 
@@ -383,7 +403,16 @@ class ORSet:
             f'!I{clock_size}s{len(data)-4-clock_size}s',
             data
         )
-        clock = ScalarClock.unpack(clock)
+
+        # parse clock
+        clock_class, _, clock = clock.partition(b'_')
+        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
+        assert clock_class in globals(), f'cannot find {clock_class}'
+        assert hasattr(globals()[clock_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
+        clock = globals()[clock_class].unpack(clock)
+
+        # parse sets
         sets = json.loads(str(sets, 'utf-8'))
         observed_metadata = {}
         removed_metadata = {}
@@ -448,7 +477,7 @@ class ORSet:
                 not self.clock.is_later(self.removed_metadata[member], ts)
             ):
                 self.observed.add(member)
-                oldts = self.observed_metadata[member] if member in self.observed_metadata else -1
+                oldts = self.observed_metadata[member] if member in self.observed_metadata else self.clock.default_ts
                 if self.clock.is_later(ts, oldts):
                     self.observed_metadata[member] = ts
 
@@ -467,7 +496,7 @@ class ORSet:
                 self.clock.is_later(ts, self.observed_metadata[member])
             ):
                 self.removed.add(member)
-                oldts = self.removed_metadata[member] if member in self.removed_metadata else -1
+                oldts = self.removed_metadata[member] if member in self.removed_metadata else self.clock.default_ts
                 if self.clock.is_later(ts, oldts):
                     self.removed_metadata[member] = ts
 
@@ -578,7 +607,8 @@ class PNCounter:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = self.clock.pack()
+        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
+        clock += b'_' + self.clock.pack()
         clock_size = len(clock)
 
         return struct.pack(
@@ -600,7 +630,12 @@ class PNCounter:
             f'!I{clock_size}sII',
             data
         )
-        clock = ScalarClock.unpack(clock)
+        clock_class, _, clock = clock.partition(b'_')
+        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
+        assert clock_class in globals(), f'cannot find {clock_class}'
+        assert hasattr(globals()[clock_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
+        clock = globals()[clock_class].unpack(clock)
 
         return cls(positive, negative, clock)
 
@@ -771,7 +806,7 @@ class RGArray:
         assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
         assert type(writer) is int, 'writer must be int'
 
-        ts = self.clock.read()
+        ts = self.clock.wrap_ts(self.clock.read())
         state_update = self.items.observe(RGATupleWrapper((item, (ts, writer))))
 
         self.update(state_update)
@@ -843,11 +878,17 @@ class LWWRegister:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
+        # pack name
         name = self.name.__class__.__name__ + '_' + self.name.pack().hex()
         name = bytes(name, 'utf-8')
         name_size = len(name)
-        clock = self.clock.pack()
+
+        # pack clock
+        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
+        clock += b'_' + self.clock.pack()
         clock_size = len(clock)
+
+        # pack value
         value_type = bytes(self.value.__class__.__name__, 'utf-8')
         value_type_size = len(value_type)
         value = self.value.pack()
@@ -882,13 +923,25 @@ class LWWRegister:
             f'!IIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s',
             data
         )
+
+        # parse name
         name = str(name, 'utf-8')
         name_class, name_value = name.split('_')
+        assert name_class in globals(), f'cannot find {name_class}'
+        assert hasattr(globals()[name_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
         name = globals()[name_class].unpack(bytes.fromhex(name_value))
-        clock = ScalarClock.unpack(clock)
-        value_type = str(value_type, 'utf-8')
 
-        # more conditions and parsing
+        # parse clock
+        clock_class, _, clock = clock.partition(b'_')
+        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
+        assert clock_class in globals(), f'cannot find {clock_class}'
+        assert hasattr(globals()[clock_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
+        clock = globals()[clock_class].unpack(clock)
+
+        # parse value
+        value_type = str(value_type, 'utf-8')
         assert value_type in globals(), 'value_type must be resolvable from globals'
         value = globals()[value_type].unpack(value)
         assert isinstance(value, DataWrapperProtocol), \
@@ -1017,7 +1070,8 @@ class LWWMap:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = self.clock.pack()
+        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
+        clock += b'_' + self.clock.pack()
         names = self.names.pack()
         registers = {}
 
@@ -1063,7 +1117,12 @@ class LWWMap:
         )
 
         # parse the clock and names
-        clock = ScalarClock.unpack(clock)
+        clock_class, _, clock = clock.partition(b'_')
+        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
+        assert clock_class in globals(), f'cannot find {clock_class}'
+        assert hasattr(globals()[clock_class], 'unpack'), \
+            f'{clock_class} missing unpack method'
+        clock = globals()[clock_class].unpack(clock)
         names = ORSet.unpack(names)
 
         # parse the registers
