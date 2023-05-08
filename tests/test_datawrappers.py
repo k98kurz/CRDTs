@@ -242,7 +242,7 @@ class TestDataWrappers(unittest.TestCase):
         value_packed = value.pack()
         data = struct.pack(
             f'!IIII{len(value_type)}s{len(value_packed)}s{len(index[0])}s' +
-            f'{len(index[1])}s',
+            f'{len(index[1])}s?',
             len(value_type),
             len(value_packed),
             len(index[0]),
@@ -251,6 +251,7 @@ class TestDataWrappers(unittest.TestCase):
             value_packed,
             index[0],
             index[1],
+            False,
         )
         unpacked = datawrappers.CTDataWrapper.unpack(data)
         assert type(unpacked) is datawrappers.CTDataWrapper

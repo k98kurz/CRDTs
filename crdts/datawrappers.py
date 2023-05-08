@@ -58,16 +58,20 @@ class BytesWrapper(StrWrapper):
 class CTDataWrapper(StrWrapper):
     value: DataWrapperProtocol
     index: tuple[bytes]
+    visible: bool
 
-    def __init__(self, value: DataWrapperProtocol, index: tuple[bytes, bytes]) -> None:
+    def __init__(self, value: DataWrapperProtocol, index: tuple[bytes, bytes],
+                 visible: bool = True) -> None:
         assert isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol'
         assert type(index) is tuple, 'index must be tuple[bytes, bytes]'
         assert len(index) == 2, 'index must be tuple[bytes, bytes]'
         assert type(index[0]) is bytes and type(index[1]) is bytes, \
             'index must be tuple[bytes, bytes]'
+        assert type(visible) is bool, 'visible must be bool'
 
         self.value = value
         self.index = index
+        self.visible = visible
 
     def pack(self) -> bytes:
         value_type = bytes(self.value.__class__.__name__, 'utf-8')
@@ -75,7 +79,7 @@ class CTDataWrapper(StrWrapper):
 
         return struct.pack(
             f'!IIII{len(value_type)}s{len(value_packed)}s{len(self.index[0])}s' +
-            f'{len(self.index[1])}s',
+            f'{len(self.index[1])}s?',
             len(value_type),
             len(value_packed),
             len(self.index[0]),
@@ -84,6 +88,7 @@ class CTDataWrapper(StrWrapper):
             value_packed,
             self.index[0],
             self.index[1],
+            self.visible,
         )
 
     @classmethod
@@ -92,8 +97,8 @@ class CTDataWrapper(StrWrapper):
             f'!IIII{len(data)-16}s',
             data
         )
-        _, value_type, value_packed, idx0, idx1 = struct.unpack(
-            f'!16s{value_type_len}s{value_len}s{idx0_len}s{idx1_len}s',
+        _, value_type, value_packed, idx0, idx1, visible = struct.unpack(
+            f'!16s{value_type_len}s{value_len}s{idx0_len}s{idx1_len}s?',
             data
         )
 
@@ -104,7 +109,7 @@ class CTDataWrapper(StrWrapper):
             f'{value_type} missing unpack method'
         value = globals()[value_type].unpack(value_packed)
 
-        return cls(value, (idx0, idx1))
+        return cls(value, (idx0, idx1), visible)
 
 
 class DecimalWrapper(StrWrapper):
