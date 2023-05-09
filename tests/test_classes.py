@@ -1441,6 +1441,10 @@ class TestCRDTs(unittest.TestCase):
         assert fiarray.checksums() == unpacked.checksums()
         assert fiarray.read() == unpacked.read()
 
+    # CausalTree tests
+    def test_CausalTree_implements_CRDTProtocol(self):
+        assert isinstance(classes.CausalTree(), interfaces.CRDTProtocol)
+
     # pack/unpack e2e test for injected clock
     def test_GSet_pack_unpack_e2e_with_injected_clock(self):
         if hasattr(classes, 'StrClock'):

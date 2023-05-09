@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from .datawrappers import (
     BytesWrapper,
+    CTDataWrapper,
     DecimalWrapper,
     IntWrapper,
     NoneWrapper,
@@ -1616,8 +1617,182 @@ class FIArray:
 
 class CausalTree:
     """Implements a Causal Tree CRDT."""
-    ...
-    """@todo basically FIArray but with index of (parent_uuid, uuid)"""
+    positions: LWWMap
+    clock: ClockProtocol
+    cache_full: list[DataWrapperProtocol]
+    cache: list[Any]
+
+    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
+        """Initialize a CausalTree from an LWWMap of item positions and a
+            shared clock.
+        """
+        assert type(positions) is LWWMap or positions is None, \
+            'positions must be an LWWMap or None'
+        assert isinstance(clock, ClockProtocol) or clock is None, \
+            'clock must be a ClockProtocol or None'
+
+        clock = ScalarClock() if clock is None else clock
+        positions = LWWMap(clock=clock) if positions is None else positions
+
+        self.positions = positions
+        self.clock = clock
+        self.cache_full = None
+        self.cache = None
+
+    def pack(self) -> bytes:
+        """Pack the data and metadata into a bytes string."""
+        return self.positions.pack()
+
+    @classmethod
+    def unpack(cls, data: bytes) -> CausalTree:
+        """Unpack the data bytes string into an instance."""
+        positions = LWWMap.unpack(data)
+        return cls(positions=positions, clock=positions.clock)
+
+    def read(self) -> tuple[Any]:
+        """Return the eventually consistent data view. Cannot be used for
+            preparing deletion updates.
+        """
+        if self.cache is None:
+            if self.cache_full is None:
+                self.calculate_cache()
+            self.cache = [item.value for item in self.cache_full if item.visible]
+
+        return tuple(self.cache)
+
+    def read_full(self) -> tuple[CTDataWrapper]:
+        """Return the full, eventually consistent list of items with
+            tombstones and complete DataWrapperProtocols rather than the
+            underlying values. Use this for preparing deletion updates --
+            only a DataWrapperProtocol can be used for delete.
+        """
+        if self.cache_full is None:
+            self.calculate_cache()
+
+        return tuple(self.cache_full)
+
+    def update(self, state_update: StateUpdateProtocol) -> CausalTree:
+        assert isinstance(state_update, StateUpdateProtocol), \
+            'state_update must be instance implementing StateUpdateProtocol'
+        assert state_update.clock_uuid == self.clock.uuid, \
+            'state_update.clock_uuid must equal CRDT.clock.uuid'
+        assert type(state_update.data) is tuple, \
+            'state_update.data must be tuple'
+        assert state_update.data[0] in ('o', 'r'), \
+            'state_update.data[0] must be in (\'o\', \'r\')'
+        assert isinstance(state_update.data[1], DataWrapperProtocol), \
+            'state_update.data[1] must be instance implementing DataWrapperProtocol'
+        assert type(state_update.data[2]) is int, \
+            'state_update.data[2] must be writer int'
+        assert type(state_update.data[3]) is CTDataWrapper, \
+            'state_update.data[3] must be CTDataWrapper'
+
+        self.positions.update(state_update)
+        self.update_cache(state_update.data[1], state_update.data[0] == 'o')
+
+    def checksums(self) -> tuple[int]:
+        """Returns checksums for the underlying data to detect
+            desynchronization due to network partition.
+        """
+        return self.positions.checksums()
+
+    def history(self) -> tuple[StateUpdate]:
+        """Returns a concise history of StateUpdates that will converge
+            to the underlying data. Useful for resynchronization by
+            replaying all updates from divergent nodes.
+        """
+        return self.positions.history()
+
+    def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
+            parent: bytes = b'') -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the item
+            at the index.
+        """
+        state_update = StateUpdate(
+            self.clock.uuid,
+            self.clock.read(),
+            (
+                'o',
+                uuid,
+                writer,
+                CTDataWrapper(item, uuid, parent)
+            )
+        )
+
+        self.update(state_update)
+
+        return state_update
+
+    def put_after(self, item: DataWrapperProtocol, writer: int,
+        parent: CTDataWrapper) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the item
+            after the parent item.
+        """
+        assert parent in [item.value for item in self.read_full()], \
+            'parent must already be assigned a position'
+
+        uuid = uuid1().bytes
+        parent = self.positions.registers[parent].value.uuid
+
+        return self.put(item, writer, uuid, parent)
+
+    def put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that puts the
+            item at an index between 0 and the first item.
+        """
+        return self.put(item, writer, uuid1().bytes, b'')
+
+    def delete(self, item: CTDataWrapper, writer: int) -> StateUpdate:
+        """Creates, applies, and returns a StateUpdate that deletes the
+            item.
+        """
+        assert item in self.positions.registers
+        ctdw = self.positions.registers[item].value
+
+        state_update = StateUpdate(
+            self.clock.uuid,
+            self.clock.read(),
+            (
+                'r',
+                ctdw.uuid,
+                writer,
+                CTDataWrapper(NoneWrapper(), ctdw.uuid, ctdw.parent, False)
+            )
+        )
+
+        self.update(state_update)
+
+        return state_update
+
+    def calculate_cache(self) -> None:
+        """Reads the items from the underlying LWWMap, orders them, then
+            sets the cache_full list. Resets the cache.
+        """
+        # create list of all items
+        positions = [
+            self.positions.registers[register].value
+            for register in self.positions.registers
+        ]
+
+        # todo sort linked lists
+
+    def update_cache(self, item: DataWrapperProtocol, visible: bool) -> None:
+        """Updates the cache by finding the correct insertion index for
+            the given item, then inserting it there or removing it. Uses
+            the bisect algorithm if necessary. Resets the cache.
+        """
+        assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
+        assert type(visible) is bool, 'visible must be bool'
+
+        index = self.positions.registers[item].value
+
+        if self.cache_full is None:
+            self.calculate_cache()
+
+        if index in self.cache_full:
+            self.cache_full.remove(index)
+
+        # todo sort
 
 
 class ValidCRDTs(Enum):

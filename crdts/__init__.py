@@ -9,6 +9,7 @@ from crdts.classes import (
     RGArray,
     LWWRegister,
     LWWMap,
+    CausalTree,
     ValidCRDTs,
     CompositeCRDT
 )
@@ -20,6 +21,7 @@ from crdts.interfaces import (
 )
 from crdts.datawrappers import (
     BytesWrapper,
+    CTDataWrapper,
     DecimalWrapper,
     IntWrapper,
     NoneWrapper,

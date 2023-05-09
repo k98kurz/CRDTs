@@ -41,6 +41,7 @@ Each implementation must include a full test suite to be considered complete.
 - [x] LWWRegister
 - [x] LWWMap
 - [x] FIArray
+- [ ] CausalTree
 - [ ] CompositeCRDT
 - [ ] Decent documentation
 
