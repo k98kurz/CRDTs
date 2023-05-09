@@ -272,6 +272,21 @@ class TestDataWrappers(unittest.TestCase):
         unpacked = datawrappers.CTDataWrapper.unpack(packed)
         assert ctw == unpacked
 
+    def test_CTDataWrapper_comparisons(self):
+        ctw1 = datawrappers.CTDataWrapper(
+            datawrappers.BytesWrapper(b'123'),
+            b'321',
+            b'123'
+        )
+        ctw2 = datawrappers.CTDataWrapper(
+            datawrappers.BytesWrapper(b'123'),
+            b'321',
+            b'123',
+            False
+        )
+        assert ctw1 != ctw2
+        assert hash(ctw1) != hash(ctw2)
+
 
 if __name__ == '__main__':
     unittest.main()

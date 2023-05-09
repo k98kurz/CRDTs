@@ -11,11 +11,14 @@ import struct
 class StrWrapper:
     value: str
 
+    def __to_tuple__(self) -> tuple:
+        return (self.__class__.__name__, self.value)
+
     def __hash__(self) -> int:
-        return hash((self.__class__.__name__, self.value))
+        return hash(self.__to_tuple__())
 
     def __eq__(self, other: DataWrapperProtocol) -> bool:
-        return type(self) == type(other) and self.value == other.value
+        return type(self) == type(other) and hash(self) == hash(other)
 
     def __ne__(self, other: DataWrapperProtocol) -> bool:
         return not self.__eq__(other)
@@ -72,6 +75,21 @@ class CTDataWrapper(StrWrapper):
         self.uuid = uuid
         self.parent = parent
         self.visible = visible
+
+    def __to_tuple__(self) -> tuple:
+        return (self.__class__.__name__, self.value, self.uuid, self.parent, self.visible)
+
+    def __gt__(self, other: CTDataWrapper) -> bool:
+        return self.__to_tuple__() > other.__to_tuple__()
+
+    def __ge__(self, other: CTDataWrapper) -> bool:
+        return self.__to_tuple__() >= other.__to_tuple__()
+
+    def __lt__(self, other: CTDataWrapper) -> bool:
+        return self.__to_tuple__() < other.__to_tuple__()
+
+    def __le__(self, other: CTDataWrapper) -> bool:
+        return self.__to_tuple__() <= other.__to_tuple__()
 
     def pack(self) -> bytes:
         value_type = bytes(self.value.__class__.__name__, 'utf-8')
