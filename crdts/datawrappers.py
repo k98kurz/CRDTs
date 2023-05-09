@@ -57,20 +57,20 @@ class BytesWrapper(StrWrapper):
 
 class CTDataWrapper(StrWrapper):
     value: DataWrapperProtocol
-    index: tuple[bytes]
+    uuid: bytes
+    parent: bytes
     visible: bool
 
-    def __init__(self, value: DataWrapperProtocol, index: tuple[bytes, bytes],
+    def __init__(self, value: DataWrapperProtocol, uuid: bytes, parent: bytes,
                  visible: bool = True) -> None:
         assert isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol'
-        assert type(index) is tuple, 'index must be tuple[bytes, bytes]'
-        assert len(index) == 2, 'index must be tuple[bytes, bytes]'
-        assert type(index[0]) is bytes and type(index[1]) is bytes, \
-            'index must be tuple[bytes, bytes]'
+        assert type(uuid) is bytes, 'uuid must be bytes'
+        assert type(parent) is bytes, 'parent must be bytes'
         assert type(visible) is bool, 'visible must be bool'
 
         self.value = value
-        self.index = index
+        self.uuid = uuid
+        self.parent = parent
         self.visible = visible
 
     def pack(self) -> bytes:
@@ -78,27 +78,27 @@ class CTDataWrapper(StrWrapper):
         value_packed = self.value.pack()
 
         return struct.pack(
-            f'!IIII{len(value_type)}s{len(value_packed)}s{len(self.index[0])}s' +
-            f'{len(self.index[1])}s?',
+            f'!IIII{len(value_type)}s{len(value_packed)}s' +
+            f'{len(self.uuid)}s{len(self.parent)}s?',
             len(value_type),
             len(value_packed),
-            len(self.index[0]),
-            len(self.index[1]),
+            len(self.uuid),
+            len(self.parent),
             value_type,
             value_packed,
-            self.index[0],
-            self.index[1],
+            self.uuid,
+            self.parent,
             self.visible,
         )
 
     @classmethod
     def unpack(cls, data: bytes) -> CTDataWrapper:
-        value_type_len, value_len, idx0_len, idx1_len, _ = struct.unpack(
+        value_type_len, value_len, uuid_len, parent_len, _ = struct.unpack(
             f'!IIII{len(data)-16}s',
             data
         )
-        _, value_type, value_packed, idx0, idx1, visible = struct.unpack(
-            f'!16s{value_type_len}s{value_len}s{idx0_len}s{idx1_len}s?',
+        _, value_type, value_packed, uuid, parent, visible = struct.unpack(
+            f'!16s{value_type_len}s{value_len}s{uuid_len}s{parent_len}s?',
             data
         )
 
@@ -109,7 +109,7 @@ class CTDataWrapper(StrWrapper):
             f'{value_type} missing unpack method'
         value = globals()[value_type].unpack(value_packed)
 
-        return cls(value, (idx0, idx1), visible)
+        return cls(value, uuid, parent, visible)
 
 
 class DecimalWrapper(StrWrapper):
