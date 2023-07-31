@@ -5,6 +5,7 @@ from .datawrappers import (
     DecimalWrapper,
     IntWrapper,
     RGATupleWrapper,
+    CTDataWrapper,
 )
 from .interfaces import PackableProtocol
 from typing import Any
@@ -72,9 +73,9 @@ def serialize_part(data: Any) -> bytes:
 
     if type(data) is float:
         return struct.pack(
-            f'!1sIf',
+            f'!1sId',
             b'f',
-            4,
+            8,
             data
         )
 
@@ -130,4 +131,4 @@ def deserialize_part(data: bytes) -> Any:
         return struct.unpack(f'!II{len(data)-8}s', data)[1]
 
     if code == b'f':
-        return struct.unpack(f'!If{len(data)-8}s', data)[1]
+        return struct.unpack(f'!Id{len(data)-12}s', data)[1]
