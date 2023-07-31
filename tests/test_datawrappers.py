@@ -212,7 +212,7 @@ class TestDataWrappers(unittest.TestCase):
         )
         assert isinstance(ctw.value, interfaces.DataWrapperProtocol)
         assert type(ctw.uuid) is bytes
-        assert type(ctw.parent) is bytes
+        assert type(ctw.parent_uuid) is bytes
 
     def test_CTDataWrapper_raises_AssertionError_for_bad_value(self):
         with self.assertRaises(AssertionError) as e:
@@ -225,7 +225,7 @@ class TestDataWrappers(unittest.TestCase):
 
         with self.assertRaises(AssertionError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), b'123', 123)
-        assert str(e.exception) == 'parent must be bytes'
+        assert str(e.exception) == 'parent_uuid must be bytes'
 
         with self.assertRaises(AssertionError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'1'), b'1', b'1', 'f')

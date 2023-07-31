@@ -61,23 +61,23 @@ class BytesWrapper(StrWrapper):
 class CTDataWrapper(StrWrapper):
     value: DataWrapperProtocol
     uuid: bytes
-    parent: bytes
+    parent_uuid: bytes
     visible: bool
 
-    def __init__(self, value: DataWrapperProtocol, uuid: bytes, parent: bytes,
+    def __init__(self, value: DataWrapperProtocol, uuid: bytes, parent_uuid: bytes,
                  visible: bool = True) -> None:
         assert isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol'
         assert type(uuid) is bytes, 'uuid must be bytes'
-        assert type(parent) is bytes, 'parent must be bytes'
+        assert type(parent_uuid) is bytes, 'parent_uuid must be bytes'
         assert type(visible) is bool, 'visible must be bool'
 
         self.value = value
         self.uuid = uuid
-        self.parent = parent
+        self.parent_uuid = parent_uuid
         self.visible = visible
 
     def __to_tuple__(self) -> tuple:
-        return (self.__class__.__name__, self.value, self.uuid, self.parent, self.visible)
+        return (self.__class__.__name__, self.value, self.uuid, self.parent_uuid, self.visible)
 
     def __gt__(self, other: CTDataWrapper) -> bool:
         return self.__to_tuple__() > other.__to_tuple__()
@@ -91,21 +91,44 @@ class CTDataWrapper(StrWrapper):
     def __le__(self, other: CTDataWrapper) -> bool:
         return self.__to_tuple__() <= other.__to_tuple__()
 
+    def children(self) -> set[CTDataWrapper]:
+        if hasattr(self, '_children'):
+            return self._children
+        return set()
+
+    def add_child(self, child: CTDataWrapper):
+        assert isinstance(child, CTDataWrapper), 'child must be CTDataWrapper'
+        if not hasattr(self, '_children'):
+            self._children = set()
+        self._children.add(child)
+        if child.parent_uuid != self.uuid:
+            child.parent_uuid = self.uuid
+
+    def parent(self) -> CTDataWrapper|None:
+        if hasattr(self, '_parent'):
+            return self._parent
+
+    def set_parent(self, parent: CTDataWrapper):
+        assert isinstance(parent, CTDataWrapper), 'parent must be CTDataWrapper'
+        self._parent = parent
+        if self.parent_uuid != parent.uuid:
+            self.parent_uuid = parent.uuid
+
     def pack(self) -> bytes:
         value_type = bytes(self.value.__class__.__name__, 'utf-8')
         value_packed = self.value.pack()
 
         return struct.pack(
             f'!IIII{len(value_type)}s{len(value_packed)}s' +
-            f'{len(self.uuid)}s{len(self.parent)}s?',
+            f'{len(self.uuid)}s{len(self.parent_uuid)}s?',
             len(value_type),
             len(value_packed),
             len(self.uuid),
-            len(self.parent),
+            len(self.parent_uuid),
             value_type,
             value_packed,
             self.uuid,
-            self.parent,
+            self.parent_uuid,
             self.visible,
         )
 
@@ -115,7 +138,7 @@ class CTDataWrapper(StrWrapper):
             f'!IIII{len(data)-16}s',
             data
         )
-        _, value_type, value_packed, uuid, parent, visible = struct.unpack(
+        _, value_type, value_packed, uuid, parent_uuid, visible = struct.unpack(
             f'!16s{value_type_len}s{value_len}s{uuid_len}s{parent_len}s?',
             data
         )
@@ -127,7 +150,7 @@ class CTDataWrapper(StrWrapper):
             f'{value_type} missing unpack method'
         value = globals()[value_type].unpack(value_packed)
 
-        return cls(value, uuid, parent, visible)
+        return cls(value, uuid, parent_uuid, visible)
 
 
 class DecimalWrapper(StrWrapper):
