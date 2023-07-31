@@ -1203,17 +1203,18 @@ class LWWMap:
             'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)'
         assert len(state_update.data) == 4, \
             'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)'
-        assert type(state_update.data[0]) is str and state_update.data[0] in ('o', 'r'), \
+
+        op, name, writer, value = state_update.data
+        assert type(op) is str and op in ('o', 'r'), \
             'state_update.data[0] must be str op one of (\'o\', \'r\')'
-        assert isinstance(state_update.data[1], DataWrapperProtocol), \
+        assert isinstance(name, DataWrapperProtocol), \
             'state_update.data[1] must be DataWrapperProtocol name'
-        assert type(state_update.data[2]) is int, \
+        assert type(writer) is int, \
             'state_update.data[2] must be int writer id'
-        assert isinstance(state_update.data[3], DataWrapperProtocol), \
+        assert isinstance(value, DataWrapperProtocol), \
             'state_update.data[3] must be DataWrapperProtocol value'
 
         ts = state_update.ts
-        op, name, writer, value = state_update.data
 
         if op == 'o':
             # try to add to the names ORSet
@@ -1656,7 +1657,7 @@ class CausalTree:
         if self.cache is None:
             if self.cache_full is None:
                 self.calculate_cache()
-            self.cache = [item.value for item in self.cache_full if item.visible]
+            self.cache = [item.value.value for item in self.cache_full if item.visible]
 
         return tuple(self.cache)
 
@@ -1688,7 +1689,7 @@ class CausalTree:
             'state_update.data[3] must be CTDataWrapper'
 
         self.positions.update(state_update)
-        self.update_cache(state_update.data[1], state_update.data[0] == 'o')
+        self.update_cache(state_update.data[3], state_update.data[0] == 'o')
 
     def checksums(self) -> tuple[int]:
         """Returns checksums for the underlying data to detect
@@ -1708,12 +1709,14 @@ class CausalTree:
         """Creates, applies, and returns a StateUpdate that puts the item
             at the index.
         """
+        assert type(uuid) is bytes, "uuid must be bytes"
+        assert type(parent) is bytes, "parent must be bytes"
         state_update = StateUpdate(
             self.clock.uuid,
             self.clock.read(),
             (
                 'o',
-                uuid,
+                BytesWrapper(uuid),
                 writer,
                 CTDataWrapper(item, uuid, parent)
             )
@@ -1742,19 +1745,18 @@ class CausalTree:
         """
         return self.put(item, writer, uuid1().bytes, b'')
 
-    def delete(self, item: CTDataWrapper, writer: int) -> StateUpdate:
+    def delete(self, ctdw: CTDataWrapper, writer: int) -> StateUpdate:
         """Creates, applies, and returns a StateUpdate that deletes the
-            item.
+            item specified by ctdw.
         """
-        assert item in self.positions.registers
-        ctdw = self.positions.registers[item].value
+        assert ctdw.value in self.positions.registers
 
         state_update = StateUpdate(
             self.clock.uuid,
             self.clock.read(),
             (
                 'r',
-                ctdw.uuid,
+                BytesWrapper(ctdw.uuid),
                 writer,
                 CTDataWrapper(NoneWrapper(), ctdw.uuid, ctdw.parent, False)
             )
@@ -1774,14 +1776,42 @@ class CausalTree:
             for register in self.positions.registers
         ]
 
-        # todo sort linked lists
+        # create linked lists
+        parsed: dict[bytes, CTDataWrapper] = {}
+        for p in positions:
+            if p.uuid not in parsed:
+                parsed[p.uuid] = p
+            if p.parent_uuid not in parsed:
+                for r in positions:
+                    if r.uuid == p.parent_uuid:
+                        parsed[r.uuid] = r
+                        break
+            if p.parent_uuid in parsed:
+                parsed[p.parent_uuid].add_child(p)
+                p.set_parent(parsed[p.parent_uuid])
 
-    def update_cache(self, item: DataWrapperProtocol, visible: bool) -> None:
+        # function for getting sorted list of children
+        def get_children(parent_uuid: bytes) -> list[CTDataWrapper]:
+            children = [v for _, v in parsed.items() if v.parent_uuid == parent_uuid]
+            return sorted(children, key=lambda ctdw: ctdw.uuid)
+
+        def get_list(parent_uuid: bytes) -> list[CTDataWrapper]:
+            result = []
+            children = get_children(parent_uuid)
+            for child in children:
+                result.append(child)
+                child_list = get_list(child.uuid)
+                result.extend(child_list)
+            return result
+
+        self.cache_full = get_list(b'')
+
+    def update_cache(self, item: CTDataWrapper, visible: bool) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
-        assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
+        assert isinstance(item, CTDataWrapper), 'item must be CTDataWrapper'
         assert type(visible) is bool, 'visible must be bool'
 
         index = self.positions.registers[item].value

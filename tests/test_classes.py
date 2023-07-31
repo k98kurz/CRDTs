@@ -1445,6 +1445,61 @@ class TestCRDTs(unittest.TestCase):
     def test_CausalTree_implements_CRDTProtocol(self):
         assert isinstance(classes.CausalTree(), interfaces.CRDTProtocol)
 
+    def test_CausalTree_read_returns_tuple_of_underlying_items(self):
+        causaltree = classes.CausalTree()
+        causaltree.positions.extend(
+            datawrappers.BytesWrapper(b'first'),
+            datawrappers.CTDataWrapper(
+                datawrappers.StrWrapper('first'),
+                b'first',
+                b''
+            ),
+            1
+        )
+        causaltree.positions.extend(
+            datawrappers.BytesWrapper(b'second'),
+            datawrappers.CTDataWrapper(
+                datawrappers.BytesWrapper(b'second'),
+                b'second',
+                b'first'
+            ),
+            1
+        )
+        view = causaltree.read()
+        assert isinstance(view, tuple)
+        assert view == ('first', b'second')
+
+    def test_CausalTree_read_full_returns_tuple_of_DataWrapperProtocol(self):
+        causaltree = classes.CausalTree()
+        causaltree.positions.extend(
+            datawrappers.BytesWrapper(b'first'),
+            datawrappers.CTDataWrapper(
+                datawrappers.StrWrapper('first'),
+                b'first',
+                b''
+            ),
+            1
+        )
+        causaltree.positions.extend(
+            datawrappers.BytesWrapper(b'second'),
+            datawrappers.CTDataWrapper(
+                datawrappers.BytesWrapper(b'second'),
+                b'second',
+                b'first'
+            ),
+            1
+        )
+        view = causaltree.read_full()
+
+        assert isinstance(view, tuple)
+        assert len(view) == 2
+
+        for item in view:
+            assert isinstance(item, datawrappers.CTDataWrapper)
+
+        assert view[0].value.value == 'first'
+        assert view[1].value.value == b'second'
+
     # pack/unpack e2e test for injected clock
     def test_GSet_pack_unpack_e2e_with_injected_clock(self):
         if hasattr(classes, 'StrClock'):
