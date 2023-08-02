@@ -1500,6 +1500,41 @@ class TestCRDTs(unittest.TestCase):
         assert view[0].value.value == 'first'
         assert view[1].value.value == b'second'
 
+    def test_CausalTree_put_changes_view_and_results_in_correct_ordering(self):
+        causaltree = classes.CausalTree()
+        view1 = causaltree.read()
+
+        su = causaltree.put(
+            datawrappers.StrWrapper("first"),
+            1,
+            b'first'
+        )
+        assert type(su) is classes.StateUpdate
+        view2 = causaltree.read()
+
+        su = causaltree.put(
+            datawrappers.StrWrapper("third"),
+            1,
+            b'third',
+            b'first'
+        )
+        assert type(su) is classes.StateUpdate
+        view3 = causaltree.read()
+
+        su = causaltree.put(
+            datawrappers.StrWrapper("second"),
+            1,
+            b'second',
+            b'first'
+        )
+        assert type(su) is classes.StateUpdate
+        view4 = causaltree.read()
+
+        assert view1 == tuple()
+        assert view2 == ('first',)
+        assert view3 == ('first', 'third')
+        assert view4 == ('first', 'second', 'third')
+
     # pack/unpack e2e test for injected clock
     def test_GSet_pack_unpack_e2e_with_injected_clock(self):
         if hasattr(classes, 'StrClock'):

@@ -1620,8 +1620,7 @@ class CausalTree:
     """Implements a Causal Tree CRDT."""
     positions: LWWMap
     clock: ClockProtocol
-    cache_full: list[DataWrapperProtocol]
-    cache: list[Any]
+    cache: list[CTDataWrapper]
 
     def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
         """Initialize a CausalTree from an LWWMap of item positions and a
@@ -1655,11 +1654,9 @@ class CausalTree:
             preparing deletion updates.
         """
         if self.cache is None:
-            if self.cache_full is None:
-                self.calculate_cache()
-            self.cache = [item.value.value for item in self.cache_full if item.visible]
+            self.calculate_cache()
 
-        return tuple(self.cache)
+        return tuple([item.value.value for item in self.cache if item.visible])
 
     def read_full(self) -> tuple[CTDataWrapper]:
         """Return the full, eventually consistent list of items with
@@ -1667,10 +1664,10 @@ class CausalTree:
             underlying values. Use this for preparing deletion updates --
             only a DataWrapperProtocol can be used for delete.
         """
-        if self.cache_full is None:
+        if self.cache is None:
             self.calculate_cache()
 
-        return tuple(self.cache_full)
+        return tuple(self.cache)
 
     def update(self, state_update: StateUpdateProtocol) -> CausalTree:
         assert isinstance(state_update, StateUpdateProtocol), \
@@ -1768,7 +1765,7 @@ class CausalTree:
 
     def calculate_cache(self) -> None:
         """Reads the items from the underlying LWWMap, orders them, then
-            sets the cache_full list. Resets the cache.
+            sets the cache list.
         """
         # create list of all items
         positions = [
@@ -1804,7 +1801,7 @@ class CausalTree:
                 result.extend(child_list)
             return result
 
-        self.cache_full = get_list(b'')
+        self.cache = get_list(b'')
 
     def update_cache(self, item: CTDataWrapper, visible: bool) -> None:
         """Updates the cache by finding the correct insertion index for
@@ -1814,15 +1811,40 @@ class CausalTree:
         assert isinstance(item, CTDataWrapper), 'item must be CTDataWrapper'
         assert type(visible) is bool, 'visible must be bool'
 
-        index = self.positions.registers[item].value
+        if BytesWrapper(item.uuid) not in self.positions.registers:
+            return
 
-        if self.cache_full is None:
+        if self.cache is None:
             self.calculate_cache()
 
-        if index in self.cache_full:
-            self.cache_full.remove(index)
+        if len(self.cache) == 0:
+            self.cache.append(item)
+            return
 
-        # todo sort
+        def walk(item: CTDataWrapper) -> CTDataWrapper:
+            if not len(item.children()) > 0:
+                return item
+            children = sorted(list(item.children()), key=lambda c: c.uuid)
+            return walk(children[-1])
+
+        for i in range(len(self.cache)):
+            ctdw = self.cache[i]
+            if ctdw.uuid == item.parent_uuid:
+                item.set_parent(ctdw)
+                ctdw.add_child(item)
+                if len(ctdw.children()) > 0:
+                    children = sorted(list(ctdw.children()), key=lambda c: c.uuid)
+                    if children.index(item) > 0:
+                        before = children[children.index(item)-1]
+                        index = self.cache.index(walk(before))
+                        self.cache.insert(index, item)
+                    else:
+                        index = self.cache.index(ctdw) + 1
+                        self.cache.insert(index, item)
+                    return
+                else:
+                    self.cache.insert(i + 1, item)
+                    return
 
 
 class ValidCRDTs(Enum):
