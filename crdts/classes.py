@@ -157,22 +157,31 @@ class ScalarClock:
 @dataclass
 class GSet:
     """Implements the Grow-only Set (GSet) CRDT."""
-    members: set = field(default_factory=set)
+    members: set[DataWrapperProtocol] = field(default_factory=set)
     clock: ClockProtocol = field(default_factory=ScalarClock)
+    update_history: dict[DataWrapperProtocol, StateUpdateProtocol] = field(default_factory=dict)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
         clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
         clock += b'_' + self.clock.pack()
-        members = bytes(json.dumps(list(self.members), separators=(',', ':')), 'utf-8')
+        members = [m.__class__.__name__ + '_' + m.pack().hex() for m in self.members]
+        members = bytes(json.dumps(members, separators=(',', ':')), 'utf-8')
         clock_size, set_size = len(clock), len(members)
+        history = bytes(json.dumps({
+            k.__class__.__name__ + '_' + k.pack().hex(): v.pack().hex()
+            for k,v in self.update_history.items()
+        }), 'utf-8')
+        history_size = len(history)
 
         return struct.pack(
-            f'!ii{clock_size}s{set_size}s',
+            f'!III{clock_size}s{set_size}s{history_size}s',
             clock_size,
             set_size,
+            history_size,
             clock,
-            members
+            members,
+            history
         )
 
     @classmethod
@@ -181,12 +190,12 @@ class GSet:
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) > 8, 'data must be more than 8 bytes'
 
-        clock_size, set_size, _ = struct.unpack(
-            f'!II{len(data)-8}s',
+        clock_size, set_size, history_size, data = struct.unpack(
+            f'!III{len(data)-12}s',
             data
         )
-        _, _, clock, set_bytes = struct.unpack(
-            f'!II{clock_size}s{set_size}s',
+        clock, set_bytes, history_bytes = struct.unpack(
+            f'!{clock_size}s{set_size}s{history_size}s',
             data
         )
 
@@ -197,9 +206,23 @@ class GSet:
         assert hasattr(globals()[clock_class], 'unpack'), \
             f'{clock_class} missing unpack method'
         clock = globals()[clock_class].unpack(clock)
-        members = set(json.loads(str(set_bytes, 'utf-8')))
+        _members: list[str] = json.loads(str(set_bytes, 'utf-8'))
+        members = []
+        for m in _members:
+            class_name, data = m.split('_')
+            assert class_name in globals(), f'{class_name} not found'
+            members.append(globals()[class_name].unpack(bytes.fromhex(data)))
 
-        return cls(members=members, clock=clock)
+        # parse history
+        _history = json.loads(history_bytes)
+        history = {}
+        for k,v in _history.items():
+            class_name, data = k.split('_')
+            assert class_name in globals(), f'{class_name} not found'
+            key = globals()[class_name].unpack(bytes.fromhex(data))
+            history[key] = StateUpdate.unpack(bytes.fromhex(v))
+
+        return cls(members=set(members), clock=clock, update_history=history)
 
     def read(self) -> set:
         """Return the eventually consistent data view."""
@@ -211,11 +234,14 @@ class GSet:
             'state_update must be instance implementing StateUpdateProtocol'
         assert state_update.clock_uuid == self.clock.uuid, \
             'state_update.clock_uuid must equal CRDT.clock.uuid'
+        assert isinstance(state_update.data, DataWrapperProtocol), \
+            'state_update.data must be instance implementing DataWrapperProtocol'
 
         if state_update.data not in self.members:
             self.members.add(state_update.data)
 
         self.clock.update(state_update.ts)
+        self.update_history[state_update.data] = state_update
 
         return self
 
@@ -225,7 +251,7 @@ class GSet:
         """
         total_crc32 = 0
         for member in self.members:
-            total_crc32 += crc32(bytes(json.dumps(member), 'utf-8'))
+            total_crc32 += crc32(member.pack())
 
         return (
             self.clock.read(),
@@ -233,7 +259,7 @@ class GSet:
             total_crc32 % 2**32,
         )
 
-    def history(self) -> tuple[StateUpdate]:
+    def history(self, from_ts: Any = 0) -> tuple[StateUpdate]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
@@ -241,13 +267,17 @@ class GSet:
         updates = []
 
         for member in self.members:
-            updates.append(StateUpdate(self.clock.uuid, self.clock.read()-1, member))
+            state_update = self.update_history[member]
+            if not self.clock.is_later(from_ts, state_update.ts):
+                updates.append(state_update)
 
         return tuple(updates)
 
     def add(self, member: Hashable) -> StateUpdate:
         """Create, apply, and return a StateUpdate adding member to the set."""
         assert type(hash(member)) is int, 'member must be hashable'
+        assert isinstance(member, DataWrapperProtocol), \
+            'member must be instance implementing DataWrapperProtocol'
 
         ts = self.clock.read()
         state_update = StateUpdate(self.clock.uuid, ts, member)
@@ -1685,8 +1715,9 @@ class CausalTree:
         assert type(state_update.data[3]) is CTDataWrapper, \
             'state_update.data[3] must be CTDataWrapper'
 
+        state_update.data[3].visible = state_update.data[0] == 'o'
         self.positions.update(state_update)
-        self.update_cache(state_update.data[3], state_update.data[0] == 'o')
+        self.update_cache(state_update.data[3])
 
     def checksums(self) -> tuple[int]:
         """Returns checksums for the underlying data to detect
@@ -1803,13 +1834,12 @@ class CausalTree:
 
         self.cache = get_list(b'')
 
-    def update_cache(self, item: CTDataWrapper, visible: bool) -> None:
+    def update_cache(self, item: CTDataWrapper) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
         assert isinstance(item, CTDataWrapper), 'item must be CTDataWrapper'
-        assert type(visible) is bool, 'visible must be bool'
 
         if BytesWrapper(item.uuid) not in self.positions.registers:
             return
@@ -1820,6 +1850,28 @@ class CausalTree:
         if len(self.cache) == 0:
             self.cache.append(item)
             return
+
+        def remove_children(ctdw: CTDataWrapper) -> list[CTDataWrapper]:
+            if len(ctdw.children()) == 0:
+                return []
+            children = []
+            for child in ctdw.children():
+                children.append(child)
+                self.cache.remove(child)
+                children.extend(remove_children(child))
+            return children
+
+        for ctdw in self.cache:
+            if ctdw.uuid != item.uuid:
+                continue
+            ctdw.visible = item.visible
+            if ctdw.parent_uuid == item.parent_uuid:
+                return
+            self.cache.remove(ctdw)
+            children = remove_children(ctdw)
+            for child in children:
+                self.update_cache(child)
+            break
 
         def walk(item: CTDataWrapper) -> CTDataWrapper:
             if not len(item.children()) > 0:
@@ -1839,8 +1891,7 @@ class CausalTree:
                         index = self.cache.index(walk(before))
                         self.cache.insert(index, item)
                     else:
-                        index = self.cache.index(ctdw) + 1
-                        self.cache.insert(index, item)
+                        self.cache.insert(i + 1, item)
                     return
                 else:
                     self.cache.insert(i + 1, item)

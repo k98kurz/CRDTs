@@ -241,18 +241,18 @@ class TestCRDTs(unittest.TestCase):
     def test_GSet_read_returns_members(self):
         gset = classes.GSet()
         assert gset.read() == gset.members
-        gset.members.add(1)
+        gset.members.add(datawrappers.IntWrapper(1))
         assert gset.read() == gset.members
 
     def test_GSet_add_returns_state_update(self):
         gset = classes.GSet()
-        update = gset.add(1)
+        update = gset.add(datawrappers.IntWrapper(1))
         assert isinstance(update, classes.StateUpdate)
 
     def test_GSet_history_returns_tuple_of_StateUpdate(self):
         gset = classes.GSet()
-        gset.add(1)
-        gset.add(2)
+        gset.add(datawrappers.IntWrapper(1))
+        gset.add(datawrappers.IntWrapper(2))
         history = gset.history()
         assert type(history) is tuple
         for update in history:
@@ -263,17 +263,17 @@ class TestCRDTs(unittest.TestCase):
         view1 = gset.read()
         assert type(view1) is set
         assert len(view1) == 0
-        gset.add(1)
+        gset.add(datawrappers.IntWrapper(1))
         view2 = gset.read()
         assert len(view2) == 1
-        assert [*view2][0] == 1
+        assert [*view2][0] == datawrappers.IntWrapper(1)
 
     def test_GSet_add_new_member_changes_view(self):
         gset = classes.GSet()
         view1 = gset.read()
-        gset.add(1)
+        gset.add(datawrappers.IntWrapper(1))
         view2 = gset.read()
-        gset.add(2)
+        gset.add(datawrappers.IntWrapper(2))
         view3 = gset.read()
         assert view1 != view2
         assert view2 != view3
@@ -281,9 +281,9 @@ class TestCRDTs(unittest.TestCase):
 
     def test_GSet_add_same_member_does_not_change_view(self):
         gset = classes.GSet()
-        gset.add(1)
+        gset.add(datawrappers.IntWrapper(1))
         view1 = gset.read()
-        gset.add(1)
+        gset.add(datawrappers.IntWrapper(1))
         view2 = gset.read()
         assert view1 == view2
 
@@ -297,14 +297,14 @@ class TestCRDTs(unittest.TestCase):
     def test_GSet_checksums_change_after_update(self):
         gset = classes.GSet()
         checksums1 = gset.checksums()
-        gset.add(1)
+        gset.add(datawrappers.IntWrapper(1))
         checksums2 = gset.checksums()
         assert checksums1 != checksums2
 
     def test_GSet_update_is_idempotent(self):
         gset1 = classes.GSet()
         gset2 = classes.GSet(set(), classes.ScalarClock(0, gset1.clock.uuid))
-        update = gset1.add(2)
+        update = gset1.add(datawrappers.IntWrapper(2))
         view1 = gset1.read()
         gset1.update(update)
         assert gset1.read() == view1
@@ -316,8 +316,8 @@ class TestCRDTs(unittest.TestCase):
     def test_GSet_update_from_history_converges(self):
         gset1 = classes.GSet()
         gset2 = classes.GSet(set(), classes.ScalarClock(0, gset1.clock.uuid))
-        gset1.add(1)
-        gset1.add(2)
+        gset1.add(datawrappers.IntWrapper(1))
+        gset1.add(datawrappers.IntWrapper(2))
 
         for update in gset1.history():
             gset2.update(update)
@@ -327,8 +327,8 @@ class TestCRDTs(unittest.TestCase):
 
     def test_GSet_pack_unpack_e2e(self):
         gset1 = classes.GSet()
-        gset1.add(1)
-        gset1.add(2)
+        gset1.add(datawrappers.IntWrapper(1))
+        gset1.add(datawrappers.IntWrapper(2))
         packed = gset1.pack()
         gset2 = classes.GSet.unpack(packed)
 
@@ -1541,7 +1541,7 @@ class TestCRDTs(unittest.TestCase):
             del classes.StrClock
 
         gset = classes.GSet(clock=StrClock())
-        gset.add('test')
+        gset.add(datawrappers.StrWrapper('test'))
         packed = gset.pack()
 
         with self.assertRaises(AssertionError) as e:
