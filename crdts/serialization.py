@@ -103,7 +103,6 @@ def deserialize_part(data: bytes) -> Any:
         items = []
         while len(let_data) > 0:
             _, item_len, _ = struct.unpack(f'!1sI{len(let_data)-5}s', let_data)
-            # print(f'!{5+item_len}s{len(let_data)-5-item_len}s')
             item, let_data = struct.unpack(
                 f'!{5+item_len}s{len(let_data)-5-item_len}s',
                 let_data
