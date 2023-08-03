@@ -245,31 +245,58 @@ class GSet:
 
         return self
 
-    def checksums(self) -> tuple[int]:
+    def checksums(self, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns any checksums for the underlying data to detect
-            desynchronization due to message failure.
+            desynchronization due to message failure. If from_ts and/or
+            until_ts are supplied, only those updates that are not
+            outside of these temporal constraints will be included.
         """
         total_crc32 = 0
-        for member in self.members:
+        updates = []
+        for member, state_update in self.update_history.items():
+            if from_ts is not None and until_ts is not None:
+                if self.clock.is_later(from_ts, state_update.ts) or \
+                    self.clock.is_later(state_update.ts, until_ts):
+                    continue
+            elif from_ts is not None:
+                if self.clock.is_later(from_ts, state_update.ts):
+                    continue
+            elif until_ts is not None:
+                if self.clock.is_later(state_update.ts, until_ts):
+                    continue
+            updates.append(member)
+
+        for member in updates:
             total_crc32 += crc32(member.pack())
 
         return (
-            self.clock.read(),
-            len(self.members),
+            self.clock.read() if until_ts is None else until_ts,
+            len(updates),
             total_crc32 % 2**32,
         )
 
-    def history(self, from_ts: Any = 0) -> tuple[StateUpdate]:
+    def history(self, from_ts: Any = None, until_ts: Any = None) -> tuple[StateUpdate]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
+            replaying all updates from divergent nodes. If from_ts and/
+            or until_ts are supplied, only those updates that are not
+            outside of these temporal constraints will be included.
         """
         updates = []
 
         for member in self.members:
             state_update = self.update_history[member]
-            if not self.clock.is_later(from_ts, state_update.ts):
-                updates.append(state_update)
+            if from_ts is not None and until_ts is not None:
+                if self.clock.is_later(from_ts, state_update.ts) or \
+                    self.clock.is_later(state_update.ts, until_ts):
+                    continue
+            elif from_ts is not None:
+                if self.clock.is_later(from_ts, state_update.ts):
+                    continue
+            elif until_ts is not None:
+                if self.clock.is_later(state_update.ts, until_ts):
+                    continue
+            updates.append(state_update)
 
         return tuple(updates)
 

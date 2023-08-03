@@ -337,6 +337,33 @@ class TestCRDTs(unittest.TestCase):
         assert gset1.checksums() == gset2.checksums()
         assert gset1.history() == gset2.history()
 
+    def test_GSet_convergence_from_ts(self):
+        gset1 = classes.GSet()
+        gset2 = classes.GSet(set(), classes.ScalarClock(0, gset1.clock.uuid))
+        for i in range(10):
+            update = gset1.add(datawrappers.IntWrapper(i))
+            gset2.update(update)
+        assert gset1.checksums() == gset2.checksums()
+
+        gset1.add(datawrappers.IntWrapper(69420))
+        gset2.add(datawrappers.IntWrapper(42069))
+        assert gset1.checksums() != gset2.checksums()
+
+        # not the most efficient algorithm, but it demonstrates the concept
+        from_ts = 0
+        until_ts = gset1.clock.read()
+        while gset1.checksums(from_ts, until_ts) != gset2.checksums(from_ts, until_ts):
+            until_ts -= 1
+        from_ts = until_ts
+        assert until_ts > 0
+
+        for update in gset1.history(from_ts):
+            gset2.update(update)
+        for update in gset2.history(from_ts):
+            gset1.update(update)
+
+        assert gset1.checksums() == gset2.checksums()
+
     # Counter tests
     def test_Counter_implements_CRDTProtocol(self):
         assert isinstance(classes.Counter(), interfaces.CRDTProtocol)
