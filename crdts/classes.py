@@ -1,19 +1,6 @@
 from __future__ import annotations
-from binascii import crc32
-from bisect import bisect
-from dataclasses import dataclass, field
-from decimal import Decimal
 from .causaltree import CausalTree
 from .counter import Counter
-from .datawrappers import (
-    BytesWrapper,
-    CTDataWrapper,
-    DecimalWrapper,
-    IntWrapper,
-    NoneWrapper,
-    RGATupleWrapper,
-    StrWrapper,
-)
 from .fiarray import FIArray
 from .gset import GSet
 from .interfaces import (
@@ -31,12 +18,7 @@ from .rgarray import RGArray
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from enum import Enum
-from random import randrange
 from types import NoneType
-from typing import Any, Hashable, Optional
-from uuid import uuid1
-import json
-import struct
 
 
 class ValidCRDTs(Enum):
@@ -52,7 +34,7 @@ class ValidCRDTs(Enum):
 
 class CompositeCRDT:
     component_names: ORSet
-    component_data: dict
+    component_data: dict[bytes, CRDTProtocol]
     clock: ClockProtocol
 
     def __init__(self, component_names: ORSet = None,
@@ -85,7 +67,7 @@ class CompositeCRDT:
         ...
 
     @classmethod
-    def unpack(cls, data: bytes) -> CompositeCRDT:
+    def unpack(cls, data: bytes, inject: dict[str, PackableProtocol]) -> CompositeCRDT:
         """Unpack the data bytes string into an instance."""
         ...
 
