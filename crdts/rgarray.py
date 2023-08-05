@@ -1,11 +1,11 @@
 from __future__ import annotations
+from .datawrappers import RGATupleWrapper
+from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .orset import ORSet
+from .stateupdate import StateUpdate
 from bisect import bisect
 from types import NoneType
 from typing import Any
-from crdts.datawrappers import RGATupleWrapper
-from crdts.interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
-from crdts.orset import ORSet
-from crdts.stateupdate import StateUpdate
 
 
 class RGArray:

@@ -1,14 +1,13 @@
 from __future__ import annotations
+from .datawrappers import DecimalWrapper, NoneWrapper
+from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .lwwmap import LWWMap
+from .scalarclock import ScalarClock
+from .stateupdate import StateUpdate
 from bisect import bisect
 from decimal import Decimal
 from random import randrange
 from typing import Any
-from crdts.datawrappers import DecimalWrapper, NoneWrapper
-from crdts.interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
-
-from crdts.lwwmap import LWWMap
-from crdts.scalarclock import ScalarClock
-from crdts.stateupdate import StateUpdate
 
 
 class FIArray:

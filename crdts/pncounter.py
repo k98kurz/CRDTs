@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from .datawrappers import (
     BytesWrapper,
     CTDataWrapper,
@@ -12,6 +11,7 @@ from .datawrappers import (
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
+from dataclasses import dataclass, field
 import struct
 
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
+from .datawrappers import BytesWrapper, CTDataWrapper, NoneWrapper
+from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .lwwmap import LWWMap
+from .scalarclock import ScalarClock
+from .stateupdate import StateUpdate
 from typing import Any
 from uuid import uuid1
-from crdts.datawrappers import BytesWrapper, CTDataWrapper, NoneWrapper
-from crdts.interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
-
-from crdts.lwwmap import LWWMap
-from crdts.scalarclock import ScalarClock
-from crdts.stateupdate import StateUpdate
 
 
 class CausalTree:
