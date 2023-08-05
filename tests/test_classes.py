@@ -1576,8 +1576,7 @@ class TestCRDTs(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.GSet.unpack(packed)
+        unpacked = classes.GSet.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == gset.clock
         assert unpacked.read() == gset.read()

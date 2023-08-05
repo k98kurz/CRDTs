@@ -61,10 +61,11 @@ class GSet:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> GSet:
+    def unpack(cls, data: bytes, inject: dict = {}) -> GSet:
         """Unpack the data bytes string into an instance."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) > 8, 'data must be more than 8 bytes'
+        dependencies = {**globals(), **inject}
 
         clock_size, set_size, history_size, data = struct.unpack(
             f'!III{len(data)-12}s',
@@ -78,24 +79,24 @@ class GSet:
         # parse clock and members
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in globals(), f'cannot find {clock_class}'
-        assert hasattr(globals()[clock_class], 'unpack'), \
+        assert clock_class in dependencies, f'cannot find {clock_class}'
+        assert hasattr(dependencies[clock_class], 'unpack'), \
             f'{clock_class} missing unpack method'
-        clock = globals()[clock_class].unpack(clock)
+        clock = dependencies[clock_class].unpack(clock)
         _members: list[str] = json.loads(str(set_bytes, 'utf-8'))
         members = []
         for m in _members:
             class_name, data = m.split('_')
-            assert class_name in globals(), f'{class_name} not found'
-            members.append(globals()[class_name].unpack(bytes.fromhex(data)))
+            assert class_name in dependencies, f'{class_name} not found'
+            members.append(dependencies[class_name].unpack(bytes.fromhex(data)))
 
         # parse history
         _history = json.loads(history_bytes)
         history = {}
         for k,v in _history.items():
             class_name, data = k.split('_')
-            assert class_name in globals(), f'{class_name} not found'
-            key = globals()[class_name].unpack(bytes.fromhex(data))
+            assert class_name in dependencies, f'{class_name} not found'
+            key = dependencies[class_name].unpack(bytes.fromhex(data))
             history[key] = StateUpdate.unpack(bytes.fromhex(v))
 
         return cls(members=set(members), clock=clock, update_history=history)
