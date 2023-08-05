@@ -85,8 +85,7 @@ class StrClock:
         return StrWrapper(ts)
 
 
-class TestCRDTs(unittest.TestCase):
-    # StateUpdate test
+class TestStateUpdate(unittest.TestCase):
     def test_StateUpdate_is_dataclass_with_attributes(self):
         update = classes.StateUpdate(b'123', 123, 321)
         assert is_dataclass(update)
@@ -183,7 +182,8 @@ class TestCRDTs(unittest.TestCase):
         # CausalTree StateUpdate e2e test
         # @todo once CausalTree implemented
 
-    # ScalarClock tests
+
+class TestScalarClock(unittest.TestCase):
     def test_ScalarClock_implements_ClockProtocol(self):
         assert isinstance(classes.ScalarClock(), classes.ClockProtocol)
 
@@ -234,7 +234,8 @@ class TestCRDTs(unittest.TestCase):
         assert clock.uuid == clock2.uuid
         assert clock.counter == clock2.counter
 
-    # GSet tests
+
+class TestGSet(unittest.TestCase):
     def test_GSet_implements_CRDTProtocol(self):
         assert isinstance(classes.GSet(), interfaces.CRDTProtocol)
 
@@ -364,7 +365,26 @@ class TestCRDTs(unittest.TestCase):
 
         assert gset1.checksums() == gset2.checksums()
 
-    # Counter tests
+    def test_GSet_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        gset = classes.GSet(clock=StrClock())
+        gset.add(datawrappers.StrWrapper('test'))
+        packed = gset.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.GSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        unpacked = classes.GSet.unpack(packed, {'StrClock': StrClock})
+
+        assert unpacked.clock == gset.clock
+        assert unpacked.read() == gset.read()
+
+
+class TestCounter(unittest.TestCase):
     def test_Counter_implements_CRDTProtocol(self):
         assert isinstance(classes.Counter(), interfaces.CRDTProtocol)
 
@@ -459,7 +479,27 @@ class TestCRDTs(unittest.TestCase):
         assert counter1.checksums() == counter2.checksums()
         assert counter1.history() == counter2.history()
 
-    # ORSet tests
+    def test_Counter_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        ctr = classes.Counter(clock=StrClock())
+        ctr.increase()
+        packed = ctr.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.ORSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.Counter.unpack(packed)
+
+        assert unpacked.clock == ctr.clock
+        assert unpacked.read() == ctr.read()
+
+
+class TestORSet(unittest.TestCase):
     def test_ORSet_implements_CRDTProtocol(self):
         assert isinstance(classes.ORSet(), interfaces.CRDTProtocol)
 
@@ -610,7 +650,27 @@ class TestCRDTs(unittest.TestCase):
         orset.read()
         assert orset.cache is not None
 
-    # PNCounter tests
+    def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        ors = classes.ORSet(clock=StrClock())
+        ors.observe('test')
+        packed = ors.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.ORSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.ORSet.unpack(packed)
+
+        assert unpacked.clock == ors.clock
+        assert unpacked.read() == ors.read()
+
+
+class TestPNCounter(unittest.TestCase):
     def test_PNCounter_implements_CRDTProtocol(self):
         assert isinstance(classes.PNCounter(), interfaces.CRDTProtocol)
 
@@ -713,7 +773,27 @@ class TestCRDTs(unittest.TestCase):
         assert pncounter1.checksums() == pncounter2.checksums()
         assert pncounter1.history() == pncounter2.history()
 
-    # RGArray tests
+    def test_PNCounter_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        pnc = classes.PNCounter(clock=StrClock())
+        pnc.increase()
+        packed = pnc.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.PNCounter.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.PNCounter.unpack(packed)
+
+        assert unpacked.clock == pnc.clock
+        assert unpacked.read() == pnc.read()
+
+
+class TestRGArray(unittest.TestCase):
     def test_RGArray_implements_CRDTProtocol(self):
         assert isinstance(classes.RGArray(), interfaces.CRDTProtocol)
 
@@ -887,7 +967,28 @@ class TestCRDTs(unittest.TestCase):
         assert unpacked.read_full() == rga.read_full()
         assert unpacked.checksums() == rga.checksums()
 
-    # LWWRegister tests
+    def test_RGArray_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        rga = classes.RGArray(clock=StrClock())
+        rga.append(datawrappers.StrWrapper('first'), 1)
+        rga.append(datawrappers.StrWrapper('second'), 1)
+        packed = rga.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.RGArray.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.RGArray.unpack(packed)
+
+        assert unpacked.clock == rga.clock
+        assert unpacked.read() == rga.read()
+
+
+class TestLWWRegister(unittest.TestCase):
     def test_LWWRegister_implements_CRDTProtocol(self):
         assert isinstance(classes.LWWRegister(StrWrapper('test')), interfaces.CRDTProtocol)
 
@@ -1024,7 +1125,31 @@ class TestCRDTs(unittest.TestCase):
         assert unpacked.clock == lwwregister.clock
         assert unpacked.read() == lwwregister.read()
 
-    # LWWMap tests
+    def test_LWWRegister_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        lwwr = classes.LWWRegister(
+            name=datawrappers.StrWrapper('test register'),
+            clock=StrClock()
+        )
+        lwwr.write(datawrappers.StrWrapper('first'), 1)
+        lwwr.write(datawrappers.StrWrapper('second'), 1)
+        packed = lwwr.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.LWWRegister.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.LWWRegister.unpack(packed)
+
+        assert unpacked.clock == lwwr.clock
+        assert unpacked.read() == lwwr.read()
+
+
+class TestLWWMap(unittest.TestCase):
     def test_LWWMap_implements_CRDTProtocol(self):
         assert isinstance(classes.LWWMap(), interfaces.CRDTProtocol)
 
@@ -1166,7 +1291,36 @@ class TestCRDTs(unittest.TestCase):
 
         assert unpacked.checksums() == lwwmap.checksums()
 
-    # FIArray tests
+    def test_LWWMap_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        lwwm = classes.LWWMap(clock=StrClock())
+        lwwm.extend(
+            datawrappers.StrWrapper('first name'),
+            datawrappers.StrWrapper('first value'),
+            1
+        )
+        lwwm.extend(
+            datawrappers.StrWrapper('second name'),
+            datawrappers.StrWrapper('second value'),
+            1
+        )
+        packed = lwwm.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.LWWMap.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.LWWMap.unpack(packed)
+
+        assert unpacked.clock == lwwm.clock
+        assert unpacked.read() == lwwm.read()
+
+
+class TestFIArray(unittest.TestCase):
     def test_FIArray_implements_CRDTProtocol(self):
         assert isinstance(classes.FIArray(), interfaces.CRDTProtocol)
 
@@ -1468,7 +1622,28 @@ class TestCRDTs(unittest.TestCase):
         assert fiarray.checksums() == unpacked.checksums()
         assert fiarray.read() == unpacked.read()
 
-    # CausalTree tests
+    def test_FIArray_pack_unpack_e2e_with_injected_clock(self):
+        if hasattr(classes, 'StrClock'):
+            del classes.StrClock
+
+        fia = classes.FIArray(clock=StrClock())
+        fia.put_first(datawrappers.StrWrapper('first'), 1)
+        fia.put_last(datawrappers.StrWrapper('last'), 1)
+        packed = fia.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.FIArray.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        classes.StrClock = StrClock
+        unpacked = classes.FIArray.unpack(packed)
+
+        assert unpacked.clock == fia.clock
+        assert unpacked.read() == fia.read()
+
+
+class TestCausalTree(unittest.TestCase):
     def test_CausalTree_implements_CRDTProtocol(self):
         assert isinstance(classes.CausalTree(), interfaces.CRDTProtocol)
 
@@ -1561,173 +1736,6 @@ class TestCRDTs(unittest.TestCase):
         assert view2 == ('first',)
         assert view3 == ('first', 'third')
         assert view4 == ('first', 'second', 'third')
-
-    # pack/unpack e2e test for injected clock
-    def test_GSet_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        gset = classes.GSet(clock=StrClock())
-        gset.add(datawrappers.StrWrapper('test'))
-        packed = gset.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.GSet.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        unpacked = classes.GSet.unpack(packed, {'StrClock': StrClock})
-
-        assert unpacked.clock == gset.clock
-        assert unpacked.read() == gset.read()
-
-    def test_Counter_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        ctr = classes.Counter(clock=StrClock())
-        ctr.increase()
-        packed = ctr.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.ORSet.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.Counter.unpack(packed)
-
-        assert unpacked.clock == ctr.clock
-        assert unpacked.read() == ctr.read()
-
-    def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        ors = classes.ORSet(clock=StrClock())
-        ors.observe('test')
-        packed = ors.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.ORSet.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.ORSet.unpack(packed)
-
-        assert unpacked.clock == ors.clock
-        assert unpacked.read() == ors.read()
-
-    def test_PNCounter_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        pnc = classes.PNCounter(clock=StrClock())
-        pnc.increase()
-        packed = pnc.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.PNCounter.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.PNCounter.unpack(packed)
-
-        assert unpacked.clock == pnc.clock
-        assert unpacked.read() == pnc.read()
-
-    def test_RGArray_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        rga = classes.RGArray(clock=StrClock())
-        rga.append(datawrappers.StrWrapper('first'), 1)
-        rga.append(datawrappers.StrWrapper('second'), 1)
-        packed = rga.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.RGArray.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.RGArray.unpack(packed)
-
-        assert unpacked.clock == rga.clock
-        assert unpacked.read() == rga.read()
-
-    def test_LWWRegister_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        lwwr = classes.LWWRegister(
-            name=datawrappers.StrWrapper('test register'),
-            clock=StrClock()
-        )
-        lwwr.write(datawrappers.StrWrapper('first'), 1)
-        lwwr.write(datawrappers.StrWrapper('second'), 1)
-        packed = lwwr.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.LWWRegister.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.LWWRegister.unpack(packed)
-
-        assert unpacked.clock == lwwr.clock
-        assert unpacked.read() == lwwr.read()
-
-    def test_LWWMap_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        lwwm = classes.LWWMap(clock=StrClock())
-        lwwm.extend(
-            datawrappers.StrWrapper('first name'),
-            datawrappers.StrWrapper('first value'),
-            1
-        )
-        lwwm.extend(
-            datawrappers.StrWrapper('second name'),
-            datawrappers.StrWrapper('second value'),
-            1
-        )
-        packed = lwwm.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.LWWMap.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.LWWMap.unpack(packed)
-
-        assert unpacked.clock == lwwm.clock
-        assert unpacked.read() == lwwm.read()
-
-    def test_FIArray_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
-        fia = classes.FIArray(clock=StrClock())
-        fia.put_first(datawrappers.StrWrapper('first'), 1)
-        fia.put_last(datawrappers.StrWrapper('last'), 1)
-        packed = fia.pack()
-
-        with self.assertRaises(AssertionError) as e:
-            unpacked = classes.FIArray.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.FIArray.unpack(packed)
-
-        assert unpacked.clock == fia.clock
-        assert unpacked.read() == fia.read()
 
 
 if __name__ == '__main__':
