@@ -492,8 +492,7 @@ class TestCounter(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.Counter.unpack(packed)
+        unpacked = classes.Counter.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == ctr.clock
         assert unpacked.read() == ctr.read()
