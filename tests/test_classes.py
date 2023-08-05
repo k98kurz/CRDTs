@@ -662,8 +662,7 @@ class TestORSet(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.ORSet.unpack(packed)
+        unpacked = classes.ORSet.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == ors.clock
         assert unpacked.read() == ors.read()
@@ -785,8 +784,7 @@ class TestPNCounter(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.PNCounter.unpack(packed)
+        unpacked = classes.PNCounter.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == pnc.clock
         assert unpacked.read() == pnc.read()
@@ -980,8 +978,7 @@ class TestRGArray(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.RGArray.unpack(packed)
+        unpacked = classes.RGArray.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == rga.clock
         assert unpacked.read() == rga.read()
@@ -1141,8 +1138,7 @@ class TestLWWRegister(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.LWWRegister.unpack(packed)
+        unpacked = classes.LWWRegister.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == lwwr.clock
         assert unpacked.read() == lwwr.read()
@@ -1312,8 +1308,7 @@ class TestLWWMap(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.LWWMap.unpack(packed)
+        unpacked = classes.LWWMap.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == lwwm.clock
         assert unpacked.read() == lwwm.read()
@@ -1635,8 +1630,7 @@ class TestFIArray(unittest.TestCase):
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        classes.StrClock = StrClock
-        unpacked = classes.FIArray.unpack(packed)
+        unpacked = classes.FIArray.unpack(packed, {'StrClock': StrClock})
 
         assert unpacked.clock == fia.clock
         assert unpacked.read() == fia.read()

@@ -85,10 +85,11 @@ class ORSet:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> ORSet:
+    def unpack(cls, data: bytes, inject: dict = {}) -> ORSet:
         """Unpack the data bytes string into an instance."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) > 19, 'data must be more than 19 bytes'
+        dependencies = {**globals(), **inject}
 
         clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
         _, clock, sets = struct.unpack(
@@ -99,10 +100,10 @@ class ORSet:
         # parse clock
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in globals(), f'cannot find {clock_class}'
-        assert hasattr(globals()[clock_class], 'unpack'), \
+        assert clock_class in dependencies, f'cannot find {clock_class}'
+        assert hasattr(dependencies[clock_class], 'unpack'), \
             f'{clock_class} missing unpack method'
-        clock = globals()[clock_class].unpack(clock)
+        clock = dependencies[clock_class].unpack(clock)
 
         # parse sets
         sets = json.loads(str(sets, 'utf-8'))
@@ -112,17 +113,17 @@ class ORSet:
         r_metadata = sets['r']
 
         for member in o_metadata:
-            if len(member.split('_')) == 2 and member.split('_')[0] in globals():
+            if len(member.split('_')) == 2 and member.split('_')[0] in dependencies:
                 member_class, member_hex = member.split('_')
-                key = globals()[member_class].unpack(bytes.fromhex(member_hex))
+                key = dependencies[member_class].unpack(bytes.fromhex(member_hex))
                 observed_metadata[key] = o_metadata[member]
             else:
                 observed_metadata[member] = o_metadata[member]
 
         for member in r_metadata:
-            if len(member.split('_')) == 2 and member.split('_')[0] in globals():
+            if len(member.split('_')) == 2 and member.split('_')[0] in dependencies:
                 member_class, member_hex = member.split('_')
-                key = globals()[member_class].unpack(bytes.fromhex(member_hex))
+                key = dependencies[member_class].unpack(bytes.fromhex(member_hex))
                 removed_metadata[key] = r_metadata[member]
             else:
                 removed_metadata[member] = r_metadata[member]
@@ -312,10 +313,11 @@ class PNCounter:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> PNCounter:
+    def unpack(cls, data: bytes, inject: dict = {}) -> PNCounter:
         """Unpack the data bytes string into an instance."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) > 20, 'data must be more than 20 bytes'
+        dependencies = {**globals(), **inject}
 
         clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
         _, clock, positive, negative = struct.unpack(
@@ -324,10 +326,10 @@ class PNCounter:
         )
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in globals(), f'cannot find {clock_class}'
-        assert hasattr(globals()[clock_class], 'unpack'), \
+        assert clock_class in dependencies, f'cannot find {clock_class}'
+        assert hasattr(dependencies[clock_class], 'unpack'), \
             f'{clock_class} missing unpack method'
-        clock = globals()[clock_class].unpack(clock)
+        clock = dependencies[clock_class].unpack(clock)
 
         return cls(positive, negative, clock)
 
@@ -436,9 +438,9 @@ class RGArray:
         return self.items.pack()
 
     @classmethod
-    def unpack(cls, data: bytes) -> RGArray:
+    def unpack(cls, data: bytes, inject: dict = {}) -> RGArray:
         """Unpack the data bytes string into an instance."""
-        items = ORSet.unpack(data)
+        items = ORSet.unpack(data, inject)
         return cls(items=items, clock=items.clock)
 
     def read(self) -> tuple[Any]:
@@ -629,10 +631,11 @@ class LWWRegister:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> LWWRegister:
+    def unpack(cls, data: bytes, inject: dict = {}) -> LWWRegister:
         """Unpack the data bytes string into an instance."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) > 26, 'data must be at least 26 bytes'
+        dependencies = {**globals(), **inject}
 
         # parse
         ts_class_size, last_update_size, last_writer, name_size, clock_size, value_type_size, value_size, _ = struct.unpack(
@@ -648,33 +651,33 @@ class LWWRegister:
         # parse name
         name = str(name, 'utf-8')
         name_class, name_value = name.split('_')
-        assert name_class in globals(), f'cannot find {name_class}'
-        assert hasattr(globals()[name_class], 'unpack'), \
+        assert name_class in dependencies, f'cannot find {name_class}'
+        assert hasattr(dependencies[name_class], 'unpack'), \
             f'{clock_class} missing unpack method'
-        name = globals()[name_class].unpack(bytes.fromhex(name_value))
+        name = dependencies[name_class].unpack(bytes.fromhex(name_value))
 
         # parse clock
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in globals(), f'cannot find {clock_class}'
-        assert hasattr(globals()[clock_class], 'unpack'), \
+        assert clock_class in dependencies, f'cannot find {clock_class}'
+        assert hasattr(dependencies[clock_class], 'unpack'), \
             f'{clock_class} missing unpack method'
-        clock = globals()[clock_class].unpack(clock)
+        clock = dependencies[clock_class].unpack(clock)
 
         # parse value
         value_type = str(value_type, 'utf-8')
-        assert value_type in globals(), 'value_type must be resolvable from globals'
-        value = globals()[value_type].unpack(value)
+        assert value_type in dependencies, 'value_type must be resolvable from globals'
+        value = dependencies[value_type].unpack(value)
         assert isinstance(value, DataWrapperProtocol), \
             'value_type must implement DataWrapperProtocol'
 
         # parse last_update
         ts_class = str(ts_class, 'utf-8')
-        assert ts_class in globals(), \
+        assert ts_class in dependencies, \
             'last_update wrapped class must be resolvable from globals'
-        assert hasattr(globals()[ts_class], 'unpack'), \
+        assert hasattr(dependencies[ts_class], 'unpack'), \
             f'{ts_class} missing unpack method'
-        last_update = globals()[ts_class].unpack(last_update)
+        last_update = dependencies[ts_class].unpack(last_update)
         assert isinstance(last_update, DataWrapperProtocol), \
             'last_update class must implement DataWrapperProtocol'
         last_update = last_update.value
@@ -831,10 +834,11 @@ class LWWMap:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> LWWMap:
+    def unpack(cls, data: bytes, inject: dict = {}) -> LWWMap:
         """Unpack the data bytes string into an instance."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) > 13, 'data must be at least 13 bytes'
+        dependencies = {**globals(), **inject}
 
         # parse sizes
         clock_size, names_size, registers_size, _ = struct.unpack(
@@ -851,11 +855,11 @@ class LWWMap:
         # parse the clock and names
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in globals(), f'cannot find {clock_class}'
-        assert hasattr(globals()[clock_class], 'unpack'), \
+        assert clock_class in dependencies, f'cannot find {clock_class}'
+        assert hasattr(dependencies[clock_class], 'unpack'), \
             f'{clock_class} missing unpack method'
-        clock = globals()[clock_class].unpack(clock)
-        names = ORSet.unpack(names)
+        clock = dependencies[clock_class].unpack(clock)
+        names = ORSet.unpack(names, inject)
 
         # parse the registers
         registers_raw = json.loads(str(registers_raw, 'utf-8'))
@@ -864,11 +868,11 @@ class LWWMap:
         for key in registers_raw:
             # resolve key to name
             name_class, name = key.split('_')
-            name = globals()[name_class].unpack(bytes.fromhex(name))
+            name = dependencies[name_class].unpack(bytes.fromhex(name))
 
             # resolve value
             value_class, value = registers_raw[key].split('_')
-            value = globals()[value_class].unpack(bytes.fromhex(value))
+            value = dependencies[value_class].unpack(bytes.fromhex(value), inject)
 
             # add to registers
             registers[name] = value
@@ -1033,9 +1037,9 @@ class FIArray:
         return self.positions.pack()
 
     @classmethod
-    def unpack(cls, data: bytes) -> FIArray:
+    def unpack(cls, data: bytes, inject: dict = {}) -> FIArray:
         """Unpack the data bytes string into an instance."""
-        positions = LWWMap.unpack(data)
+        positions = LWWMap.unpack(data, inject)
         return cls(positions=positions, clock=positions.clock)
 
     def read(self) -> tuple[Any]:
@@ -1335,9 +1339,9 @@ class CausalTree:
         return self.positions.pack()
 
     @classmethod
-    def unpack(cls, data: bytes) -> CausalTree:
+    def unpack(cls, data: bytes, inject: dict = {}) -> CausalTree:
         """Unpack the data bytes string into an instance."""
-        positions = LWWMap.unpack(data)
+        positions = LWWMap.unpack(data, inject)
         return cls(positions=positions, clock=positions.clock)
 
     def read(self) -> tuple[Any]:
