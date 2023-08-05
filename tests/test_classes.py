@@ -5,15 +5,6 @@ from context import classes, interfaces, datawrappers
 import unittest
 
 
-# inject StrWrapper class for testing unpack in e.g. LWWRegister
-# classes.StrWrapper = StrWrapper
-# classes.BytesWrapper = BytesWrapper
-
-BytesWrapper = datawrappers.BytesWrapper
-DecimalWrapper = datawrappers.DecimalWrapper
-StrWrapper = datawrappers.StrWrapper
-
-
 @dataclass
 class StrClock:
     """Implements a logical clock using strs."""
@@ -81,8 +72,8 @@ class StrClock:
         return cls(counter=str(counter, 'utf-8'), uuid=uuid)
 
     @classmethod
-    def wrap_ts(cls, ts: str) -> StrWrapper:
-        return StrWrapper(ts)
+    def wrap_ts(cls, ts: str) -> datawrappers.StrWrapper:
+        return datawrappers.StrWrapper(ts)
 
 
 class TestStateUpdate(unittest.TestCase):
@@ -631,9 +622,9 @@ class TestORSet(unittest.TestCase):
     def test_ORSet_pack_unpack_e2e(self):
         orset1 = classes.ORSet()
         orset1.observe(1)
-        orset1.observe(StrWrapper('hello'))
+        orset1.observe(datawrappers.StrWrapper('hello'))
         orset1.remove(2)
-        orset1.remove(BytesWrapper(b'hello'))
+        orset1.remove(datawrappers.BytesWrapper(b'hello'))
         packed = orset1.pack()
         orset2 = classes.ORSet.unpack(packed)
 
@@ -986,23 +977,23 @@ class TestRGArray(unittest.TestCase):
 
 class TestLWWRegister(unittest.TestCase):
     def test_LWWRegister_implements_CRDTProtocol(self):
-        assert isinstance(classes.LWWRegister(StrWrapper('test')), interfaces.CRDTProtocol)
+        assert isinstance(classes.LWWRegister(datawrappers.StrWrapper('test')), interfaces.CRDTProtocol)
 
     def test_LWWRegister_read_returns_DataWrapperProtocol(self):
-        lwwregister = classes.LWWRegister(StrWrapper('test'), StrWrapper('foobar'))
+        lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper('foobar'))
         assert isinstance(lwwregister.read(), classes.DataWrapperProtocol)
         assert lwwregister.read().value == 'foobar'
 
     def test_LWWRegister_write_returns_StateUpdate_and_sets_value(self):
-        lwwregister = classes.LWWRegister(BytesWrapper(b'test'), BytesWrapper(b'foobar'))
-        update = lwwregister.write(BytesWrapper(b'barfoo'), 1)
+        lwwregister = classes.LWWRegister(datawrappers.BytesWrapper(b'test'), datawrappers.BytesWrapper(b'foobar'))
+        update = lwwregister.write(datawrappers.BytesWrapper(b'barfoo'), 1)
         assert isinstance(update, classes.StateUpdate)
         assert lwwregister.read().value == b'barfoo'
 
     def test_LWWRegister_history_returns_tuple_of_StateUpdate(self):
-        lwwregister = classes.LWWRegister(StrWrapper('test'), StrWrapper('foobar'))
-        lwwregister.write(StrWrapper('sdsd'), 2)
-        lwwregister.write(StrWrapper('barfoo'), 1)
+        lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper('foobar'))
+        lwwregister.write(datawrappers.StrWrapper('sdsd'), 2)
+        lwwregister.write(datawrappers.StrWrapper('barfoo'), 1)
         history = lwwregister.history()
 
         assert type(history) is tuple
@@ -1010,12 +1001,12 @@ class TestLWWRegister(unittest.TestCase):
             assert isinstance(item, classes.StateUpdate)
 
     def test_LWWRegister_concurrent_writes_bias_to_higher_writer(self):
-        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        lwwregister1 = classes.LWWRegister(datawrappers.StrWrapper('test'))
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock)
+        lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock)
 
-        update1 = lwwregister1.write(StrWrapper('foobar'), 1)
-        update2 = lwwregister2.write(StrWrapper('barfoo'), 2)
+        update1 = lwwregister1.write(datawrappers.StrWrapper('foobar'), 1)
+        update2 = lwwregister2.write(datawrappers.StrWrapper('barfoo'), 2)
         lwwregister1.update(update2)
         lwwregister2.update(update1)
 
@@ -1023,12 +1014,12 @@ class TestLWWRegister(unittest.TestCase):
         assert lwwregister1.read().value == 'barfoo'
 
     def test_LWWRegister_concurrent_writes_bias_to_one_value(self):
-        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        lwwregister1 = classes.LWWRegister(datawrappers.StrWrapper('test'))
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock)
+        lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock)
 
-        update1 = lwwregister1.write(StrWrapper('foobar'), 1)
-        update2 = lwwregister2.write(StrWrapper('barfoo'), 1)
+        update1 = lwwregister1.write(datawrappers.StrWrapper('foobar'), 1)
+        update2 = lwwregister2.write(datawrappers.StrWrapper('barfoo'), 1)
         lwwregister1.update(update2)
         lwwregister2.update(update1)
 
@@ -1036,32 +1027,32 @@ class TestLWWRegister(unittest.TestCase):
         assert lwwregister1.read().value == 'foobar'
 
     def test_LWWRegister_checksums_returns_tuple_of_int(self):
-        lwwregister = classes.LWWRegister(StrWrapper('test'), StrWrapper('thing'))
+        lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper('thing'))
         assert type(lwwregister.checksums()) is tuple
         for item in lwwregister.checksums():
             assert type(item) is int
 
     def test_LWWRegister_checksums_change_after_update(self):
-        lwwregister1 = classes.LWWRegister(StrWrapper('test'), StrWrapper(''))
+        lwwregister1 = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper(''))
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister(StrWrapper('test'), StrWrapper(''), clock=clock)
+        lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper(''), clock=clock)
         checksums1 = lwwregister1.checksums()
 
         assert lwwregister2.checksums() == checksums1
 
-        lwwregister1.write(StrWrapper('thing'), 1)
-        lwwregister2.write(StrWrapper('stuff'), 2)
+        lwwregister1.write(datawrappers.StrWrapper('thing'), 1)
+        lwwregister2.write(datawrappers.StrWrapper('stuff'), 2)
 
         assert lwwregister1.checksums() != checksums1
         assert lwwregister2.checksums() != checksums1
         assert lwwregister1.checksums() != lwwregister2.checksums()
 
     def test_LWWRegister_update_is_idempotent(self):
-        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        lwwregister1 = classes.LWWRegister(datawrappers.StrWrapper('test'))
         clock1 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock1)
+        lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock1)
 
-        update = lwwregister1.write(StrWrapper('foo1'), 1)
+        update = lwwregister1.write(datawrappers.StrWrapper('foo1'), 1)
         view1 = lwwregister1.read()
         lwwregister1.update(update)
         assert lwwregister1.read() == view1
@@ -1070,7 +1061,7 @@ class TestLWWRegister(unittest.TestCase):
         lwwregister2.update(update)
         assert lwwregister2.read() == view2
 
-        update = lwwregister2.write(StrWrapper('bar'), 2)
+        update = lwwregister2.write(datawrappers.StrWrapper('bar'), 2)
         lwwregister1.update(update)
         view1 = lwwregister1.read()
         lwwregister1.update(update)
@@ -1081,27 +1072,27 @@ class TestLWWRegister(unittest.TestCase):
         assert lwwregister2.read() == view2
 
     def test_LWWRegister_updates_are_commutative(self):
-        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        lwwregister1 = classes.LWWRegister(datawrappers.StrWrapper('test'))
         clock1 = classes.ScalarClock(uuid=lwwregister1.clock.uuid)
-        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock1)
+        lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock1)
 
-        update1 = lwwregister1.write(StrWrapper('foo1'), 1)
-        update2 = lwwregister1.write(StrWrapper('foo2'), 1)
+        update1 = lwwregister1.write(datawrappers.StrWrapper('foo1'), 1)
+        update2 = lwwregister1.write(datawrappers.StrWrapper('foo2'), 1)
         lwwregister2.update(update2)
         lwwregister2.update(update1)
 
         assert lwwregister1.read() == lwwregister2.read()
 
     def test_LWWRegister_update_from_history_converges(self):
-        lwwregister1 = classes.LWWRegister(StrWrapper('test'))
+        lwwregister1 = classes.LWWRegister(datawrappers.StrWrapper('test'))
         clock1 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
         clock2 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
-        lwwregister2 = classes.LWWRegister(StrWrapper('test'), clock=clock1)
-        lwwregister3 = classes.LWWRegister(StrWrapper('test'), clock=clock2)
+        lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock1)
+        lwwregister3 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock2)
 
-        update = lwwregister1.write(StrWrapper('foo1'), 1)
+        update = lwwregister1.write(datawrappers.StrWrapper('foo1'), 1)
         lwwregister2.update(update)
-        lwwregister2.write(StrWrapper('bar'), 2)
+        lwwregister2.write(datawrappers.StrWrapper('bar'), 2)
 
         for item in lwwregister2.history():
             lwwregister1.update(item)
@@ -1113,7 +1104,7 @@ class TestLWWRegister(unittest.TestCase):
         assert lwwregister1.checksums() == lwwregister3.checksums()
 
     def test_LWWRegister_pack_unpack_e2e(self):
-        lwwregister = classes.LWWRegister(StrWrapper('test'), StrWrapper(''))
+        lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper(''))
         packed = lwwregister.pack()
         unpacked = classes.LWWRegister.unpack(packed)
 
@@ -1155,16 +1146,16 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_extend_returns_StateUpdateProtocol(self):
         lwwmap = classes.LWWMap()
-        name = StrWrapper('foo')
-        value = StrWrapper('bar')
+        name = datawrappers.StrWrapper('foo')
+        value = datawrappers.StrWrapper('bar')
         update = lwwmap.extend(name, value, 1)
         assert isinstance(update, interfaces.StateUpdateProtocol)
 
     def test_LWWMap_read_after_extend_is_correct(self):
         lwwmap = classes.LWWMap()
         view1 = lwwmap.read()
-        name = StrWrapper('foo')
-        value = StrWrapper('bar')
+        name = datawrappers.StrWrapper('foo')
+        value = datawrappers.StrWrapper('bar')
         lwwmap.extend(name, value, 1)
         view2 = lwwmap.read()
         assert isinstance(view2, dict)
@@ -1174,14 +1165,14 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_unset_returns_StateUpdateProtocol(self):
         lwwmap = classes.LWWMap()
-        name = StrWrapper('foo')
+        name = datawrappers.StrWrapper('foo')
         update = lwwmap.unset(name, 1)
         assert isinstance(update, interfaces.StateUpdateProtocol)
 
     def test_LWWMap_read_after_unset_is_correct(self):
         lwwmap = classes.LWWMap()
-        name = StrWrapper('foo')
-        value = StrWrapper('bar')
+        name = datawrappers.StrWrapper('foo')
+        value = datawrappers.StrWrapper('bar')
         lwwmap.extend(name, value, 1)
         view1 = lwwmap.read()
         lwwmap.unset(name, 1)
@@ -1191,8 +1182,8 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_history_returns_tuple_of_StateUpdateProtocol(self):
         lwwmap = classes.LWWMap()
-        name = StrWrapper('foo')
-        value = StrWrapper('bar')
+        name = datawrappers.StrWrapper('foo')
+        value = datawrappers.StrWrapper('bar')
         lwwmap.extend(name, value, 1)
         lwwmap.extend(value, name, 1)
         history = lwwmap.history()
@@ -1204,9 +1195,9 @@ class TestLWWMap(unittest.TestCase):
         lwwmap = classes.LWWMap()
         lwwmap2 = classes.LWWMap()
         lwwmap2.clock.uuid = lwwmap.clock.uuid
-        name = StrWrapper('foo')
-        value1 = StrWrapper('bar')
-        value2 = StrWrapper('test')
+        name = datawrappers.StrWrapper('foo')
+        value1 = datawrappers.StrWrapper('bar')
+        value2 = datawrappers.StrWrapper('test')
         update1 = lwwmap.extend(name, value1, 1)
         update2 = lwwmap2.extend(name, value2, 3)
         lwwmap.update(update2)
@@ -1218,7 +1209,7 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_checksums_returns_tuple_of_int(self):
         lwwmap = classes.LWWMap()
-        lwwmap.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         checksums = lwwmap.checksums()
 
         assert type(checksums) is tuple
@@ -1227,11 +1218,11 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_checksums_change_after_update(self):
         lwwmap = classes.LWWMap()
-        lwwmap.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         checksums1 = lwwmap.checksums()
-        lwwmap.extend(StrWrapper('foo'), StrWrapper('bruf'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
         checksums2 = lwwmap.checksums()
-        lwwmap.extend(StrWrapper('oof'), StrWrapper('bruf'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
         checksums3 = lwwmap.checksums()
 
         assert checksums1 != checksums2
@@ -1240,7 +1231,7 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_update_is_idempotent(self):
         lwwmap = classes.LWWMap()
-        update = lwwmap.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
+        update = lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         checksums1 = lwwmap.checksums()
         view1 = lwwmap.read()
         lwwmap.update(update)
@@ -1253,8 +1244,8 @@ class TestLWWMap(unittest.TestCase):
     def test_LWWMap_updates_are_commutative(self):
         lwwmap1 = classes.LWWMap()
         lwwmap2 = classes.LWWMap(clock=classes.ScalarClock(uuid=lwwmap1.clock.uuid))
-        update1 = lwwmap1.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
-        update2 = lwwmap1.unset(StrWrapper('foo'), 1)
+        update1 = lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        update2 = lwwmap1.unset(datawrappers.StrWrapper('foo'), 1)
 
         lwwmap2.update(update2)
         lwwmap2.update(update1)
@@ -1265,9 +1256,9 @@ class TestLWWMap(unittest.TestCase):
         lwwmap1 = classes.LWWMap()
         lwwmap2 = classes.LWWMap()
         lwwmap2.clock.uuid = lwwmap1.clock.uuid
-        lwwmap1.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
-        lwwmap1.extend(StrWrapper('foo'), StrWrapper('bruf'), 1)
-        lwwmap1.extend(StrWrapper('oof'), StrWrapper('bruf'), 1)
+        lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap1.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
 
         for update in lwwmap1.history():
             lwwmap2.update(update)
@@ -1276,11 +1267,11 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_pack_unpack_e2e(self):
         lwwmap = classes.LWWMap()
-        lwwmap.extend(StrWrapper('foo'), StrWrapper('bar'), 1)
-        lwwmap.extend(StrWrapper('foo'), StrWrapper('bruf'), 1)
-        lwwmap.extend(StrWrapper('floof'), StrWrapper('bruf'), 1)
-        lwwmap.unset(StrWrapper('floof'), 1)
-        lwwmap.extend(StrWrapper('oof'), StrWrapper('bruf'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('floof'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.unset(datawrappers.StrWrapper('floof'), 1)
+        lwwmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
         packed = lwwmap.pack()
         unpacked = classes.LWWMap.unpack(packed)
 
@@ -1387,29 +1378,29 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_returns_StateUpdate_with_tuple(self):
         fiarray = classes.FIArray()
-        update = fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
+        update = fiarray.put(datawrappers.StrWrapper('test'), 1, Decimal('0.5'))
 
         assert isinstance(update, classes.StateUpdate)
         assert type(update.data) is tuple
         assert len(update.data) == 4
         assert update.data[0] == 'o'
-        assert update.data[1] == StrWrapper('test')
+        assert update.data[1] == datawrappers.StrWrapper('test')
         assert update.data[2] == 1
-        assert update.data[3] == DecimalWrapper(Decimal('0.5'))
+        assert update.data[3] == datawrappers.DecimalWrapper(Decimal('0.5'))
 
     def test_FIArray_put_changes_view(self):
         fiarray = classes.FIArray()
         view1 = fiarray.read()
-        fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
+        fiarray.put(datawrappers.StrWrapper('test'), 1, Decimal('0.5'))
         view2 = fiarray.read()
 
         assert view1 != view2
 
     def test_FIArray_put_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(StrWrapper('test'), 1, Decimal('0.5'))
-        fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
-        update = fiarray.put(StrWrapper('bar'), 1, Decimal('0.375'))
+        fiarray.put(datawrappers.StrWrapper('test'), 1, Decimal('0.5'))
+        fiarray.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
+        update = fiarray.put(datawrappers.StrWrapper('bar'), 1, Decimal('0.375'))
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -1420,10 +1411,10 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_between_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(StrWrapper('first'), 1, Decimal('0.5'))
-        fiarray.put(StrWrapper('last'), 1, Decimal('0.75'))
-        update = fiarray.put_between(StrWrapper('middle'), 1,
-            StrWrapper('first'), StrWrapper('last'))
+        fiarray.put(datawrappers.StrWrapper('first'), 1, Decimal('0.5'))
+        fiarray.put(datawrappers.StrWrapper('last'), 1, Decimal('0.75'))
+        update = fiarray.put_between(datawrappers.StrWrapper('middle'), 1,
+            datawrappers.StrWrapper('first'), datawrappers.StrWrapper('last'))
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -1434,9 +1425,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_before_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(StrWrapper('last'), 1, Decimal('0.5'))
-        fiarray.put(StrWrapper('middle'), 1, Decimal('0.25'))
-        update = fiarray.put_before(StrWrapper('first'), 1, StrWrapper('middle'))
+        fiarray.put(datawrappers.StrWrapper('last'), 1, Decimal('0.5'))
+        fiarray.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.25'))
+        update = fiarray.put_before(datawrappers.StrWrapper('first'), 1, datawrappers.StrWrapper('middle'))
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -1447,9 +1438,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_after_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(StrWrapper('first'), 1, Decimal('0.5'))
-        fiarray.put(StrWrapper('middle'), 1, Decimal('0.75'))
-        update = fiarray.put_after(StrWrapper('last'), 1, StrWrapper('middle'))
+        fiarray.put(datawrappers.StrWrapper('first'), 1, Decimal('0.5'))
+        fiarray.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.75'))
+        update = fiarray.put_after(datawrappers.StrWrapper('last'), 1, datawrappers.StrWrapper('middle'))
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -1460,9 +1451,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_first_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put_first(StrWrapper('test'), 1)
-        fiarray.put_first(StrWrapper('bar'), 1)
-        update = fiarray.put_first(StrWrapper('foo'), 1)
+        fiarray.put_first(datawrappers.StrWrapper('test'), 1)
+        fiarray.put_first(datawrappers.StrWrapper('bar'), 1)
+        update = fiarray.put_first(datawrappers.StrWrapper('foo'), 1)
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -1473,40 +1464,40 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_last_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put_last(StrWrapper('foo'), 1)
-        fiarray.put_last(StrWrapper('bar'), 1)
-        fiarray.put_last(StrWrapper('test'), 1)
+        fiarray.put_last(datawrappers.StrWrapper('foo'), 1)
+        fiarray.put_last(datawrappers.StrWrapper('bar'), 1)
+        fiarray.put_last(datawrappers.StrWrapper('test'), 1)
         view = fiarray.read_full()
 
         assert len(view) == 3
-        assert view[0] == StrWrapper('foo')
-        assert view[1] == StrWrapper('bar')
-        assert view[2] == StrWrapper('test')
+        assert view[0] == datawrappers.StrWrapper('foo')
+        assert view[1] == datawrappers.StrWrapper('bar')
+        assert view[2] == datawrappers.StrWrapper('test')
 
     def test_FIArray_delete_returns_StateUpdate_with_tuple(self):
         fiarray = classes.FIArray()
-        update = fiarray.delete(StrWrapper('test'), 1)
+        update = fiarray.delete(datawrappers.StrWrapper('test'), 1)
 
         assert type(update) is classes.StateUpdate
         assert type(update.data) is tuple
         assert len(update.data) == 4
         assert update.data[0] == 'r'
-        assert update.data[1] == StrWrapper('test')
+        assert update.data[1] == datawrappers.StrWrapper('test')
         assert update.data[2] == 1
         assert update.data[3] == datawrappers.NoneWrapper()
 
     def test_FIArray_delete_removes_item(self):
         fiarray = classes.FIArray()
-        fiarray.put_first(StrWrapper('test'), 1)
+        fiarray.put_first(datawrappers.StrWrapper('test'), 1)
 
         assert fiarray.read()[0] == 'test'
-        fiarray.delete(StrWrapper('test'), 1)
+        fiarray.delete(datawrappers.StrWrapper('test'), 1)
         assert fiarray.read() == tuple()
 
     def test_FIArray_history_returns_tuple_of_StateUpdateProtocol(self):
         fiarray = classes.FIArray()
-        fiarray.put_first(StrWrapper('test'), 1)
-        fiarray.put_first(StrWrapper('fdfdf'), 1)
+        fiarray.put_first(datawrappers.StrWrapper('test'), 1)
+        fiarray.put_first(datawrappers.StrWrapper('fdfdf'), 1)
         history = fiarray.history()
 
         assert type(history) is tuple
@@ -1516,9 +1507,9 @@ class TestFIArray(unittest.TestCase):
     def test_FIArray_concurrent_puts_bias_to_higher_writer(self):
         fiarray1 = classes.FIArray()
         fiarray2 = classes.FIArray(clock=classes.ScalarClock(uuid=fiarray1.clock.uuid))
-        update1 = fiarray1.put(StrWrapper('test'), 1, Decimal('0.75'))
-        update2 = fiarray2.put(StrWrapper('test'), 2, Decimal('0.25'))
-        update3 = fiarray1.put(StrWrapper('middle'), 1, Decimal('0.5'))
+        update1 = fiarray1.put(datawrappers.StrWrapper('test'), 1, Decimal('0.75'))
+        update2 = fiarray2.put(datawrappers.StrWrapper('test'), 2, Decimal('0.25'))
+        update3 = fiarray1.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.5'))
         fiarray1.update(update2)
         fiarray2.update(update1)
         fiarray2.update(update3)
@@ -1528,7 +1519,7 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_checksums_returns_tuple_of_int(self):
         fiarray = classes.FIArray()
-        fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        fiarray.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
         checksums = fiarray.checksums()
 
         assert type(checksums) is tuple
@@ -1537,11 +1528,11 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_checksums_change_after_update(self):
         fiarray = classes.FIArray()
-        fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        fiarray.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
         checksums1 = fiarray.checksums()
-        fiarray.put(StrWrapper('foo'), 1, Decimal('0.5'))
+        fiarray.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.5'))
         checksums2 = fiarray.checksums()
-        fiarray.put(StrWrapper('oof'), 1, Decimal('0.35'))
+        fiarray.put(datawrappers.StrWrapper('oof'), 1, Decimal('0.35'))
         checksums3 = fiarray.checksums()
 
         assert checksums1 != checksums2
@@ -1550,7 +1541,7 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_update_is_idempotent(self):
         fiarray = classes.FIArray()
-        update = fiarray.put(StrWrapper('foo'), 1, Decimal('0.25'))
+        update = fiarray.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
         checksums1 = fiarray.checksums()
         view1 = fiarray.read()
         fiarray.update(update)
@@ -1564,9 +1555,9 @@ class TestFIArray(unittest.TestCase):
         fiarray1 = classes.FIArray()
         fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
         fiarray3 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
-        update1 = fiarray1.put(StrWrapper('test'), 1, Decimal('0.75'))
-        update2 = fiarray1.put(StrWrapper('test'), 2, Decimal('0.25'))
-        update3 = fiarray1.put(StrWrapper('middle'), 1, Decimal('0.5'))
+        update1 = fiarray1.put(datawrappers.StrWrapper('test'), 1, Decimal('0.75'))
+        update2 = fiarray1.put(datawrappers.StrWrapper('test'), 2, Decimal('0.25'))
+        update3 = fiarray1.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.5'))
 
         fiarray2.update(update1)
         fiarray2.update(update2)
@@ -1580,18 +1571,18 @@ class TestFIArray(unittest.TestCase):
     def test_FIArray_converges_from_history(self):
         fiarray1 = classes.FIArray()
         fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
-        fiarray1.put(StrWrapper('foo'), 1, Decimal('0.25'))
-        fiarray1.put(StrWrapper('test'), 1, Decimal('0.15'))
-        fiarray1.put(StrWrapper('bar'), 1, Decimal('0.5'))
+        fiarray1.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
+        fiarray1.put(datawrappers.StrWrapper('test'), 1, Decimal('0.15'))
+        fiarray1.put(datawrappers.StrWrapper('bar'), 1, Decimal('0.5'))
 
         for state_update in fiarray2.history():
             fiarray1.update(state_update)
         for state_update in fiarray1.history():
             fiarray2.update(state_update)
 
-        fiarray2.delete(StrWrapper('test'), 1)
-        fiarray2.put(StrWrapper('something'), 2, Decimal('0.333'))
-        fiarray2.put(StrWrapper('something else'), 2, Decimal('0.777'))
+        fiarray2.delete(datawrappers.StrWrapper('test'), 1)
+        fiarray2.put(datawrappers.StrWrapper('something'), 2, Decimal('0.333'))
+        fiarray2.put(datawrappers.StrWrapper('something else'), 2, Decimal('0.777'))
 
         for state_update in fiarray1.history():
             fiarray2.update(state_update)
@@ -1602,15 +1593,15 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_pack_unpack_e2e(self):
         fiarray = classes.FIArray()
-        fiarray.put_first(StrWrapper('test'), 1)
-        fiarray.put_last(BytesWrapper(b'test'), 1)
+        fiarray.put_first(datawrappers.StrWrapper('test'), 1)
+        fiarray.put_last(datawrappers.BytesWrapper(b'test'), 1)
         packed = fiarray.pack()
         unpacked = classes.FIArray.unpack(packed)
 
         assert fiarray.checksums() == unpacked.checksums()
         assert fiarray.read() == unpacked.read()
 
-        update = unpacked.put_last(StrWrapper('middle'), 2)
+        update = unpacked.put_last(datawrappers.StrWrapper('middle'), 2)
         fiarray.update(update)
 
         assert fiarray.checksums() == unpacked.checksums()
