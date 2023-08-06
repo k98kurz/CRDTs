@@ -357,9 +357,6 @@ class TestGSet(unittest.TestCase):
         assert gset1.checksums() == gset2.checksums()
 
     def test_GSet_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         gset = classes.GSet(clock=StrClock())
         gset.add(datawrappers.StrWrapper('test'))
         packed = gset.pack()
@@ -471,9 +468,6 @@ class TestCounter(unittest.TestCase):
         assert counter1.history() == counter2.history()
 
     def test_Counter_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         ctr = classes.Counter(clock=StrClock())
         ctr.increase()
         packed = ctr.pack()
@@ -641,9 +635,6 @@ class TestORSet(unittest.TestCase):
         assert orset.cache is not None
 
     def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         ors = classes.ORSet(clock=StrClock())
         ors.observe('test')
         packed = ors.pack()
@@ -763,9 +754,6 @@ class TestPNCounter(unittest.TestCase):
         assert pncounter1.history() == pncounter2.history()
 
     def test_PNCounter_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         pnc = classes.PNCounter(clock=StrClock())
         pnc.increase()
         packed = pnc.pack()
@@ -956,9 +944,6 @@ class TestRGArray(unittest.TestCase):
         assert unpacked.checksums() == rga.checksums()
 
     def test_RGArray_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         rga = classes.RGArray(clock=StrClock())
         rga.append(datawrappers.StrWrapper('first'), 1)
         rga.append(datawrappers.StrWrapper('second'), 1)
@@ -1113,9 +1098,6 @@ class TestLWWRegister(unittest.TestCase):
         assert unpacked.read() == lwwregister.read()
 
     def test_LWWRegister_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         lwwr = classes.LWWRegister(
             name=datawrappers.StrWrapper('test register'),
             clock=StrClock()
@@ -1278,9 +1260,6 @@ class TestLWWMap(unittest.TestCase):
         assert unpacked.checksums() == lwwmap.checksums()
 
     def test_LWWMap_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         lwwm = classes.LWWMap(clock=StrClock())
         lwwm.extend(
             datawrappers.StrWrapper('first name'),
@@ -1608,9 +1587,6 @@ class TestFIArray(unittest.TestCase):
         assert fiarray.read() == unpacked.read()
 
     def test_FIArray_pack_unpack_e2e_with_injected_clock(self):
-        if hasattr(classes, 'StrClock'):
-            del classes.StrClock
-
         fia = classes.FIArray(clock=StrClock())
         fia.put_first(datawrappers.StrWrapper('first'), 1)
         fia.put_last(datawrappers.StrWrapper('last'), 1)

@@ -203,12 +203,12 @@ class LWWMap:
             *names_checksums
         )
 
-    def history(self) -> tuple[StateUpdate]:
-        """Returns a concise history of StateUpdates that will converge
-            to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
+    def history(self) -> tuple[StateUpdateProtocol]:
+        """Returns a concise history of StateUpdateProtocols that will
+            converge to the underlying data. Useful for
+            resynchronization by replaying updates from divergent nodes.
         """
-        registers_history = {}
+        registers_history: dict[DataWrapperProtocol, tuple[StateUpdateProtocol]] = {}
         orset_history = self.names.history()
         history = []
 
@@ -219,7 +219,8 @@ class LWWMap:
             name = update.data[1]
             if name in registers_history:
                 register_update = registers_history[name][0]
-                history.append(StateUpdate(
+                update_class = register_update.__class__
+                history.append(update_class(
                     update.clock_uuid,
                     register_update.ts,
                     (update.data[0], name, register_update.data[0], register_update.data[1])

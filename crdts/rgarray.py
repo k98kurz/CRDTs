@@ -86,34 +86,35 @@ class RGArray:
         """
         return self.items.checksums()
 
-    def history(self) -> tuple[StateUpdate]:
+    def history(self) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
         return self.items.history()
 
-    def append(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that appends the
-            item.
+    def append(self, item: DataWrapperProtocol, writer: int,
+               update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that appends the item.
         """
         assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
         assert type(writer) is int, 'writer must be int'
 
         ts = self.clock.wrap_ts(self.clock.read())
-        state_update = self.items.observe(RGATupleWrapper((item, (ts, writer))))
+        state_update = self.items.observe(RGATupleWrapper((item, (ts, writer))), update_class)
 
         self.update(state_update)
 
         return state_update
 
-    def delete(self, item: RGATupleWrapper) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that deletes the
-            specified item.
+    def delete(self, item: RGATupleWrapper, update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that deletes the specified item.
         """
         assert isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper'
 
-        state_update = self.items.remove(item)
+        state_update = self.items.remove(item, update_class)
 
         self.update(state_update)
 

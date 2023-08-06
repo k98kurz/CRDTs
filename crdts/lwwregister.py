@@ -191,26 +191,29 @@ class LWWRegister:
             crc32(self.value.pack()),
         )
 
-    def history(self) -> tuple[StateUpdate]:
-        """Returns a concise history of StateUpdates that will converge
-            to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
+    def history(self, update_class: type = StateUpdate) -> tuple[StateUpdateProtocol]:
+        """Returns a concise history of update_class (StateUpdate by
+            default) that will converge to the underlying data. Useful
+            for resynchronization by replaying updates from divergent
+            nodes.
         """
-        return (StateUpdate(
+        return (update_class(
             self.clock.uuid,
             self.last_update,
             (self.last_writer, self.value)
         ),)
 
-    def write(self, value: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Writes the new value to the register and returns a
-            StateUpdate. Requires a writer int for tie breaking.
+    def write(self, value: DataWrapperProtocol, writer: int,
+              update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Writes the new value to the register and returns an
+            update_class (StateUpdate by default). Requires a writer int
+            for tie breaking.
         """
         assert isinstance(value, DataWrapperProtocol) or value is None, \
             'value must be a DataWrapperProtocol or None'
         assert type(writer) is int, 'writer must be an int'
 
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             (writer, value)

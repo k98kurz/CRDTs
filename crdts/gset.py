@@ -140,7 +140,7 @@ class GSet:
             total_crc32 % 2**32,
         )
 
-    def history(self, from_ts: Any = None, until_ts: Any = None) -> tuple[StateUpdate]:
+    def history(self, from_ts: Any = None, until_ts: Any = None) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes. If from_ts and/
@@ -165,14 +165,14 @@ class GSet:
 
         return tuple(updates)
 
-    def add(self, member: Hashable) -> StateUpdate:
+    def add(self, member: Hashable, update_class: type = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
         assert type(hash(member)) is int, 'member must be hashable'
         assert isinstance(member, DataWrapperProtocol), \
             'member must be instance implementing DataWrapperProtocol'
 
         ts = self.clock.read()
-        state_update = StateUpdate(self.clock.uuid, ts, member)
+        state_update = update_class(self.clock.uuid, ts, member)
         self.update(state_update)
 
         return state_update

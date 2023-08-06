@@ -216,16 +216,17 @@ class ORSet:
             total_removed_crc32 % 2**32,
         )
 
-    def history(self) -> tuple[StateUpdate]:
-        """Returns a concise history of StateUpdates that will converge
-            to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
+    def history(self, update_class: type = StateUpdate) -> tuple[StateUpdateProtocol]:
+        """Returns a concise history of update_class (StateUpdate by
+            default) that will converge to the underlying data. Useful
+            for resynchronization by replaying updates from divergent
+            nodes.
         """
         updates = []
 
         for o in self.observed:
             updates.append(
-                StateUpdate(
+                update_class(
                     self.clock.uuid,
                     self.observed_metadata[o],
                     ('o', o)
@@ -234,7 +235,7 @@ class ORSet:
 
         for r in self.removed:
             updates.append(
-                StateUpdate(
+                update_class(
                     self.clock.uuid,
                     self.removed_metadata[r],
                     ('r', r)
@@ -243,12 +244,12 @@ class ORSet:
 
         return tuple(updates)
 
-    def observe(self, member: Hashable) -> StateUpdate:
+    def observe(self, member: Hashable, update_class: type = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the observed set."""
         assert type(hash(member)) is int, 'member must be Hashable'
 
         member = str(member) if type(member) is int else member
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             ('o', member)
@@ -258,12 +259,12 @@ class ORSet:
 
         return state_update
 
-    def remove(self, member: Hashable) -> StateUpdate:
+    def remove(self, member: Hashable, update_class: type = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the removed set."""
         assert type(hash(member)) is int, 'member must be Hashable'
 
         member = str(member) if type(member) is int else member
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             ('r', member)

@@ -87,7 +87,7 @@ class CausalTree:
         """
         return self.positions.checksums()
 
-    def history(self) -> tuple[StateUpdate]:
+    def history(self) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
@@ -95,13 +95,13 @@ class CausalTree:
         return self.positions.history()
 
     def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
-            parent: bytes = b'') -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that puts the item
-            at the index.
+            parent: bytes = b'', update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns a update_class (StateUpdate by
+            default) that puts the item after the parent.
         """
         assert type(uuid) is bytes, "uuid must be bytes"
         assert type(parent) is bytes, "parent must be bytes"
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             (
@@ -117,8 +117,8 @@ class CausalTree:
         return state_update
 
     def put_after(self, item: DataWrapperProtocol, writer: int,
-        parent: CTDataWrapper) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that puts the item
+        parent: CTDataWrapper, update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class that puts the item
             after the parent item.
         """
         assert parent in [item.value for item in self.read_full()], \
@@ -127,28 +127,33 @@ class CausalTree:
         uuid = uuid1().bytes
         parent = self.positions.registers[parent].value.uuid
 
-        return self.put(item, writer, uuid, parent)
+        return self.put(item, writer, uuid, parent, update_class)
 
-    def put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that puts the
-            item at an index between 0 and the first item.
+    def put_first(self, item: DataWrapperProtocol, writer: int,
+                  update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that puts the item as the first item. Note that if
+            another item was already put first, this might be put second
+            due to tie breaking; in such a case, update the other item's
+            parent_uuid to move it to the right index.
         """
-        return self.put(item, writer, uuid1().bytes, b'')
+        return self.put(item, writer, uuid1().bytes, b'', update_class)
 
-    def delete(self, ctdw: CTDataWrapper, writer: int) -> StateUpdate:
-        """Creates, applies, and returns a StateUpdate that deletes the
-            item specified by ctdw.
+    def delete(self, ctdw: CTDataWrapper, writer: int,
+               update_class: type = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that deletes the item specified by ctdw.
         """
         assert ctdw.value in self.positions.registers
 
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             (
                 'r',
                 BytesWrapper(ctdw.uuid),
                 writer,
-                CTDataWrapper(NoneWrapper(), ctdw.uuid, ctdw.parent, False)
+                CTDataWrapper(NoneWrapper(), ctdw.uuid, ctdw.parent_uuid, False)
             )
         )
 
