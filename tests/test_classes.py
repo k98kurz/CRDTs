@@ -348,7 +348,8 @@ class TestGSet(unittest.TestCase):
         # not the most efficient algorithm, but it demonstrates the concept
         from_ts = 0
         until_ts = gset1.clock.read()
-        while gset1.checksums(from_ts, until_ts) != gset2.checksums(from_ts, until_ts):
+        while gset1.checksums(from_ts, until_ts) != gset2.checksums(from_ts, until_ts) \
+            and until_ts > 0:
             until_ts -= 1
         from_ts = until_ts
         assert until_ts > 0
