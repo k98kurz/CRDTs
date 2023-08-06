@@ -94,7 +94,7 @@ class RGArray:
         return self.items.history()
 
     def append(self, item: DataWrapperProtocol, writer: int,
-               update_class: type = StateUpdate) -> StateUpdateProtocol:
+               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item.
         """
@@ -108,7 +108,8 @@ class RGArray:
 
         return state_update
 
-    def delete(self, item: RGATupleWrapper, update_class: type = StateUpdate) -> StateUpdateProtocol:
+    def delete(self, item: RGATupleWrapper,
+               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the specified item.
         """

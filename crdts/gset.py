@@ -165,7 +165,8 @@ class GSet:
 
         return tuple(updates)
 
-    def add(self, member: Hashable, update_class: type = StateUpdate) -> StateUpdateProtocol:
+    def add(self, member: Hashable,
+            update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
         assert type(hash(member)) is int, 'member must be hashable'
         assert isinstance(member, DataWrapperProtocol), \

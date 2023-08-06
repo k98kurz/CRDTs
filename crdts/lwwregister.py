@@ -144,7 +144,8 @@ class LWWRegister:
         return self.value.__class__.unpack(self.value.pack())
 
     @classmethod
-    def compare_values(cls, value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool:
+    def compare_values(cls, value1: DataWrapperProtocol,
+                       value2: DataWrapperProtocol) -> bool:
         return value1.pack() > value2.pack()
 
     def update(self, state_update: StateUpdateProtocol) -> LWWRegister:
@@ -191,7 +192,7 @@ class LWWRegister:
             crc32(self.value.pack()),
         )
 
-    def history(self, update_class: type = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -204,7 +205,7 @@ class LWWRegister:
         ),)
 
     def write(self, value: DataWrapperProtocol, writer: int,
-              update_class: type = StateUpdate) -> StateUpdateProtocol:
+              update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default). Requires a writer int
             for tie breaking.

@@ -95,7 +95,7 @@ class PNCounter:
             self.negative,
         )
 
-    def history(self, update_class: type = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -103,7 +103,8 @@ class PNCounter:
         """
         return (update_class(self.clock.uuid, self.clock.read()-1, (self.positive, self.negative)),)
 
-    def increase(self, amount: int = 1, update_class: type = StateUpdate) -> StateUpdateProtocol:
+    def increase(self, amount: int = 1,
+                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
             propagated to the network.
@@ -120,7 +121,8 @@ class PNCounter:
 
         return state_update
 
-    def decrease(self, amount: int = 1, update_class: type = StateUpdate) -> StateUpdateProtocol:
+    def decrease(self, amount: int = 1,
+                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Decrease the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
             propagated to the network.

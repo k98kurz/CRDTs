@@ -216,7 +216,7 @@ class ORSet:
             total_removed_crc32 % 2**32,
         )
 
-    def history(self, update_class: type = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -244,7 +244,8 @@ class ORSet:
 
         return tuple(updates)
 
-    def observe(self, member: Hashable, update_class: type = StateUpdate) -> StateUpdateProtocol:
+    def observe(self, member: Hashable,
+                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the observed set."""
         assert type(hash(member)) is int, 'member must be Hashable'
 
@@ -259,7 +260,8 @@ class ORSet:
 
         return state_update
 
-    def remove(self, member: Hashable, update_class: type = StateUpdate) -> StateUpdateProtocol:
+    def remove(self, member: Hashable,
+               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the removed set."""
         assert type(hash(member)) is int, 'member must be Hashable'
 

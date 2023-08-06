@@ -95,7 +95,8 @@ class CausalTree:
         return self.positions.history()
 
     def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
-            parent: bytes = b'', update_class: type = StateUpdate) -> StateUpdateProtocol:
+            parent: bytes = b'',
+            update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns a update_class (StateUpdate by
             default) that puts the item after the parent.
         """
@@ -117,7 +118,8 @@ class CausalTree:
         return state_update
 
     def put_after(self, item: DataWrapperProtocol, writer: int,
-        parent: CTDataWrapper, update_class: type = StateUpdate) -> StateUpdateProtocol:
+        parent: CTDataWrapper,
+        update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
             after the parent item.
         """
@@ -130,7 +132,7 @@ class CausalTree:
         return self.put(item, writer, uuid, parent, update_class)
 
     def put_first(self, item: DataWrapperProtocol, writer: int,
-                  update_class: type = StateUpdate) -> StateUpdateProtocol:
+                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item as the first item. Note that if
             another item was already put first, this might be put second
@@ -140,7 +142,7 @@ class CausalTree:
         return self.put(item, writer, uuid1().bytes, b'', update_class)
 
     def delete(self, ctdw: CTDataWrapper, writer: int,
-               update_class: type = StateUpdate) -> StateUpdateProtocol:
+               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item specified by ctdw.
         """

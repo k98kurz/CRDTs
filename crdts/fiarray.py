@@ -142,7 +142,7 @@ class FIArray:
         return (digit, exponent)
 
     def put(self, item: DataWrapperProtocol, writer: int,
-        index: Decimal, update_class: type = StateUpdate) -> StateUpdateProtocol:
+            index: Decimal, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the index.
         """
@@ -162,8 +162,8 @@ class FIArray:
         return state_update
 
     def put_between(self, item: DataWrapperProtocol, writer: int,
-        first: DataWrapperProtocol, second: DataWrapperProtocol,
-        update_class: type = StateUpdate) -> StateUpdateProtocol:
+                    first: DataWrapperProtocol, second: DataWrapperProtocol,
+                    update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between first and
             second.
@@ -178,7 +178,8 @@ class FIArray:
         return self.put(item, writer, index, update_class)
 
     def put_before(self, item: DataWrapperProtocol, writer: int,
-        other: DataWrapperProtocol, update_class: type = StateUpdate) -> StateUpdateProtocol:
+                   other: DataWrapperProtocol,
+                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item before the other item.
         """
@@ -198,7 +199,8 @@ class FIArray:
         return self.put(item, writer, index, update_class)
 
     def put_after(self, item: DataWrapperProtocol, writer: int,
-        other: DataWrapperProtocol, update_class: type = StateUpdate) -> StateUpdateProtocol:
+                  other: DataWrapperProtocol,
+                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item after the other item.
         """
@@ -218,7 +220,7 @@ class FIArray:
         return self.put(item, writer, index, update_class)
 
     def put_first(self, item: DataWrapperProtocol, writer: int,
-                  update_class: type = StateUpdate) -> StateUpdateProtocol:
+                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between 0 and the
             first item.
@@ -238,7 +240,7 @@ class FIArray:
         return self.put(item, writer, index, update_class)
 
     def put_last(self, item: DataWrapperProtocol, writer: int,
-                 update_class: type = StateUpdate) -> StateUpdateProtocol:
+                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between the last
             item and 1.
@@ -258,7 +260,7 @@ class FIArray:
         return self.put(item, writer, index, update_class)
 
     def delete(self, item: DataWrapperProtocol, writer: int,
-               update_class: type = StateUpdate) -> StateUpdateProtocol:
+               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item.
         """
