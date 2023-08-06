@@ -79,21 +79,24 @@ class Counter:
             self.counter,
         )
 
-    def history(self) -> tuple[StateUpdate]:
-        """Returns a concise history of StateUpdates that will converge
-            to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+        """Returns a concise history of update_class (StateUpdate by
+            default) that will converge to the underlying data. Useful
+            for resynchronization by replaying updates from divergent
+            nodes.
         """
-        return (StateUpdate(self.clock.uuid, self.clock.read()-1, self.counter),)
+        return (update_class(self.clock.uuid, self.clock.read()-1, self.counter),)
 
-    def increase(self, amount: int = 1) -> StateUpdate:
+    def increase(self, amount: int = 1,
+                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
-            the StateUpdate that should be propagated to the network.
+            the update_class (StateUpdate by default) that should be
+            propagated to the network.
         """
         assert type(amount) is int, 'amount must be int'
         assert amount > 0, 'amount must be positive'
 
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             self.counter + amount

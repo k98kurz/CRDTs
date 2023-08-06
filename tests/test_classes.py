@@ -76,6 +76,10 @@ class StrClock:
         return datawrappers.StrWrapper(ts)
 
 
+class CustomStateUpdate(classes.StateUpdate):
+    pass
+
+
 class TestStateUpdate(unittest.TestCase):
     def test_StateUpdate_is_dataclass_with_attributes(self):
         update = classes.StateUpdate(b'123', 123, 321)
@@ -371,6 +375,25 @@ class TestGSet(unittest.TestCase):
         assert unpacked.clock == gset.clock
         assert unpacked.read() == gset.read()
 
+    def test_GSet_e2e_injected_StateUpdateProtocol_class(self):
+        gset = classes.GSet()
+        update = gset.add(datawrappers.StrWrapper('test'), update_class=CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(gset.history()[0]) is CustomStateUpdate
+
+        packed = gset.pack()
+
+        with self.assertRaises(AssertionError) as e:
+            unpacked = classes.GSet.unpack(packed)
+        assert str(e.exception) == 'CustomStateUpdate not found'
+
+        # inject and repeat
+        unpacked = classes.GSet.unpack(packed, {'CustomStateUpdate': CustomStateUpdate})
+
+        assert unpacked.clock == gset.clock
+        assert unpacked.read() == gset.read()
+        assert type(unpacked.history()[0]) is CustomStateUpdate
+
 
 class TestCounter(unittest.TestCase):
     def test_Counter_implements_CRDTProtocol(self):
@@ -473,11 +496,23 @@ class TestCounter(unittest.TestCase):
         packed = ctr.pack()
 
         with self.assertRaises(AssertionError) as e:
-            unpacked = classes.ORSet.unpack(packed)
+            unpacked = classes.Counter.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
         unpacked = classes.Counter.unpack(packed, {'StrClock': StrClock})
+
+        assert unpacked.clock == ctr.clock
+        assert unpacked.read() == ctr.read()
+
+    def test_Counter_e2e_with_injected_StateUpdateProtocol_class(self):
+        ctr = classes.Counter()
+        update = ctr.increase(update_class=CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(ctr.history(CustomStateUpdate)[0]) is CustomStateUpdate
+
+        packed = ctr.pack()
+        unpacked = classes.Counter.unpack(packed)
 
         assert unpacked.clock == ctr.clock
         assert unpacked.read() == ctr.read()
@@ -649,6 +684,12 @@ class TestORSet(unittest.TestCase):
         assert unpacked.clock == ors.clock
         assert unpacked.read() == ors.read()
 
+    def test_ORSet_pack_unpack_e2e_with_injected_StateUpdateProtocol_class(self):
+        ors = classes.ORSet()
+        update = ors.observe('test', CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(ors.history(CustomStateUpdate)[0]) is CustomStateUpdate
+
 
 class TestPNCounter(unittest.TestCase):
     def test_PNCounter_implements_CRDTProtocol(self):
@@ -767,6 +808,12 @@ class TestPNCounter(unittest.TestCase):
 
         assert unpacked.clock == pnc.clock
         assert unpacked.read() == pnc.read()
+
+    def test_PNCounter_e2e_with_injected_StateUpdateProtocol_class(self):
+        pnc = classes.PNCounter()
+        update = pnc.increase(update_class=CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(pnc.history(CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 class TestRGArray(unittest.TestCase):
@@ -959,6 +1006,12 @@ class TestRGArray(unittest.TestCase):
         assert unpacked.clock == rga.clock
         assert unpacked.read() == rga.read()
 
+    def test_RGArray_with_injected_StateUpdateProtocol_class(self):
+        rga = classes.RGArray()
+        update = rga.append(datawrappers.StrWrapper('first'), 1, CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(rga.history(CustomStateUpdate)[0]) is CustomStateUpdate
+
 
 class TestLWWRegister(unittest.TestCase):
     def test_LWWRegister_implements_CRDTProtocol(self):
@@ -1115,6 +1168,14 @@ class TestLWWRegister(unittest.TestCase):
 
         assert unpacked.clock == lwwr.clock
         assert unpacked.read() == lwwr.read()
+
+    def test_LWWRegister_with_injected_StateUpdateProtocol_class(self):
+        lwwr = classes.LWWRegister(
+            name=datawrappers.StrWrapper('test register')
+        )
+        update = lwwr.write(datawrappers.StrWrapper('first'), 1, CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(lwwr.history(CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 class TestLWWMap(unittest.TestCase):
@@ -1282,6 +1343,17 @@ class TestLWWMap(unittest.TestCase):
 
         assert unpacked.clock == lwwm.clock
         assert unpacked.read() == lwwm.read()
+
+    def test_LWWMap_with_injected_StateUpdateProtocol_class(self):
+        lwwm = classes.LWWMap()
+        update = lwwm.extend(
+            datawrappers.StrWrapper('first name'),
+            datawrappers.StrWrapper('first value'),
+            1,
+            CustomStateUpdate
+        )
+        assert type(update) is CustomStateUpdate
+        assert type(lwwm.history(CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 class TestFIArray(unittest.TestCase):
@@ -1601,6 +1673,12 @@ class TestFIArray(unittest.TestCase):
 
         assert unpacked.clock == fia.clock
         assert unpacked.read() == fia.read()
+
+    def test_FIArray_with_injected_StateUpdateProtocol_class(self):
+        fia = classes.FIArray()
+        update = fia.put_first(datawrappers.StrWrapper('first'), 1, CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(fia.history(CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 class TestCausalTree(unittest.TestCase):

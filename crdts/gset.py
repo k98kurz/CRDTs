@@ -33,7 +33,7 @@ class GSet:
         members = bytes(json.dumps(members, separators=(',', ':')), 'utf-8')
         clock_size, set_size = len(clock), len(members)
         history = bytes(json.dumps({
-            k.__class__.__name__ + '_' + k.pack().hex(): v.pack().hex()
+            k.__class__.__name__ + '_' + k.pack().hex(): v.__class__.__name__ + '_' + v.pack().hex()
             for k,v in self.update_history.items()
         }), 'utf-8')
         history_size = len(history)
@@ -85,7 +85,9 @@ class GSet:
             class_name, data = k.split('_')
             assert class_name in dependencies, f'{class_name} not found'
             key = dependencies[class_name].unpack(bytes.fromhex(data))
-            history[key] = StateUpdate.unpack(bytes.fromhex(v))
+            update_class_name, data = v.split('_')
+            assert update_class_name in dependencies, f'{update_class_name} not found'
+            history[key] = dependencies[update_class_name].unpack(bytes.fromhex(data))
 
         return cls(members=set(members), clock=clock, update_history=history)
 

@@ -203,17 +203,17 @@ class LWWMap:
             *names_checksums
         )
 
-    def history(self) -> tuple[StateUpdateProtocol]:
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdateProtocols that will
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.
         """
         registers_history: dict[DataWrapperProtocol, tuple[StateUpdateProtocol]] = {}
-        orset_history = self.names.history()
+        orset_history = self.names.history(update_class)
         history = []
 
         for name in self.registers:
-            registers_history[name] = self.registers[name].history()
+            registers_history[name] = self.registers[name].history(update_class)
 
         for update in orset_history:
             name = update.data[1]
@@ -229,15 +229,18 @@ class LWWMap:
         return tuple(history)
 
     def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
-                writer: int) -> StateUpdate:
-        """Extends the dict with name: value. Returns a StateUpdate."""
+                writer: int, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+        """Extends the dict with name: value. Returns an update_class
+            (StateUpdate by default) that should be propagated to all
+            nodes.
+        """
         assert isinstance(name, DataWrapperProtocol), \
             'name must be a DataWrapperProtocol'
         assert isinstance(value, DataWrapperProtocol) or value is None, \
             'value must be a DataWrapperProtocol or None'
         assert type(writer) is int, 'writer must be an int'
 
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             ('o', name, writer, value)
@@ -246,13 +249,14 @@ class LWWMap:
 
         return state_update
 
-    def unset(self, name: DataWrapperProtocol, writer: int) -> StateUpdate:
+    def unset(self, name: DataWrapperProtocol, writer: int,
+              update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
         assert isinstance(name, DataWrapperProtocol), \
             'name must be a DataWrapperProtocol'
         assert type(writer) is int, 'writer must be an int'
 
-        state_update = StateUpdate(
+        state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
             ('r', name, writer, NoneWrapper())

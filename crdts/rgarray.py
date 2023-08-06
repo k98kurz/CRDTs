@@ -86,12 +86,13 @@ class RGArray:
         """
         return self.items.checksums()
 
-    def history(self) -> tuple[StateUpdateProtocol]:
-        """Returns a concise history of StateUpdates that will converge
-            to the underlying data. Useful for resynchronization by
-            replaying all updates from divergent nodes.
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+        """Returns a concise history of update_class (StateUpdate by
+            default) that will converge to the underlying data. Useful
+            for resynchronization by replaying all updates from
+            divergent nodes.
         """
-        return self.items.history()
+        return self.items.history(update_class)
 
     def append(self, item: DataWrapperProtocol, writer: int,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
