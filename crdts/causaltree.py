@@ -87,12 +87,12 @@ class CausalTree:
         """
         return self.positions.checksums()
 
-    def history(self) -> tuple[StateUpdateProtocol]:
+    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
-        return self.positions.history()
+        return self.positions.history(update_class)
 
     def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
             parent: bytes = b'',
