@@ -1,5 +1,5 @@
 from __future__ import annotations
-from context import interfaces, datawrappers
+from context import interfaces, datawrappers, errors
 from decimal import Decimal
 import struct
 import unittest
@@ -139,24 +139,24 @@ class TestDataWrappers(unittest.TestCase):
         assert isinstance(rgatw.value[1][0], datawrappers.IntWrapper)
         assert type(rgatw.value[1][1]) is int
 
-    def test_RGATupleWrapper_raises_AssertionError_for_bad_value(self):
-        with self.assertRaises(AssertionError) as e:
+    def test_RGATupleWrapper_raises_UsagePreconditionError_for_bad_value(self):
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.RGATupleWrapper(b'123')
         assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.RGATupleWrapper((b'123',))
         assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.RGATupleWrapper((b'123', 1))
         assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.RGATupleWrapper((b'123', (1, b'123')))
         assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.RGATupleWrapper((datawrappers.BytesWrapper(b'123'), (1, 123)))
         assert str(e.exception) == 'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
 
@@ -214,20 +214,20 @@ class TestDataWrappers(unittest.TestCase):
         assert type(ctw.uuid) is bytes
         assert type(ctw.parent_uuid) is bytes
 
-    def test_CTDataWrapper_raises_AssertionError_for_bad_value(self):
-        with self.assertRaises(AssertionError) as e:
+    def test_CTDataWrapper_raises_UsagePreconditionError_for_bad_value(self):
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.CTDataWrapper(b'123', b'str', b'132')
         assert str(e.exception) == 'value must be DataWrapperProtocol'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), '321', b'123')
         assert str(e.exception) == 'uuid must be bytes'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), b'123', 123)
         assert str(e.exception) == 'parent_uuid must be bytes'
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'1'), b'1', b'1', 'f')
         assert str(e.exception) == 'visible must be bool'
 

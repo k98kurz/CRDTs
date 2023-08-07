@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
+from .errors import tressa
 from .interfaces import DataWrapperProtocol
 from types import NoneType
 from typing import Any
@@ -66,10 +67,10 @@ class CTDataWrapper(StrWrapper):
 
     def __init__(self, value: DataWrapperProtocol, uuid: bytes, parent_uuid: bytes,
                  visible: bool = True) -> None:
-        assert isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol'
-        assert type(uuid) is bytes, 'uuid must be bytes'
-        assert type(parent_uuid) is bytes, 'parent_uuid must be bytes'
-        assert type(visible) is bool, 'visible must be bool'
+        tressa(isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol')
+        tressa(type(uuid) is bytes, 'uuid must be bytes')
+        tressa(type(parent_uuid) is bytes, 'parent_uuid must be bytes')
+        tressa(type(visible) is bool, 'visible must be bool')
 
         self.value = value
         self.uuid = uuid
@@ -101,7 +102,7 @@ class CTDataWrapper(StrWrapper):
         return set()
 
     def add_child(self, child: CTDataWrapper):
-        assert isinstance(child, CTDataWrapper), 'child must be CTDataWrapper'
+        tressa(isinstance(child, CTDataWrapper), 'child must be CTDataWrapper')
         if not hasattr(self, '_children'):
             self._children = set()
         self._children.add(child)
@@ -113,7 +114,7 @@ class CTDataWrapper(StrWrapper):
             return self._parent
 
     def set_parent(self, parent: CTDataWrapper):
-        assert isinstance(parent, CTDataWrapper), 'parent must be CTDataWrapper'
+        tressa(isinstance(parent, CTDataWrapper), 'parent must be CTDataWrapper')
         self._parent = parent
         if self.parent_uuid != parent.uuid:
             self.parent_uuid = parent.uuid
@@ -149,9 +150,9 @@ class CTDataWrapper(StrWrapper):
 
         # parse value
         value_type = str(value_type, 'utf-8')
-        assert value_type in globals(), f'{value_type} must be accessible from globals()'
-        assert hasattr(globals()[value_type], 'unpack'), \
-            f'{value_type} missing unpack method'
+        tressa(value_type in globals(), f'{value_type} must be accessible from globals()')
+        tressa(hasattr(globals()[value_type], 'unpack'),
+            f'{value_type} missing unpack method')
         value = globals()[value_type].unpack(value_packed)
 
         return cls(value, uuid, parent_uuid, visible)
@@ -175,7 +176,7 @@ class IntWrapper(DecimalWrapper):
     value: int
 
     def __init__(self, value: int) -> None:
-        assert type(value) is int, 'value must be int'
+        tressa(type(value) is int, 'value must be int')
         self.value = value
 
     def pack(self) -> bytes:
@@ -190,20 +191,20 @@ class RGATupleWrapper(StrWrapper):
     value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]
 
     def __init__(self, value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]) -> None:
-        assert type(value) is tuple, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
-        assert len(value) == 2, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
-        assert isinstance(value[0], DataWrapperProtocol), \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
-        assert type(value[1]) is tuple, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
-        assert len(value[1]) == 2, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
-        assert isinstance(value[1][0], DataWrapperProtocol), \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
-        assert type(value[1][1]) is int, \
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]'
+        tressa(type(value) is tuple,
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+        tressa(len(value) == 2,
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+        tressa(isinstance(value[0], DataWrapperProtocol),
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+        tressa(type(value[1]) is tuple,
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+        tressa(len(value[1]) == 2,
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+        tressa(isinstance(value[1][0], DataWrapperProtocol),
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+        tressa(type(value[1][1]) is int,
+            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
 
         self.value = value
 
