@@ -8,6 +8,7 @@ from .datawrappers import (
     RGATupleWrapper,
     StrWrapper,
 )
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .lwwregister import LWWRegister
 from .orset import ORSet
@@ -32,12 +33,12 @@ class LWWMap:
         """Initialize an LWWMap from an ORSet of names, a list of
             LWWRegisters, and a shared clock.
         """
-        assert type(names) is ORSet or names is None, \
-            'names must be an ORSet or None'
-        assert type(registers) is dict or registers is None, \
-            'registers must be a dict mapping names to LWWRegisters or None'
-        assert isinstance(clock, ClockProtocol) or clock is None, \
-            'clock must be a ClockProtocol or None'
+        tressa(type(names) is ORSet or names is None,
+            'names must be an ORSet or None')
+        tressa(type(registers) is dict or registers is None,
+            'registers must be a dict mapping names to LWWRegisters or None')
+        tressa(isinstance(clock, ClockProtocol) or clock is None,
+            'clock must be a ClockProtocol or None')
 
         names = ORSet() if names is None else names
         registers = {} if registers is None else registers
@@ -46,10 +47,10 @@ class LWWMap:
         names.clock = clock
 
         for name in registers:
-            assert name in names.observed or name in names.removed, \
-                'each register name must be in the names ORSet'
-            assert type(registers[name]) is LWWRegister, \
-                'each element of registers must be an LWWRegister'
+            tressa(name in names.observed or name in names.removed,
+                'each register name must be in the names ORSet')
+            tressa(type(registers[name]) is LWWRegister,
+                'each element of registers must be an LWWRegister')
             registers[name].clock = clock
 
         self.names = names
@@ -89,8 +90,8 @@ class LWWMap:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> LWWMap:
         """Unpack the data bytes string into an instance."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) > 13, 'data must be at least 13 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) > 13, 'data must be at least 13 bytes')
         dependencies = {**globals(), **inject}
 
         # parse sizes
@@ -108,9 +109,9 @@ class LWWMap:
         # parse the clock and names
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in dependencies, f'cannot find {clock_class}'
-        assert hasattr(dependencies[clock_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(clock_class in dependencies, f'cannot find {clock_class}')
+        tressa(hasattr(dependencies[clock_class], 'unpack'),
+            f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
         names = ORSet.unpack(names, inject)
 
@@ -143,24 +144,24 @@ class LWWMap:
 
     def update(self, state_update: StateUpdateProtocol) -> LWWMap:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)'
-        assert len(state_update.data) == 4, \
-            'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)')
+        tressa(len(state_update.data) == 4,
+            'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)')
 
         op, name, writer, value = state_update.data
-        assert type(op) is str and op in ('o', 'r'), \
-            'state_update.data[0] must be str op one of (\'o\', \'r\')'
-        assert isinstance(name, DataWrapperProtocol), \
-            'state_update.data[1] must be DataWrapperProtocol name'
-        assert type(writer) is int, \
-            'state_update.data[2] must be int writer id'
-        assert isinstance(value, DataWrapperProtocol), \
-            'state_update.data[3] must be DataWrapperProtocol value'
+        tressa(type(op) is str and op in ('o', 'r'),
+            'state_update.data[0] must be str op one of (\'o\', \'r\')')
+        tressa(isinstance(name, DataWrapperProtocol),
+            'state_update.data[1] must be DataWrapperProtocol name')
+        tressa(type(writer) is int,
+            'state_update.data[2] must be int writer id')
+        tressa(isinstance(value, DataWrapperProtocol),
+            'state_update.data[3] must be DataWrapperProtocol value')
 
         ts = state_update.ts
 
@@ -234,11 +235,11 @@ class LWWMap:
             (StateUpdate by default) that should be propagated to all
             nodes.
         """
-        assert isinstance(name, DataWrapperProtocol), \
-            'name must be a DataWrapperProtocol'
-        assert isinstance(value, DataWrapperProtocol) or value is None, \
-            'value must be a DataWrapperProtocol or None'
-        assert type(writer) is int, 'writer must be an int'
+        tressa(isinstance(name, DataWrapperProtocol),
+            'name must be a DataWrapperProtocol')
+        tressa(isinstance(value, DataWrapperProtocol) or value is None,
+            'value must be a DataWrapperProtocol or None')
+        tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
             self.clock.uuid,
@@ -252,9 +253,9 @@ class LWWMap:
     def unset(self, name: DataWrapperProtocol, writer: int,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
-        assert isinstance(name, DataWrapperProtocol), \
-            'name must be a DataWrapperProtocol'
-        assert type(writer) is int, 'writer must be an int'
+        tressa(isinstance(name, DataWrapperProtocol),
+            'name must be a DataWrapperProtocol')
+        tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
             self.clock.uuid,

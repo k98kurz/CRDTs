@@ -8,6 +8,7 @@ from .datawrappers import (
     RGATupleWrapper,
     StrWrapper,
 )
+from .errors import tressa
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
@@ -42,8 +43,8 @@ class PNCounter:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> PNCounter:
         """Unpack the data bytes string into an instance."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) > 20, 'data must be more than 20 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) > 20, 'data must be more than 20 bytes')
         dependencies = {**globals(), **inject}
 
         clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
@@ -53,9 +54,9 @@ class PNCounter:
         )
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in dependencies, f'cannot find {clock_class}'
-        assert hasattr(dependencies[clock_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(clock_class in dependencies, f'cannot find {clock_class}')
+        tressa(hasattr(dependencies[clock_class], 'unpack'),
+            f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
 
         return cls(positive, negative, clock)
@@ -66,18 +67,18 @@ class PNCounter:
 
     def update(self, state_update: StateUpdateProtocol) -> PNCounter:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple of 2 ints'
-        assert len(state_update.data) == 2, \
-            'state_update.data must be tuple of 2 ints'
-        assert type(state_update.data[0]) is int, \
-            'state_update.data must be tuple of 2 ints'
-        assert type(state_update.data[1]) is int, \
-            'state_update.data must be tuple of 2 ints'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple of 2 ints')
+        tressa(len(state_update.data) == 2,
+            'state_update.data must be tuple of 2 ints')
+        tressa(type(state_update.data[0]) is int,
+            'state_update.data must be tuple of 2 ints')
+        tressa(type(state_update.data[1]) is int,
+            'state_update.data must be tuple of 2 ints')
 
         self.positive = max([self.positive, state_update.data[0]])
         self.negative = max([self.negative, state_update.data[1]])
@@ -109,8 +110,8 @@ class PNCounter:
             the update_class (StateUpdate by default) that should be
             propagated to the network.
         """
-        assert type(amount) is int, 'amount must be int'
-        assert amount > 0, 'amount must be positive'
+        tressa(type(amount) is int, 'amount must be int')
+        tressa(amount > 0, 'amount must be positive')
 
         state_update = update_class(
             self.clock.uuid,
@@ -127,8 +128,8 @@ class PNCounter:
             the update_class (StateUpdate by default) that should be
             propagated to the network.
         """
-        assert type(amount) is int, 'amount must be int'
-        assert amount > 0, 'amount must be positive'
+        tressa(type(amount) is int, 'amount must be int')
+        tressa(amount > 0, 'amount must be positive')
 
         state_update = update_class(
             self.clock.uuid,

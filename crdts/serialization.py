@@ -7,6 +7,7 @@ from .datawrappers import (
     RGATupleWrapper,
     CTDataWrapper,
 )
+from .errors import tressa
 from .interfaces import PackableProtocol
 from typing import Any
 import struct
@@ -16,10 +17,10 @@ def serialize_part(data: Any) -> bytes:
     """Serializes an instance of a PackableProtocol implementation or
         built-in type, recursively calling itself as necessary.
     """
-    assert isinstance(data, PackableProtocol) or \
-        type(data) in (list, set, tuple, str, bytes, bytearray, int, float), \
-        'data type must be one of (PackableProtocol, list, set, tuple, ' +\
-        'str, bytes, bytearray, int, float)'
+    tressa(isinstance(data, PackableProtocol) or \
+        type(data) in (list, set, tuple, str, bytes, bytearray, int, float),
+        'data type must be one of (PackableProtocol, list, set, tuple, ' + \
+        'str, bytes, bytearray, int, float)')
 
     if isinstance(data, PackableProtocol):
         packed = bytes(data.__class__.__name__, 'utf-8').hex()
@@ -91,10 +92,10 @@ def deserialize_part(data: bytes) -> Any:
         packed, _ = struct.unpack(f'!{packed_len}s{len(data)-packed_len}s', data)
         packed_class, _, packed_data = packed.partition(b'_')
         packed_class = str(bytes.fromhex(str(packed_class, 'utf-8')), 'utf-8')
-        assert packed_class in globals(), \
-            f'{packed_class} not found in globals; cannot unpack'
-        assert hasattr(globals()[packed_class], 'unpack'), \
-            f'{packed_class} must have unpack method'
+        tressa(packed_class in globals(),
+            f'{packed_class} not found in globals; cannot unpack')
+        tressa(hasattr(globals()[packed_class], 'unpack'),
+            f'{packed_class} must have unpack method')
         return globals()[packed_class].unpack(packed_data)
 
     if code in (b'l', b'e', b't'):

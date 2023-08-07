@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .errors import tressa
 from .serialization import deserialize_part, serialize_part
 from dataclasses import dataclass
 from typing import Any, Hashable
@@ -37,8 +38,8 @@ class StateUpdate:
             update.data and update.ts are either built-in types or
             PackableProtocols accessible from this scope.
         """
-        assert type(data) in (bytes, bytearray), 'data must be bytes or bytearray'
-        assert len(data) >= 12, 'data must be at least 12 long'
+        tressa(type(data) in (bytes, bytearray), 'data must be bytes or bytearray')
+        tressa(len(data) >= 12, 'data must be at least 12 long')
 
         uuid_len, ts_len, data_len, _ = struct.unpack(f'!III{len(data)-12}s', data)
         _, _, _, uuid, ts, data = struct.unpack(f'III{uuid_len}s{ts_len}s{data_len}s', data)

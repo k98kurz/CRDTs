@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field, is_dataclass
 from decimal import Decimal
-from context import classes, interfaces, datawrappers
+from context import classes, interfaces, datawrappers, errors
 import unittest
 
 
@@ -366,7 +366,7 @@ class TestGSet(unittest.TestCase):
         gset.add(datawrappers.StrWrapper('test'))
         packed = gset.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.GSet.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -384,7 +384,7 @@ class TestGSet(unittest.TestCase):
 
         packed = gset.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.GSet.unpack(packed)
         assert str(e.exception) == 'CustomStateUpdate not found'
 
@@ -496,7 +496,7 @@ class TestCounter(unittest.TestCase):
         ctr.increase()
         packed = ctr.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.Counter.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -675,7 +675,7 @@ class TestORSet(unittest.TestCase):
         ors.observe('test')
         packed = ors.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.ORSet.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -800,7 +800,7 @@ class TestPNCounter(unittest.TestCase):
         pnc.increase()
         packed = pnc.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.PNCounter.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -997,7 +997,7 @@ class TestRGArray(unittest.TestCase):
         rga.append(datawrappers.StrWrapper('second'), 1)
         packed = rga.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.RGArray.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -1160,7 +1160,7 @@ class TestLWWRegister(unittest.TestCase):
         lwwr.write(datawrappers.StrWrapper('second'), 1)
         packed = lwwr.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.LWWRegister.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -1335,7 +1335,7 @@ class TestLWWMap(unittest.TestCase):
         )
         packed = lwwm.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.LWWMap.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 
@@ -1665,7 +1665,7 @@ class TestFIArray(unittest.TestCase):
         fia.put_last(datawrappers.StrWrapper('last'), 1)
         packed = fia.pack()
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.FIArray.unpack(packed)
         assert str(e.exception) == 'cannot find StrClock'
 

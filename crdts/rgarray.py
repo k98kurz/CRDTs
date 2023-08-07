@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .datawrappers import RGATupleWrapper
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .orset import ORSet
 from .stateupdate import StateUpdate
@@ -19,10 +20,10 @@ class RGArray:
 
     def __init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None:
         """Initialize an RGA from an ORSet of items and a shared clock."""
-        assert type(items) in (ORSet, NoneType), \
-            'items must be ORSet or None'
-        assert isinstance(clock, ClockProtocol) or clock is None, \
-            'clock must be a ClockProtocol or None'
+        tressa(type(items) in (ORSet, NoneType),
+            'items must be ORSet or None')
+        tressa(isinstance(clock, ClockProtocol) or clock is None,
+            'clock must be a ClockProtocol or None')
 
         items = ORSet() if items is None else items
         clock = items.clock if clock is None else clock
@@ -68,12 +69,12 @@ class RGArray:
 
     def update(self, state_update: StateUpdateProtocol) -> RGArray:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
 
-        assert isinstance(state_update.data[1], RGATupleWrapper), 'item must be RGATupleWrapper'
+        tressa(isinstance(state_update.data[1], RGATupleWrapper), 'item must be RGATupleWrapper')
 
         self.items.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[1] in self.items.read())
@@ -99,8 +100,8 @@ class RGArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item.
         """
-        assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
-        assert type(writer) is int, 'writer must be int'
+        tressa(isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol')
+        tressa(type(writer) is int, 'writer must be int')
 
         ts = self.clock.wrap_ts(self.clock.read())
         state_update = self.items.observe(RGATupleWrapper((item, (ts, writer))), update_class)
@@ -114,7 +115,7 @@ class RGArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the specified item.
         """
-        assert isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper'
+        tressa(isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper')
 
         state_update = self.items.remove(item, update_class)
 
@@ -140,8 +141,8 @@ class RGArray:
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
-        assert isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper'
-        assert type(visible) is bool, 'visible must be bool'
+        tressa(isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper')
+        tressa(type(visible) is bool, 'visible must be bool')
 
         if self.cache_full is None:
             self.calculate_cache()

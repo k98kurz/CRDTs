@@ -8,6 +8,7 @@ from .datawrappers import (
     RGATupleWrapper,
     StrWrapper,
 )
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
@@ -88,8 +89,8 @@ class LWWRegister:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> LWWRegister:
         """Unpack the data bytes string into an instance."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) > 26, 'data must be at least 26 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) > 26, 'data must be at least 26 bytes')
         dependencies = {**globals(), **inject}
 
         # parse
@@ -106,35 +107,35 @@ class LWWRegister:
         # parse name
         name = str(name, 'utf-8')
         name_class, name_value = name.split('_')
-        assert name_class in dependencies, f'cannot find {name_class}'
-        assert hasattr(dependencies[name_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(name_class in dependencies, f'cannot find {name_class}')
+        tressa(hasattr(dependencies[name_class], 'unpack'),
+            f'{name_class} missing unpack method')
         name = dependencies[name_class].unpack(bytes.fromhex(name_value))
 
         # parse clock
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in dependencies, f'cannot find {clock_class}'
-        assert hasattr(dependencies[clock_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(clock_class in dependencies, f'cannot find {clock_class}')
+        tressa(hasattr(dependencies[clock_class], 'unpack'),
+            f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
 
         # parse value
         value_type = str(value_type, 'utf-8')
-        assert value_type in dependencies, 'value_type must be resolvable from globals'
+        tressa(value_type in dependencies, 'value_type must be resolvable from globals')
         value = dependencies[value_type].unpack(value)
-        assert isinstance(value, DataWrapperProtocol), \
-            'value_type must implement DataWrapperProtocol'
+        tressa(isinstance(value, DataWrapperProtocol),
+            'value_type must implement DataWrapperProtocol')
 
         # parse last_update
         ts_class = str(ts_class, 'utf-8')
-        assert ts_class in dependencies, \
-            'last_update wrapped class must be resolvable from globals'
-        assert hasattr(dependencies[ts_class], 'unpack'), \
-            f'{ts_class} missing unpack method'
+        tressa(ts_class in dependencies,
+            'last_update wrapped class must be resolvable from globals')
+        tressa(hasattr(dependencies[ts_class], 'unpack'),
+            f'{ts_class} missing unpack method')
         last_update = dependencies[ts_class].unpack(last_update)
-        assert isinstance(last_update, DataWrapperProtocol), \
-            'last_update class must implement DataWrapperProtocol'
+        tressa(isinstance(last_update, DataWrapperProtocol),
+            'last_update class must implement DataWrapperProtocol')
         last_update = last_update.value
 
         return cls(name, value, clock, last_update, last_writer)
@@ -150,18 +151,18 @@ class LWWRegister:
 
     def update(self, state_update: StateUpdateProtocol) -> LWWRegister:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple of (int, DataWrapperProtocol)'
-        assert len(state_update.data) == 2, \
-            'state_update.data must be tuple of (int, DataWrapperProtocol)'
-        assert type(state_update.data[0]) is int, \
-            'state_update.data[0] must be int writer_id'
-        assert isinstance(state_update.data[1], DataWrapperProtocol), \
-            'state_update.data[1] must be DataWrapperProtocol'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple of (int, DataWrapperProtocol)')
+        tressa(len(state_update.data) == 2,
+            'state_update.data must be tuple of (int, DataWrapperProtocol)')
+        tressa(type(state_update.data[0]) is int,
+            'state_update.data[0] must be int writer_id')
+        tressa(isinstance(state_update.data[1], DataWrapperProtocol),
+            'state_update.data[1] must be DataWrapperProtocol')
 
         # set the value if the update happens after current state
         if self.clock.is_later(state_update.ts, self.last_update):
@@ -210,9 +211,9 @@ class LWWRegister:
             update_class (StateUpdate by default). Requires a writer int
             for tie breaking.
         """
-        assert isinstance(value, DataWrapperProtocol) or value is None, \
-            'value must be a DataWrapperProtocol or None'
-        assert type(writer) is int, 'writer must be an int'
+        tressa(isinstance(value, DataWrapperProtocol) or value is None,
+            'value must be a DataWrapperProtocol or None')
+        tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
             self.clock.uuid,

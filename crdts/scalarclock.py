@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .datawrappers import IntWrapper
+from .errors import tressa
 from dataclasses import dataclass, field
 from uuid import uuid1
 import struct
@@ -18,7 +19,7 @@ class ScalarClock:
 
     def update(self, data: int) -> int:
         """Update the clock and return the current time stamp."""
-        assert type(data) is int, 'data must be int'
+        tressa(type(data) is int, 'data must be int')
 
         if data >= self.counter:
             self.counter = data + 1
@@ -28,8 +29,8 @@ class ScalarClock:
     @staticmethod
     def is_later(ts1: int, ts2: int) -> bool:
         """Return True iff ts1 > ts2."""
-        assert type(ts1) is int, 'ts1 must be int'
-        assert type(ts2) is int, 'ts2 must be int'
+        tressa(type(ts1) is int, 'ts1 must be int')
+        tressa(type(ts2) is int, 'ts2 must be int')
 
         if ts1 > ts2:
             return True
@@ -38,8 +39,8 @@ class ScalarClock:
     @staticmethod
     def are_concurrent(ts1: int, ts2: int) -> bool:
         """Return True if not ts1 > ts2 and not ts2 > ts1."""
-        assert type(ts1) is int, 'ts1 must be int'
-        assert type(ts2) is int, 'ts2 must be int'
+        tressa(type(ts1) is int, 'ts1 must be int')
+        tressa(type(ts2) is int, 'ts2 must be int')
 
         return not (ts1 > ts2) and not (ts2 > ts1)
 
@@ -48,8 +49,8 @@ class ScalarClock:
         """Return 1 if ts1 is later than ts2; -1 if ts2 is later than
             ts1; and 0 if they are concurrent/incomparable.
         """
-        assert type(ts1) is int, 'ts1 must be int'
-        assert type(ts2) is int, 'ts2 must be int'
+        tressa(type(ts1) is int, 'ts1 must be int')
+        tressa(type(ts2) is int, 'ts2 must be int')
 
         if ts1 > ts2:
             return 1
@@ -68,8 +69,8 @@ class ScalarClock:
     @classmethod
     def unpack(cls, data: bytes) -> ScalarClock:
         """Unpacks a clock from bytes."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) >= 5, 'data must be at least 5 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) >= 5, 'data must be at least 5 bytes')
 
         return cls(*struct.unpack(
             f'!I{len(data)-4}s',

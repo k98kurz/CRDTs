@@ -8,6 +8,7 @@ from .datawrappers import (
     RGATupleWrapper,
     StrWrapper,
 )
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
@@ -51,8 +52,8 @@ class GSet:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> GSet:
         """Unpack the data bytes string into an instance."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) > 8, 'data must be more than 8 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) > 8, 'data must be more than 8 bytes')
         dependencies = {**globals(), **inject}
 
         clock_size, set_size, history_size, data = struct.unpack(
@@ -67,15 +68,15 @@ class GSet:
         # parse clock and members
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in dependencies, f'cannot find {clock_class}'
-        assert hasattr(dependencies[clock_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(clock_class in dependencies, f'cannot find {clock_class}')
+        tressa(hasattr(dependencies[clock_class], 'unpack'),
+            f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
         _members: list[str] = json.loads(str(set_bytes, 'utf-8'))
         members = []
         for m in _members:
             class_name, data = m.split('_')
-            assert class_name in dependencies, f'{class_name} not found'
+            tressa(class_name in dependencies, f'{class_name} not found')
             members.append(dependencies[class_name].unpack(bytes.fromhex(data)))
 
         # parse history
@@ -83,10 +84,10 @@ class GSet:
         history = {}
         for k,v in _history.items():
             class_name, data = k.split('_')
-            assert class_name in dependencies, f'{class_name} not found'
+            tressa(class_name in dependencies, f'{class_name} not found')
             key = dependencies[class_name].unpack(bytes.fromhex(data))
             update_class_name, data = v.split('_')
-            assert update_class_name in dependencies, f'{update_class_name} not found'
+            tressa(update_class_name in dependencies, f'{update_class_name} not found')
             history[key] = dependencies[update_class_name].unpack(bytes.fromhex(data))
 
         return cls(members=set(members), clock=clock, update_history=history)
@@ -97,12 +98,12 @@ class GSet:
 
     def update(self, state_update: StateUpdateProtocol) -> GSet:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert isinstance(state_update.data, DataWrapperProtocol), \
-            'state_update.data must be instance implementing DataWrapperProtocol'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(isinstance(state_update.data, DataWrapperProtocol),
+            'state_update.data must be instance implementing DataWrapperProtocol')
 
         if state_update.data not in self.members:
             self.members.add(state_update.data)
@@ -170,9 +171,9 @@ class GSet:
     def add(self, member: Hashable,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
-        assert type(hash(member)) is int, 'member must be hashable'
-        assert isinstance(member, DataWrapperProtocol), \
-            'member must be instance implementing DataWrapperProtocol'
+        tressa(type(hash(member)) is int, 'member must be hashable')
+        tressa(isinstance(member, DataWrapperProtocol),
+            'member must be instance implementing DataWrapperProtocol')
 
         ts = self.clock.read()
         state_update = update_class(self.clock.uuid, ts, member)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .datawrappers import DecimalWrapper, NoneWrapper
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
@@ -21,10 +22,10 @@ class FIArray:
         """Initialize an FIArray from an LWWMap of item positions and a
             shared clock.
         """
-        assert type(positions) is LWWMap or positions is None, \
-            'positions must be an LWWMap or None'
-        assert isinstance(clock, ClockProtocol) or clock is None, \
-            'clock must be a ClockProtocol or None'
+        tressa(type(positions) is LWWMap or positions is None,
+            'positions must be an LWWMap or None')
+        tressa(isinstance(clock, ClockProtocol) or clock is None,
+            'clock must be a ClockProtocol or None')
 
         clock = ScalarClock() if clock is None else clock
         positions = LWWMap(clock=clock) if positions is None else positions
@@ -68,20 +69,20 @@ class FIArray:
 
     def update(self, state_update: StateUpdateProtocol) -> FIArray:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple'
-        assert state_update.data[0] in ('o', 'r'), \
-            'state_update.data[0] must be in (\'o\', \'r\')'
-        assert isinstance(state_update.data[1], DataWrapperProtocol), \
-            'state_update.data[1] must be instance implementing DataWrapperProtocol'
-        assert type(state_update.data[2]) is int, \
-            'state_update.data[2] must be writer int'
-        assert type(state_update.data[3]) in (DecimalWrapper, NoneWrapper), \
-            'state_update.data[3] must be DecimalWrapper or NoneWrapper'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple')
+        tressa(state_update.data[0] in ('o', 'r'),
+            'state_update.data[0] must be in (\'o\', \'r\')')
+        tressa(isinstance(state_update.data[1], DataWrapperProtocol),
+            'state_update.data[1] must be instance implementing DataWrapperProtocol')
+        tressa(type(state_update.data[2]) is int,
+            'state_update.data[2] must be writer int')
+        tressa(type(state_update.data[3]) in (DecimalWrapper, NoneWrapper),
+            'state_update.data[3] must be DecimalWrapper or NoneWrapper')
 
         self.positions.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[0] == 'o')
@@ -104,7 +105,7 @@ class FIArray:
     @classmethod
     def index_offset(cls, index: Decimal) -> Decimal:
         """Adds a small random offset."""
-        assert type(index) is Decimal, 'index must be a Decimal'
+        tressa(type(index) is Decimal, 'index must be a Decimal')
 
         _, exponent = cls.least_significant_digit(index)
         exponent -= 1
@@ -113,8 +114,8 @@ class FIArray:
     @classmethod
     def index_between(cls, first: Decimal, second: Decimal) -> Decimal:
         """Return an index between first and second with a random offset."""
-        assert type(first) is Decimal, 'first must be a Decimal'
-        assert type(second) is Decimal, 'second must be a Decimal'
+        tressa(type(first) is Decimal, 'first must be a Decimal')
+        tressa(type(second) is Decimal, 'second must be a Decimal')
 
         return cls.index_offset(Decimal(first + second)/Decimal(2))
 
@@ -168,8 +169,8 @@ class FIArray:
             default) that puts the item at an index between first and
             second.
         """
-        assert first in self.read_full(), 'first must already be assigned a position'
-        assert second in self.read_full(), 'second must already be assigned a position'
+        tressa(first in self.read_full(), 'first must already be assigned a position')
+        tressa(second in self.read_full(), 'second must already be assigned a position')
 
         first_index = self.positions.registers[first].value.value
         second_index = self.positions.registers[second].value.value
@@ -183,7 +184,7 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item before the other item.
         """
-        assert other in self.read_full(), 'other must already be assigned a position'
+        tressa(other in self.read_full(), 'other must already be assigned a position')
 
         before_index = self.positions.registers[other].value.value
         first_index = self.read_full().index(other)
@@ -204,7 +205,7 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item after the other item.
         """
-        assert other in self.read_full(), 'other must already be assigned a position'
+        tressa(other in self.read_full(), 'other must already be assigned a position')
 
         after_index = self.positions.registers[other].value.value
         first_index = self.read_full().index(other)
@@ -298,8 +299,8 @@ class FIArray:
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
-        assert isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol'
-        assert type(visible) is bool, 'visible must be bool'
+        tressa(isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol')
+        tressa(type(visible) is bool, 'visible must be bool')
 
         positions = self.positions.read()
 

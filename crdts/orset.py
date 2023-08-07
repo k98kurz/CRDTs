@@ -8,6 +8,7 @@ from .datawrappers import (
     RGATupleWrapper,
     StrWrapper,
 )
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
@@ -73,8 +74,8 @@ class ORSet:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> ORSet:
         """Unpack the data bytes string into an instance."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) > 19, 'data must be more than 19 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) > 19, 'data must be more than 19 bytes')
         dependencies = {**globals(), **inject}
 
         clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
@@ -86,9 +87,9 @@ class ORSet:
         # parse clock
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in dependencies, f'cannot find {clock_class}'
-        assert hasattr(dependencies[clock_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(clock_class in dependencies, f'cannot find {clock_class}')
+        tressa(hasattr(dependencies[clock_class], 'unpack'),
+            f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
 
         # parse sets
@@ -132,18 +133,18 @@ class ORSet:
 
     def update(self, state_update: StateUpdateProtocol) -> ORSet:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple'
-        assert len(state_update.data) == 2, \
-            'state_update.data must be 2 long'
-        assert state_update.data[0] in ('o', 'r'), \
-            'state_update.data[0] must be in (\'o\', \'r\')'
-        assert type(hash(state_update.data[1])) is int, \
-            'state_update.data[1] must be hashable'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple')
+        tressa(len(state_update.data) == 2,
+            'state_update.data must be 2 long')
+        tressa(state_update.data[0] in ('o', 'r'),
+            'state_update.data[0] must be in (\'o\', \'r\')')
+        tressa(type(hash(state_update.data[1])) is int,
+            'state_update.data[1] must be hashable')
 
         op, member = state_update.data
         member = member.hex() if type(member) is bytes else member
@@ -247,7 +248,7 @@ class ORSet:
     def observe(self, member: Hashable,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the observed set."""
-        assert type(hash(member)) is int, 'member must be Hashable'
+        tressa(type(hash(member)) is int, 'member must be Hashable')
 
         member = str(member) if type(member) is int else member
         state_update = update_class(
@@ -263,7 +264,7 @@ class ORSet:
     def remove(self, member: Hashable,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the removed set."""
-        assert type(hash(member)) is int, 'member must be Hashable'
+        tressa(type(hash(member)) is int, 'member must be Hashable')
 
         member = str(member) if type(member) is int else member
         state_update = update_class(

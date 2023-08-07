@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .datawrappers import BytesWrapper, CTDataWrapper, NoneWrapper
+from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
@@ -18,10 +19,10 @@ class CausalTree:
         """Initialize a CausalTree from an LWWMap of item positions and a
             shared clock.
         """
-        assert type(positions) is LWWMap or positions is None, \
-            'positions must be an LWWMap or None'
-        assert isinstance(clock, ClockProtocol) or clock is None, \
-            'clock must be a ClockProtocol or None'
+        tressa(type(positions) is LWWMap or positions is None,
+            'positions must be an LWWMap or None')
+        tressa(isinstance(clock, ClockProtocol) or clock is None,
+            'clock must be a ClockProtocol or None')
 
         clock = ScalarClock() if clock is None else clock
         positions = LWWMap(clock=clock) if positions is None else positions
@@ -62,20 +63,20 @@ class CausalTree:
         return tuple(self.cache)
 
     def update(self, state_update: StateUpdateProtocol) -> CausalTree:
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple'
-        assert state_update.data[0] in ('o', 'r'), \
-            'state_update.data[0] must be in (\'o\', \'r\')'
-        assert isinstance(state_update.data[1], DataWrapperProtocol), \
-            'state_update.data[1] must be instance implementing DataWrapperProtocol'
-        assert type(state_update.data[2]) is int, \
-            'state_update.data[2] must be writer int'
-        assert type(state_update.data[3]) is CTDataWrapper, \
-            'state_update.data[3] must be CTDataWrapper'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple')
+        tressa(state_update.data[0] in ('o', 'r'),
+            'state_update.data[0] must be in (\'o\', \'r\')')
+        tressa(isinstance(state_update.data[1], DataWrapperProtocol),
+            'state_update.data[1] must be instance implementing DataWrapperProtocol')
+        tressa(type(state_update.data[2]) is int,
+            'state_update.data[2] must be writer int')
+        tressa(type(state_update.data[3]) is CTDataWrapper,
+            'state_update.data[3] must be CTDataWrapper')
 
         state_update.data[3].visible = state_update.data[0] == 'o'
         self.positions.update(state_update)
@@ -100,8 +101,8 @@ class CausalTree:
         """Creates, applies, and returns a update_class (StateUpdate by
             default) that puts the item after the parent.
         """
-        assert type(uuid) is bytes, "uuid must be bytes"
-        assert type(parent) is bytes, "parent must be bytes"
+        tressa(type(uuid) is bytes, "uuid must be bytes")
+        tressa(type(parent) is bytes, "parent must be bytes")
         state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
@@ -123,8 +124,8 @@ class CausalTree:
         """Creates, applies, and returns an update_class that puts the item
             after the parent item.
         """
-        assert parent in [item.value for item in self.read_full()], \
-            'parent must already be assigned a position'
+        tressa(parent in [item.value for item in self.read_full()],
+            'parent must already be assigned a position')
 
         uuid = uuid1().bytes
         parent = self.positions.registers[parent].value.uuid
@@ -146,7 +147,7 @@ class CausalTree:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item specified by ctdw.
         """
-        assert ctdw.value in self.positions.registers
+        tressa(ctdw.value in self.positions.registers)
 
         state_update = update_class(
             self.clock.uuid,
@@ -208,7 +209,7 @@ class CausalTree:
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
-        assert isinstance(item, CTDataWrapper), 'item must be CTDataWrapper'
+        tressa(isinstance(item, CTDataWrapper), 'item must be CTDataWrapper')
 
         if BytesWrapper(item.uuid) not in self.positions.registers:
             return

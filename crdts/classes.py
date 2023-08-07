@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .causaltree import CausalTree
 from .counter import Counter
+from .errors import tressa
 from .fiarray import FIArray
 from .gset import GSet
 from .interfaces import (
@@ -41,9 +42,9 @@ class CompositeCRDT:
                 component_data: dict = None, clock: ClockProtocol = None
     ) -> None:
         """Initialize a CompositeCRDT from components and a shared clock."""
-        assert isinstance(component_names, ORSet) or component_names is None, 'component_names must be an ORSet or None'
-        assert type(component_data) is dict or component_data is None, 'component_data must be a dict or None'
-        assert isinstance(clock, ClockProtocol) or clock is None, 'clock must be a ClockProtocol or None'
+        tressa(isinstance(component_names, ORSet) or component_names is None, 'component_names must be an ORSet or None')
+        tressa(type(component_data) is dict or component_data is None, 'component_data must be a dict or None')
+        tressa(isinstance(clock, ClockProtocol) or clock is None, 'clock must be a ClockProtocol or None')
 
         component_names = component_names if isinstance(component_names, ORSet) else ORSet()
         component_data = component_data if type(component_data) is dict else {}
@@ -52,9 +53,9 @@ class CompositeCRDT:
         component_names.clock = self.clock
 
         for name in component_data:
-            assert isinstance(component_data[name], CRDTProtocol), 'each component must be a CRDT'
-            assert name in component_names.observed or name in component_names.removed, \
-                'each component name must be referenced in the ORSet'
+            tressa(isinstance(component_data[name], CRDTProtocol), 'each component must be a CRDT')
+            tressa(name in component_names.observed or name in component_names.removed,
+                'each component name must be referenced in the ORSet')
             component_data[name].clock = clock
 
         self.component_names = component_names
@@ -82,26 +83,26 @@ class CompositeCRDT:
 
     def update(self, state_update: StateUpdateProtocol) -> CompositeCRDT:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is tuple, \
-            'state_update.data must be tuple of (str, str, str, StateUpdate|None)'
-        assert len(state_update.data) == 4, \
-            'state_update.data must be tuple of (str, str, str, StateUpdate|None)'
-        assert type(state_update.data[0]) is str, \
-            'state_update.data must be tuple of (str, str, str, StateUpdate|None)'
-        assert type(state_update.data[1]) is str, \
-            'state_update.data must be tuple of (str, str, str, StateUpdate|None)'
-        assert type(state_update.data[2]) is str, \
-            'state_update.data must be tuple of (str, str, str, StateUpdate|None)'
-        assert type(state_update.data[3]) is StateUpdate or state_update.data[3] is None, \
-            'state_update.data must be tuple of (str, str, str, StateUpdate|None)'
-        assert state_update.data[0] in ('o', 'r'), \
-            'state_update.data[0] must be one of (\'o\', \'r\')'
-        assert state_update.data[1] in ValidCRDTs.__members__, \
-            'state_update.data[1] must name a member of ValidCRDTs enum'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is tuple,
+            'state_update.data must be tuple of (str, str, str, StateUpdate|None)')
+        tressa(len(state_update.data) == 4,
+            'state_update.data must be tuple of (str, str, str, StateUpdate|None)')
+        tressa(type(state_update.data[0]) is str,
+            'state_update.data must be tuple of (str, str, str, StateUpdate|None)')
+        tressa(type(state_update.data[1]) is str,
+            'state_update.data must be tuple of (str, str, str, StateUpdate|None)')
+        tressa(type(state_update.data[2]) is str,
+            'state_update.data must be tuple of (str, str, str, StateUpdate|None)')
+        tressa(type(state_update.data[3]) is StateUpdate or state_update.data[3] is None,
+            'state_update.data must be tuple of (str, str, str, StateUpdate|None)')
+        tressa(state_update.data[0] in ('o', 'r'),
+            'state_update.data[0] must be one of (\'o\', \'r\')')
+        tressa(state_update.data[1] in ValidCRDTs.__members__,
+            'state_update.data[1] must name a member of ValidCRDTs enum')
 
         # parse data
         ts = state_update.ts

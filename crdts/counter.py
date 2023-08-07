@@ -1,9 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-import struct
-
-from crdts.stateupdate import StateUpdate
-
 from .datawrappers import (
     BytesWrapper,
     CTDataWrapper,
@@ -13,8 +8,12 @@ from .datawrappers import (
     RGATupleWrapper,
     StrWrapper,
 )
+from .errors import tressa
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
+from .stateupdate import StateUpdate
+from dataclasses import dataclass, field
+import struct
 
 
 @dataclass
@@ -39,17 +38,17 @@ class Counter:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> Counter:
         """Unpack the data bytes string into an instance."""
-        assert type(data) is bytes, 'data must be bytes'
-        assert len(data) > 8, 'data must be more than 8 bytes'
+        tressa(type(data) is bytes, 'data must be bytes')
+        tressa(len(data) > 8, 'data must be more than 8 bytes')
         dependencies = {**globals(), **inject}
 
         clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
         _, clock, counter = struct.unpack(f'!I{clock_size}sI', data)
         clock_class, _, clock = clock.partition(b'_')
         clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        assert clock_class in dependencies, f'cannot find {clock_class}'
-        assert hasattr(dependencies[clock_class], 'unpack'), \
-            f'{clock_class} missing unpack method'
+        tressa(clock_class in dependencies, f'cannot find {clock_class}')
+        tressa(hasattr(dependencies[clock_class], 'unpack'),
+            f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
 
         return cls(counter=counter, clock=clock)
@@ -60,11 +59,11 @@ class Counter:
 
     def update(self, state_update: StateUpdateProtocol) -> Counter:
         """Apply an update and return self (monad pattern)."""
-        assert isinstance(state_update, StateUpdateProtocol), \
-            'state_update must be instance implementing StateUpdateProtocol'
-        assert state_update.clock_uuid == self.clock.uuid, \
-            'state_update.clock_uuid must equal CRDT.clock.uuid'
-        assert type(state_update.data) is int, 'state_update.data must be an int'
+        tressa(isinstance(state_update, StateUpdateProtocol),
+            'state_update must be instance implementing StateUpdateProtocol')
+        tressa(state_update.clock_uuid == self.clock.uuid,
+            'state_update.clock_uuid must equal CRDT.clock.uuid')
+        tressa(type(state_update.data) is int, 'state_update.data must be an int')
 
         self.counter = max([self.counter, state_update.data])
         self.clock.update(state_update.ts)
@@ -93,8 +92,8 @@ class Counter:
             the update_class (StateUpdate by default) that should be
             propagated to the network.
         """
-        assert type(amount) is int, 'amount must be int'
-        assert amount > 0, 'amount must be positive'
+        tressa(type(amount) is int, 'amount must be int')
+        tressa(amount > 0, 'amount must be positive')
 
         state_update = update_class(
             self.clock.uuid,
