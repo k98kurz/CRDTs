@@ -1802,6 +1802,36 @@ class TestCausalTree(unittest.TestCase):
         assert view2 == ('first',)
         assert view3 == ('first', 'second')
 
+    def test_CausalTree_move_item_changes_view_and_results_in_correct_ordering(self):
+        causaltree = classes.CausalTree()
+
+        causaltree.put_first(
+            datawrappers.StrWrapper("second"),
+            1,
+        )
+        parent = causaltree.read_full()[0]
+        causaltree.put_after(
+            datawrappers.StrWrapper("first"),
+            1,
+            parent.uuid
+        )
+        view1 = causaltree.read()
+        assert view1 == ('second', 'first')
+
+        second_item = causaltree.read_full()[0]
+        first_item = causaltree.read_full()[1]
+        causaltree.move_item(first_item, 1)
+        causaltree.move_item(second_item, 1, first_item.uuid)
+        view2 = causaltree.read()
+
+        ct2 = classes.CausalTree()
+        ct2.clock.uuid = causaltree.clock.uuid
+
+        for state_update in causaltree.history():
+            ct2.update(state_update)
+
+        assert view2 == ('first', 'second')
+
 
 if __name__ == '__main__':
     unittest.main()

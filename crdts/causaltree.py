@@ -29,7 +29,6 @@ class CausalTree:
 
         self.positions = positions
         self.clock = clock
-        self.cache_full = None
         self.cache = None
 
     def pack(self) -> bytes:
@@ -190,7 +189,7 @@ class CausalTree:
             sets the cache list.
         """
         # create list of all items
-        positions = [
+        positions: list[CTDataWrapper] = [
             self.positions.registers[register].value
             for register in self.positions.registers
         ]
@@ -237,6 +236,7 @@ class CausalTree:
 
         if self.cache is None:
             self.calculate_cache()
+            return
 
         if len(self.cache) == 0:
             self.cache.append(item)
@@ -248,7 +248,8 @@ class CausalTree:
             children = []
             for child in ctdw.children():
                 children.append(child)
-                self.cache.remove(child)
+                if child in self.cache:
+                    self.cache.remove(child)
                 children.extend(remove_children(child))
             return children
 
@@ -256,8 +257,6 @@ class CausalTree:
             if ctdw.uuid != item.uuid:
                 continue
             ctdw.visible = item.visible
-            if ctdw.parent_uuid == item.parent_uuid:
-                return
             self.cache.remove(ctdw)
             children = remove_children(ctdw)
             for child in children:
@@ -269,6 +268,16 @@ class CausalTree:
                 return item
             children = sorted(list(item.children()), key=lambda c: c.uuid)
             return walk(children[-1])
+
+        if item.uuid == b'':
+            heads = [ctdw for ctdw in self.cache if ctdw.parent_uuid == b'']
+            heads.append(item)
+            heads.sort(key=lambda x: x.uuid)
+            index = heads.index(item)
+            if index != 0:
+                index = self.cache.index(walk(heads[index-1])) + 1
+            self.cache.insert(index, item)
+            return
 
         for i in range(len(self.cache)):
             ctdw = self.cache[i]
