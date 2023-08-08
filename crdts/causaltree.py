@@ -96,13 +96,13 @@ class CausalTree:
         return self.positions.history(update_class)
 
     def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
-            parent: bytes = b'',
+            parent_uuid: bytes = b'',
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns a update_class (StateUpdate by
             default) that puts the item after the parent.
         """
         tressa(type(uuid) is bytes, "uuid must be bytes")
-        tressa(type(parent) is bytes, "parent must be bytes")
+        tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
         state_update = update_class(
             self.clock.uuid,
             self.clock.read(),
@@ -110,7 +110,7 @@ class CausalTree:
                 'o',
                 BytesWrapper(uuid),
                 writer,
-                CTDataWrapper(item, uuid, parent)
+                CTDataWrapper(item, uuid, parent_uuid)
             )
         )
 
@@ -119,18 +119,17 @@ class CausalTree:
         return state_update
 
     def put_after(self, item: DataWrapperProtocol, writer: int,
-        parent: CTDataWrapper,
+        parent_uuid: bytes,
         update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
             after the parent item.
         """
-        tressa(parent in [item.value for item in self.read_full()],
+        tressa(parent_uuid in [ctdw.uuid for ctdw in self.read_full()],
             'parent must already be assigned a position')
 
         uuid = uuid1().bytes
-        parent = self.positions.registers[parent].value.uuid
 
-        return self.put(item, writer, uuid, parent, update_class)
+        return self.put(item, writer, uuid, parent_uuid, update_class)
 
     def put_first(self, item: DataWrapperProtocol, writer: int,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
@@ -141,6 +140,28 @@ class CausalTree:
             parent_uuid to move it to the right index.
         """
         return self.put(item, writer, uuid1().bytes, b'', update_class)
+
+    def move_item(self, item: CTDataWrapper, writer: int, parent_uuid: bytes = b'',
+                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that moves the item with the given uuid to behind
+            the new parent.
+        """
+        tressa(isinstance(item, CTDataWrapper), "item must be CTDataWrapper")
+
+        item.parent_uuid = parent_uuid
+        state_update = update_class(
+            self.clock.uuid,
+            self.clock.read(),
+            (
+                'o',
+                BytesWrapper(item.uuid),
+                writer,
+                item
+            )
+        )
+        self.update(state_update)
+        return state_update
 
     def delete(self, ctdw: CTDataWrapper, writer: int,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:

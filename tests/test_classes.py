@@ -1776,6 +1776,32 @@ class TestCausalTree(unittest.TestCase):
         assert view3 == ('first', 'third')
         assert view4 == ('first', 'second', 'third')
 
+    def test_CausalTree_put_first_and_put_after_change_view_and_results_in_correct_ordering(self):
+        causaltree = classes.CausalTree()
+        view1 = causaltree.read()
+
+        su = causaltree.put_first(
+            datawrappers.StrWrapper("first"),
+            1,
+        )
+        assert type(su) is classes.StateUpdate
+        view2 = causaltree.read()
+
+        parent = causaltree.read_full()[0]
+        assert type(parent) is datawrappers.CTDataWrapper
+
+        su = causaltree.put_after(
+            datawrappers.StrWrapper("second"),
+            1,
+            parent.uuid
+        )
+        assert type(su) is classes.StateUpdate
+        view3 = causaltree.read()
+
+        assert view1 == tuple()
+        assert view2 == ('first',)
+        assert view3 == ('first', 'second')
+
 
 if __name__ == '__main__':
     unittest.main()
