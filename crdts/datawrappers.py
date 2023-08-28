@@ -81,8 +81,8 @@ class CTDataWrapper(StrWrapper):
         return (self.__class__.__name__, self.value, self.uuid, self.parent_uuid, self.visible)
 
     def __repr__(self) -> str:
-        return f"CTDataWrapper(value={self.value}, uuid={self.uuid}, " + \
-            f"parent_uuid={self.parent_uuid}, visible={self.visible})"
+        return f"CTDataWrapper(value={self.value}, uuid={self.uuid.hex()}, " + \
+            f"parent_uuid={self.parent_uuid.hex()}, visible={self.visible})"
 
     def __gt__(self, other: CTDataWrapper) -> bool:
         return self.__to_tuple__() > other.__to_tuple__()
