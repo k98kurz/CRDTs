@@ -61,6 +61,19 @@ class CausalTree:
 
         return tuple(self.cache)
 
+    def paradoxes(self) -> list[CTDataWrapper]:
+        """Returns a list of CTDataWrapper items that are excluded from
+            the views returned by read() and read_full() due to circular
+            references (i.e. where an item is its own descendant).
+        """
+        if self.cache is None:
+            self.calculate_cache()
+        return [
+            r.value
+            for _, r in self.positions.registers.items()
+            if r.value not in self.cache
+        ]
+
     def update(self, state_update: StateUpdateProtocol) -> CausalTree:
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
@@ -238,7 +251,7 @@ class CausalTree:
             self.calculate_cache()
             return
 
-        if len(self.cache) == 0:
+        if len(self.cache) == 0 and item.parent_uuid == b'':
             self.cache.append(item)
             return
 

@@ -1832,6 +1832,45 @@ class TestCausalTree(unittest.TestCase):
 
         assert view2 == ('first', 'second')
 
+    def test_CausalTree_circular_references_are_kept_in_separate_view(self):
+        causaltree = classes.CausalTree()
+
+        causaltree.put_first(
+            datawrappers.StrWrapper("item1"),
+            1,
+        )
+        parent = causaltree.read_full()[0]
+        causaltree.put_after(
+            datawrappers.StrWrapper("item2"),
+            1,
+            parent.uuid
+        )
+        view1 = causaltree.read()
+        assert view1 == ('item1', 'item2')
+
+        item1 = causaltree.read_full()[0]
+        item2 = causaltree.read_full()[1]
+        assert item1.parent_uuid == b''
+        assert item2.parent_uuid == item1.uuid
+        causaltree.move_item(item1, 1, item2.uuid)
+        items: list[datawrappers.CTDataWrapper] = [
+            v.value for _, v in causaltree.positions.registers.items()
+        ]
+        assert items[0].parent_uuid == items[1].uuid
+        assert items[1].parent_uuid == items[0].uuid
+        full2 = causaltree.read_full()
+        view2 = causaltree.read()
+        assert len(full2) == 0
+        assert len(view2) == 0
+
+        assert hasattr(causaltree, 'paradoxes') and callable(causaltree.paradoxes)
+        paradoxes = causaltree.paradoxes()
+        assert type(paradoxes) is list
+        assert items[0] in paradoxes
+        assert items[1] in paradoxes
+        for item in paradoxes:
+            assert item in items
+
 
 if __name__ == '__main__':
     unittest.main()
