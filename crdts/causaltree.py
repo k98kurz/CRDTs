@@ -61,7 +61,7 @@ class CausalTree:
 
         return tuple(self.cache)
 
-    def paradoxes(self) -> list[CTDataWrapper]:
+    def read_excluded(self) -> list[CTDataWrapper]:
         """Returns a list of CTDataWrapper items that are excluded from
             the views returned by read() and read_full() due to circular
             references (i.e. where an item is its own descendant).

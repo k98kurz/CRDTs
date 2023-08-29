@@ -1863,12 +1863,12 @@ class TestCausalTree(unittest.TestCase):
         assert len(full2) == 0
         assert len(view2) == 0
 
-        assert hasattr(causaltree, 'paradoxes') and callable(causaltree.paradoxes)
-        paradoxes = causaltree.paradoxes()
-        assert type(paradoxes) is list
-        assert items[0] in paradoxes
-        assert items[1] in paradoxes
-        for item in paradoxes:
+        assert hasattr(causaltree, 'read_excluded') and callable(causaltree.read_excluded)
+        excluded = causaltree.read_excluded()
+        assert type(excluded) is list
+        assert items[0] in excluded
+        assert items[1] in excluded
+        for item in excluded:
             assert item in items
 
 
