@@ -51,6 +51,9 @@ class BytesWrapper(StrWrapper):
     def __init__(self, value: bytes) -> None:
         self.value = value
 
+    def __repr__(self) -> str:
+        return f"BytesWrapper(value={self.value.hex()})"
+
     def pack(self) -> bytes:
         return struct.pack(f'!{len(self.value)}s', self.value)
 
@@ -138,7 +141,8 @@ class CTDataWrapper(StrWrapper):
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> CTDataWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> CTDataWrapper:
+        dependencies = {**globals(), **inject}
         value_type_len, value_len, uuid_len, parent_len, _ = struct.unpack(
             f'!IIII{len(data)-16}s',
             data
@@ -150,8 +154,9 @@ class CTDataWrapper(StrWrapper):
 
         # parse value
         value_type = str(value_type, 'utf-8')
-        tressa(value_type in globals(), f'{value_type} must be accessible from globals()')
-        tressa(hasattr(globals()[value_type], 'unpack'),
+        tressa(value_type in dependencies,
+               f'{value_type} must be accessible from globals() or injected')
+        tressa(hasattr(dependencies[value_type], 'unpack'),
             f'{value_type} missing unpack method')
         value = globals()[value_type].unpack(value_packed)
 
@@ -223,19 +228,28 @@ class RGATupleWrapper(StrWrapper):
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> RGATupleWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> RGATupleWrapper:
+        dependencies = {**globals(), **inject}
         packed_len, ts_len, _ = struct.unpack(f'!II{len(data)-8}s', data)
         _, packed, ts, writer = struct.unpack(f'!8s{packed_len}s{ts_len}sI', data)
 
         # parse item value
         classname, _, packed = packed.partition(b'_')
         classname = str(bytes.fromhex(str(classname, 'utf-8')), 'utf-8')
-        item = globals()[classname].unpack(packed)
+        tressa(classname in dependencies,
+               f'{classname} must be accessible from globals() or injected')
+        tressa(hasattr(dependencies[classname], 'unpack'),
+            f'{classname} missing unpack method')
+        item = dependencies[classname].unpack(packed)
 
         # parse ts
         classname, _, ts = ts.partition(b'_')
         classname = str(bytes.fromhex(str(classname, 'utf-8')), 'utf-8')
-        ts = globals()[classname].unpack(ts)
+        tressa(classname in dependencies,
+               f'{classname} must be accessible from globals() or injected')
+        tressa(hasattr(dependencies[classname], 'unpack'),
+            f'{classname} missing unpack method')
+        ts = dependencies[classname].unpack(ts)
 
         return cls((item, (ts, writer)))
 
