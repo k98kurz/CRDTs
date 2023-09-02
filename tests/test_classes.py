@@ -1871,6 +1871,31 @@ class TestCausalTree(unittest.TestCase):
         for item in excluded:
             assert item in items
 
+    def test_CausalTree_history_returns_tuple_of_StateUpdateProtocol_that_converge(self):
+        causaltree = classes.CausalTree()
+        causaltree.put_first(datawrappers.StrWrapper('first'), 1)
+        first = causaltree.read_full()[0]
+        causaltree.put_after(datawrappers.StrWrapper('second'), 1, first.uuid)
+        second = causaltree.read_full()[1]
+        causaltree.put_after(datawrappers.StrWrapper('third'), 1, second.uuid)
+        causaltree.put_first(datawrappers.StrWrapper('alt_first'), 1)
+        expected = causaltree.read()
+
+        history = causaltree.history()
+        assert type(history) is tuple
+        for update in history:
+            assert isinstance(update, interfaces.StateUpdateProtocol)
+
+        for _ in range(5):
+            ct2 = classes.CausalTree()
+            ct2.clock.uuid = causaltree.clock.uuid
+            for update in history:
+                ct2.update(update)
+
+            assert ct2.checksums() == causaltree.checksums()
+            assert ct2.read() == causaltree.read()
+            assert ct2.read() == expected
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,7 +6,7 @@ from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from typing import Any
-from uuid import uuid1
+from uuid import uuid4
 
 
 class CausalTree:
@@ -139,7 +139,7 @@ class CausalTree:
         tressa(parent_uuid in [ctdw.uuid for ctdw in self.read_full()],
             'parent must already be assigned a position')
 
-        uuid = uuid1().bytes
+        uuid = uuid4().bytes
 
         return self.put(item, writer, uuid, parent_uuid, update_class)
 
@@ -151,7 +151,7 @@ class CausalTree:
             due to tie breaking; in such a case, update the other item's
             parent_uuid to move it to the right index.
         """
-        return self.put(item, writer, uuid1().bytes, b'', update_class)
+        return self.put(item, writer, uuid4().bytes, b'', update_class)
 
     def move_item(self, item: CTDataWrapper, writer: int, parent_uuid: bytes = b'',
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
@@ -251,20 +251,25 @@ class CausalTree:
             self.calculate_cache()
             return
 
-        if len(self.cache) == 0 and item.parent_uuid == b'':
+        if len(self.cache) == 0 and item.parent_uuid == b'' and \
+            len(item.children()) == 0:
             self.cache.append(item)
             return
 
-        def remove_children(ctdw: CTDataWrapper) -> list[CTDataWrapper]:
+        def remove_children(
+                ctdw: CTDataWrapper,
+                total: list[CTDataWrapper] = []
+        ) -> list[CTDataWrapper]:
             if len(ctdw.children()) == 0:
-                return []
-            children = []
+                return total
             for child in ctdw.children():
-                children.append(child)
+                if child in total:
+                    continue
+                total.append(child)
                 if child in self.cache:
                     self.cache.remove(child)
-                children.extend(remove_children(child))
-            return children
+                remove_children(child, total)
+            return total
 
         for ctdw in self.cache:
             if ctdw.uuid != item.uuid:
@@ -282,14 +287,25 @@ class CausalTree:
             children = sorted(list(item.children()), key=lambda c: c.uuid)
             return walk(children[-1])
 
-        if item.uuid == b'':
+        def add_orphans():
+            potential_orphans = self.read_excluded()
+            for ctdw in potential_orphans:
+                if ctdw.parent_uuid == item.uuid:
+                    ctdw.set_parent(item)
+                    item.add_child(ctdw)
+                    self.update_cache(ctdw)
+
+        if item.parent_uuid == b'':
             heads = [ctdw for ctdw in self.cache if ctdw.parent_uuid == b'']
             heads.append(item)
             heads.sort(key=lambda x: x.uuid)
             index = heads.index(item)
             if index != 0:
-                index = self.cache.index(walk(heads[index-1])) + 1
+                descendant = walk(heads[index-1])
+                if descendant in self.cache:
+                    index = self.cache.index(descendant) + 1
             self.cache.insert(index, item)
+            add_orphans()
             return
 
         for i in range(len(self.cache)):
@@ -305,7 +321,9 @@ class CausalTree:
                         self.cache.insert(index, item)
                     else:
                         self.cache.insert(i + 1, item)
+                    add_orphans()
                     return
                 else:
                     self.cache.insert(i + 1, item)
+                    add_orphans()
                     return
