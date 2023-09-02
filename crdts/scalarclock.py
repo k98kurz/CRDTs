@@ -2,7 +2,7 @@ from __future__ import annotations
 from .datawrappers import IntWrapper
 from .errors import tressa
 from dataclasses import dataclass, field
-from uuid import uuid1
+from uuid import uuid4
 import struct
 
 
@@ -10,7 +10,7 @@ import struct
 class ScalarClock:
     """Implements a Lamport logical scalar clock."""
     counter: int = field(default=1)
-    uuid: bytes = field(default_factory=lambda: uuid1().bytes)
+    uuid: bytes = field(default_factory=lambda: uuid4().bytes)
     default_ts: int = field(default=0)
 
     def read(self) -> int:
