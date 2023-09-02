@@ -122,7 +122,7 @@ class LWWRegister:
 
         # parse value
         value_type = str(value_type, 'utf-8')
-        tressa(value_type in dependencies, 'value_type must be resolvable from globals')
+        tressa(value_type in dependencies, 'value_type must be resolvable from globals or injected')
         value = dependencies[value_type].unpack(value)
         tressa(isinstance(value, DataWrapperProtocol),
             'value_type must implement DataWrapperProtocol')
@@ -130,7 +130,7 @@ class LWWRegister:
         # parse last_update
         ts_class = str(ts_class, 'utf-8')
         tressa(ts_class in dependencies,
-            'last_update wrapped class must be resolvable from globals')
+            'last_update wrapped class must be resolvable from globals or injected')
         tressa(hasattr(dependencies[ts_class], 'unpack'),
             f'{ts_class} missing unpack method')
         last_update = dependencies[ts_class].unpack(last_update)
