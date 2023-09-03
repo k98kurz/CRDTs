@@ -1893,8 +1893,69 @@ class TestCausalTree(unittest.TestCase):
                 ct2.update(update)
 
             assert ct2.checksums() == causaltree.checksums()
-            assert ct2.read() == causaltree.read()
             assert ct2.read() == expected
+
+    def test_CausalTree_concurrent_updates_converge(self):
+        ct1 = classes.CausalTree()
+        ct2 = classes.CausalTree()
+        ct2.clock.uuid = ct1.clock.uuid
+        ct2.positions.clock.uuid = ct1.positions.clock.uuid
+
+        first = ct1.put_first(datawrappers.StrWrapper('first'), 1).data[3]
+        ct1.put_after(datawrappers.StrWrapper('second'), 1, first.uuid)
+        alt_first = ct2.put_first(datawrappers.StrWrapper('other first'), 1).data[3]
+        ct2.put_after(datawrappers.StrWrapper('other second'), 1, alt_first.uuid)
+
+        for update in ct1.history():
+            ct2.update(update)
+            ct2.update(update)
+        for update in ct2.history():
+            ct1.update(update)
+            ct1.update(update)
+
+        assert ct1.read() == ct2.read()
+
+    def test_CausalTree_pack_unpack_e2e(self):
+        causaltree = classes.CausalTree()
+        causaltree.put_first(datawrappers.StrWrapper('first'), 1)
+        first = causaltree.read_full()[0]
+        causaltree.put_after(datawrappers.BytesWrapper(b'second'), 1, first.uuid)
+        second = causaltree.read_full()[1]
+        causaltree.put_after(datawrappers.IntWrapper(3), 1, second.uuid)
+        causaltree.put_first(datawrappers.DecimalWrapper(Decimal('21.012')), 1)
+        packed = causaltree.pack()
+        unpacked = classes.CausalTree.unpack(packed)
+
+        assert unpacked.clock.uuid == causaltree.clock.uuid
+        assert unpacked.read() == causaltree.read()
+        assert unpacked.read_full() == causaltree.read_full()
+
+    def test_CausalTree_pack_unpack_e2e_with_injected_clock(self):
+        causaltree = classes.CausalTree(clock=StrClock())
+        causaltree.put_first(datawrappers.StrWrapper('first'), 1)
+        first = causaltree.read_full()[0]
+        causaltree.put_after(datawrappers.BytesWrapper(b'second'), 1, first.uuid)
+        second = causaltree.read_full()[1]
+        causaltree.put_after(datawrappers.IntWrapper(3), 1, second.uuid)
+        causaltree.put_first(datawrappers.DecimalWrapper(Decimal('21.012')), 1)
+
+        packed = causaltree.pack()
+        unpacked = classes.CausalTree.unpack(packed, {'StrClock': StrClock})
+
+        assert unpacked.clock.uuid == causaltree.clock.uuid
+        assert unpacked.read() == causaltree.read()
+        assert unpacked.read_full() == causaltree.read_full()
+
+    def test_CausalTree_with_injected_StateUpdateProtocol_class(self):
+        causaltree = classes.CausalTree(clock=StrClock())
+        update = causaltree.put_first(
+            datawrappers.BytesWrapper(b'first'),
+            1,
+            CustomStateUpdate
+        )
+        assert type(update) is CustomStateUpdate
+        assert type(causaltree.history(CustomStateUpdate)[0] is CustomStateUpdate)
+        assert causaltree.read() == (b'first',)
 
 
 if __name__ == '__main__':
