@@ -103,44 +103,12 @@ class FIArray:
         return self.positions.history(update_class)
 
     @classmethod
-    def index_offset(cls, index: Decimal) -> Decimal:
-        """Adds a small random offset."""
-        tressa(type(index) is Decimal, 'index must be a Decimal')
-
-        _, exponent = cls.least_significant_digit(index)
-        exponent -= 1
-        return index + Decimal(f'{randrange(1, 9)}E{exponent}')
-
-    @classmethod
     def index_between(cls, first: Decimal, second: Decimal) -> Decimal:
         """Return an index between first and second with a random offset."""
         tressa(type(first) is Decimal, 'first must be a Decimal')
         tressa(type(second) is Decimal, 'second must be a Decimal')
 
-        return cls.index_offset(Decimal(first + second)/Decimal(2))
-
-    @staticmethod
-    def least_significant_digit(number: Decimal) -> tuple[int, int]:
-        """Returns the least significant digit and its place as an exponent
-            of 10, e.g. 0.201 -> (1, -3).
-        """
-        num_string = str(number)
-        first_exponent = None
-
-        if 'E' in num_string:
-            first_exponent = int(num_string.split('E')[1])
-
-        if '.' in num_string:
-            digit = int(num_string.split('.')[1][-1])
-            exponent = -len(num_string.split('.')[1])
-        else:
-            exponent = len(num_string) - len(num_string.rstrip('0'))
-            digit = int(num_string[-exponent-1])
-
-        if first_exponent:
-            exponent += first_exponent
-
-        return (digit, exponent)
+        return Decimal(first + second)/Decimal(2)
 
     def put(self, item: DataWrapperProtocol, writer: int,
             index: Decimal, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
@@ -235,9 +203,6 @@ class FIArray:
             # average between 0 and 1
             index = Decimal('0.5')
 
-        # add random offset
-        index = self.index_offset(index)
-
         return self.put(item, writer, index, update_class)
 
     def put_last(self, item: DataWrapperProtocol, writer: int,
@@ -254,9 +219,6 @@ class FIArray:
         else:
             # average between 0 and 1
             index = Decimal('0.5')
-
-        # add random offset
-        index = self.index_offset(index)
 
         return self.put(item, writer, index, update_class)
 

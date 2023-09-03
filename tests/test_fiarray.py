@@ -123,26 +123,6 @@ class TestFIArray(unittest.TestCase):
         assert view[0].value == 'first'
         assert view[1].value == b'second'
 
-    def test_FIArray_least_significant_digit_returns_correct_values(self):
-        vectors = [
-            (classes.FIArray.least_significant_digit(Decimal('10')), (1, 1)),
-            (classes.FIArray.least_significant_digit(Decimal('2')), (2, 0)),
-            (classes.FIArray.least_significant_digit(Decimal('0.3')), (3, -1)),
-            (classes.FIArray.least_significant_digit(Decimal('0.08')), (8, -2)),
-        ]
-
-        for actual, expected in vectors:
-            assert actual == expected
-
-    def test_FIArray_index_offset_returns_Decimal_within_1_significant_digit(self):
-        index = Decimal('0.5')
-        new_index = classes.FIArray.index_offset(index)
-        lsd1 = classes.FIArray.least_significant_digit(index)
-        lsd2 = classes.FIArray.least_significant_digit(new_index)
-
-        assert new_index != index
-        assert lsd2[1] == lsd1[1] - 1
-
     def test_FIArray_index_between_returns_Decimal_between_first_and_second(self):
         first =  Decimal('0.10001')
         second = Decimal('0.10002')
