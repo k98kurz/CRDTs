@@ -92,10 +92,10 @@ class TestMVRegister(unittest.TestCase):
             datawrappers.StrWrapper('test'),
             [datawrappers.StrWrapper('foobar')]
         )
-        assert type(mvregister.read()) is set
+        assert type(mvregister.read()) is tuple
         assert len(mvregister.read()) == 1
-        assert isinstance(list(mvregister.read())[0], classes.DataWrapperProtocol)
-        assert list(mvregister.read())[0].value == 'foobar'
+        assert isinstance(mvregister.read()[0], classes.DataWrapperProtocol)
+        assert mvregister.read()[0].value == 'foobar'
 
     def test_MVRegister_write_returns_StateUpdate_and_sets_values(self):
         mvregister = classes.MVRegister(
@@ -128,7 +128,7 @@ class TestMVRegister(unittest.TestCase):
         update2 = mvregister2.write(datawrappers.StrWrapper('barfoo'))
         mvregister1.update(update2)
         mvregister2.update(update1)
-        expected = set([datawrappers.StrWrapper('foobar'), datawrappers.StrWrapper('barfoo')])
+        expected = (datawrappers.StrWrapper('barfoo'), datawrappers.StrWrapper('foobar'))
 
         assert mvregister1.read() == mvregister2.read()
         assert mvregister1.read() == expected

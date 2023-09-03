@@ -157,7 +157,7 @@ class MVRegister:
 
     def read(self) -> tuple[DataWrapperProtocol]:
         """Return the eventually consistent data view."""
-        return set([value.__class__.unpack(value.pack()) for value in self.values])
+        return tuple([value.__class__.unpack(value.pack()) for value in self.values])
 
     @classmethod
     def compare_values(cls, value1: DataWrapperProtocol,
@@ -182,6 +182,7 @@ class MVRegister:
             # preserve all concurrent updates
             if state_update.data not in self.values:
                 self.values.append(state_update.data)
+                self.values.sort(key=lambda item: item.pack())
 
         self.clock.update(state_update.ts)
 
