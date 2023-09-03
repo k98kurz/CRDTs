@@ -191,7 +191,7 @@ class MVMap:
 
         for name in self.names.read():
             packed = self.registers[name].pack()
-            total_register_crc32 += crc32(packed, total_register_crc32)
+            total_register_crc32 += crc32(packed)
             total_last_update += self.registers[name].last_update
 
         return (
