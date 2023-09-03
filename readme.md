@@ -16,6 +16,9 @@ details. This package includes the following CRDTs:
 - Replicated Growable Array
 - Last-Writer-Wins Register
 - Last-Writer-Wins Map
+- Multi-Value Register
+- Multi-Value Map
+- Causal Tree
 
 These are implemented as delta-CRDTs with small update messages and additional
 methods for resynchronization to recover from dropped messages/transmission
@@ -40,8 +43,10 @@ Each implementation must include a full test suite to be considered complete.
 - [x] RGArray
 - [x] LWWRegister
 - [x] LWWMap
+- [ ] MVRegister
+- [ ] MVMap
 - [x] FIArray
-- [ ] CausalTree
+- [x] CausalTree
 - [ ] CompositeCRDT
 - [ ] Decent documentation
 
@@ -172,8 +177,26 @@ style monad pattern.
 
 Open a terminal in the root directory and run the following:
 
+```bash
+find ./tests -name test_*.py -exec python {} \;
 ```
-python tests/test_classes.py
+
+Alternately, for non-POSIX systems, run the following:
+
+```
+python test_causaltree.py
+python test_counter.py
+python test_datawrappers.py
+python test_fiarray.py
+python test_gset.py
+python test_lwwmap.py
+python test_lwwregister.py
+python test_orset.py
+python test_pncounter.py
+python test_rgarray.py
+python test_scalarclock.py
+python test_serialization.py
+python test_stateupdate.py
 ```
 
 The tests demonstrate the intended (and actual) behavior of the classes, as
