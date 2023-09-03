@@ -29,6 +29,9 @@ class FIArray:
 
         clock = ScalarClock() if clock is None else clock
         positions = LWWMap(clock=clock) if positions is None else positions
+        positions.clock = clock
+        for name in positions.registers:
+            positions.registers[name].clock = clock
 
         self.positions = positions
         self.clock = clock
