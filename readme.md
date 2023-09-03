@@ -43,7 +43,7 @@ Each implementation must include a full test suite to be considered complete.
 - [x] RGArray
 - [x] LWWRegister
 - [x] LWWMap
-- [ ] MVRegister
+- [x] MVRegister
 - [ ] MVMap
 - [x] FIArray
 - [x] CausalTree
