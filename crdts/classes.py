@@ -14,6 +14,7 @@ from .interfaces import (
 from .lwwmap import LWWMap
 from .lwwregister import LWWRegister
 from .mvregister import MVRegister
+from .mvmap import MVMap
 from .orset import ORSet
 from .pncounter import PNCounter
 from .rgarray import RGArray
