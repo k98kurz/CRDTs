@@ -10,8 +10,6 @@ from crdts.classes import (
     LWWRegister,
     LWWMap,
     CausalTree,
-    ValidCRDTs,
-    CompositeCRDT
 )
 from crdts.interfaces import (
     StateUpdateProtocol,

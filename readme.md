@@ -44,10 +44,9 @@ Each implementation must include a full test suite to be considered complete.
 - [x] LWWRegister
 - [x] LWWMap
 - [x] MVRegister
-- [ ] MVMap
+- [x] MVMap
 - [x] FIArray
 - [x] CausalTree
-- [ ] CompositeCRDT
 - [ ] Decent documentation
 
 ## Setup and Usage
@@ -169,9 +168,6 @@ style monad pattern.
     - `put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
     - `put_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
     - `delete(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
-- ValidCRDTs(Enum)
-- CompositeCRDT(CRDTProtocol)
-    - currently unimplemented
 
 ## Tests
 
