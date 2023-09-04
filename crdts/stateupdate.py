@@ -49,3 +49,6 @@ class StateUpdate:
         data = deserialize_part(data)
 
         return cls(clock_uuid=uuid, ts=ts, data=data)
+
+    def __repr__(self) -> str:
+        return f'StateUpdate(clock_uuid={self.clock_uuid.hex()}, ts={self.ts}, data={self.data})'
