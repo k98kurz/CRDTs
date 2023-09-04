@@ -253,6 +253,42 @@ class TestMVMap(unittest.TestCase):
         assert type(update) is CustomStateUpdate
         assert type(mvm.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
+    def test_MVMap_convergence_from_ts(self):
+        mvmap1 = classes.MVMap()
+        mvmap2 = classes.MVMap()
+        mvmap2.clock.uuid = mvmap1.clock.uuid
+        for i in range(10):
+            update = mvmap1.extend(
+                datawrappers.IntWrapper(i),
+                datawrappers.IntWrapper(i),
+            )
+            mvmap2.update(update)
+        assert mvmap1.checksums() == mvmap2.checksums()
+
+        mvmap1.extend(datawrappers.IntWrapper(69420), datawrappers.IntWrapper(69420))
+        mvmap1.extend(datawrappers.IntWrapper(42096), datawrappers.IntWrapper(42096))
+        mvmap2.extend(datawrappers.IntWrapper(23878), datawrappers.IntWrapper(23878))
+
+        # not the most efficient algorithm, but it demonstrates the concept
+        from_ts = 0
+        until_ts = mvmap1.clock.read()
+        chksm1 = mvmap1.checksums(from_ts=from_ts, until_ts=until_ts)
+        chksm2 = mvmap2.checksums(from_ts=from_ts, until_ts=until_ts)
+        while chksm1 != chksm2 and until_ts > 0:
+            until_ts -= 1
+            chksm1 = mvmap1.checksums(from_ts=from_ts, until_ts=until_ts)
+            chksm2 = mvmap2.checksums(from_ts=from_ts, until_ts=until_ts)
+        from_ts = until_ts
+        assert from_ts > 0
+
+        for update in mvmap1.history(from_ts=from_ts):
+            mvmap2.update(update)
+        for update in mvmap2.history(from_ts=from_ts):
+            mvmap1.update(update)
+
+        assert mvmap1.checksums() == mvmap2.checksums()
+
+
 
 if __name__ == '__main__':
     unittest.main()
