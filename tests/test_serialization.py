@@ -13,6 +13,9 @@ class PackableMapEntry:
         self.key = key
         self.value = value
 
+    def __hash__(self) -> int:
+        return hash((self.key, self.value))
+
     def __eq__(self, other: PackableMapEntry) -> bool:
         return type(other) is type(self) and other.key == self.key and \
             other.value == self.value
@@ -48,10 +51,6 @@ class PackableMapEntry:
         return cls(key, value)
 
 
-# inject PackableMapEntry
-serialization.PackableMapEntry = PackableMapEntry
-
-
 class TestSerialization(unittest.TestCase):
     def test_serialize_and_deserialize_list_e2e(self):
         data = [
@@ -73,10 +72,14 @@ class TestSerialization(unittest.TestCase):
             PackableMapEntry(
                 serialization.StrWrapper("some key"),
                 serialization.BytesWrapper(b"some value"),
-            )
+            ),
+            None
         ]
         serialized = serialization.serialize_part(data)
-        deserialized = serialization.deserialize_part(serialized)
+        deserialized = serialization.deserialize_part(
+            serialized,
+            inject={"PackableMapEntry": PackableMapEntry}
+        )
 
         # compare all parts
         assert len(data) == len(deserialized)
@@ -91,9 +94,16 @@ class TestSerialization(unittest.TestCase):
                 assert data[i] == deserialized[i]
 
     def test_serialize_and_deserialize_set_e2e(self):
-        data = set([123, 4321, "abc", "cba", b"abc", b"cba"])
+        data = set([
+            123, 4321, "abc", "cba", b"abc", b"cba",
+            PackableMapEntry(datawrappers.StrWrapper("123"), datawrappers.IntWrapper(321)),
+            None
+        ])
         serialized = serialization.serialize_part(data)
-        deserialized = serialization.deserialize_part(serialized)
+        deserialized = serialization.deserialize_part(
+            serialized,
+            inject={"PackableMapEntry": PackableMapEntry}
+        )
 
         # compare all parts
         assert len(data) == len(deserialized)
@@ -102,9 +112,16 @@ class TestSerialization(unittest.TestCase):
             assert item in deserialized
 
     def test_serialize_and_deserialize_tuple_e2e(self):
-        data = tuple([123, 4321, "abc", "cba", b"abc", b"cba"])
+        data = tuple([
+            123, 4321, "abc", "cba", b"abc", b"cba",
+            PackableMapEntry(datawrappers.StrWrapper("123"), datawrappers.IntWrapper(321)),
+            None
+        ])
         serialized = serialization.serialize_part(data)
-        deserialized = serialization.deserialize_part(serialized)
+        deserialized = serialization.deserialize_part(
+            serialized,
+            inject={"PackableMapEntry": PackableMapEntry}
+        )
 
         # compare all parts
         assert len(data) == len(deserialized)

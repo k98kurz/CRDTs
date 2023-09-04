@@ -6,6 +6,7 @@ from .datawrappers import (
     IntWrapper,
     RGATupleWrapper,
     CTDataWrapper,
+    NoneWrapper,
 )
 from .errors import tressa
 from .interfaces import PackableProtocol
@@ -18,9 +19,10 @@ def serialize_part(data: Any) -> bytes:
         built-in type, recursively calling itself as necessary.
     """
     tressa(isinstance(data, PackableProtocol) or \
-        type(data) in (list, set, tuple, str, bytes, bytearray, int, float),
+        type(data) in (list, set, tuple, str, bytes, bytearray, int, float) or \
+            data is None,
         'data type must be one of (PackableProtocol, list, set, tuple, ' + \
-        'str, bytes, bytearray, int, float)')
+        'str, bytes, bytearray, int, float, NoneType)')
 
     if isinstance(data, PackableProtocol):
         packed = bytes(data.__class__.__name__, 'utf-8').hex()
@@ -80,6 +82,13 @@ def serialize_part(data: Any) -> bytes:
             data
         )
 
+    if data is None:
+        return struct.pack(
+            f'!1sI',
+            b'n',
+            0
+        )
+
 
 def deserialize_part(data: bytes, inject: dict = {}) -> Any:
     """Deserializes an instance of a PackableProtocol implementation
@@ -133,3 +142,6 @@ def deserialize_part(data: bytes, inject: dict = {}) -> Any:
 
     if code == b'f':
         return struct.unpack(f'!Id{len(data)-12}s', data)[1]
+
+    if code == b'n':
+        return None
