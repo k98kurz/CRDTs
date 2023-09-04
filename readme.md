@@ -6,8 +6,10 @@ This package implements several CRDTs in a hopefully easy-to-use way.
 
 This package includes several Conflict-free Replicated Data Types. See
 [Verifying Strong Eventual Consistency in Distributed Systems by Gomes,
-Kleppmann, Mulligan, and Beresford](https://doi.org/10.1145/3133933) for more
-details. This package includes the following CRDTs (class names in parentheses):
+Kleppmann, Mulligan, and Beresford](https://doi.org/10.1145/3133933) and
+[Verifying Strong Eventual Consistency in δ-CRDTs by Taylor
+Blau](https://arxiv.org/abs/2006.09823) for more details. This package includes
+the following CRDTs (class names in parentheses):
 - Counter (Counter)
 - Positive-Negative Counter (PNCounter)
 - Grow-only Set (GSet)
@@ -25,11 +27,15 @@ methods for resynchronization to recover from dropped messages/transmission
 failures. See [Efficient State-based CRDTs by
 Delta-Mutation](https://arxiv.org/abs/1410.2803) for details.
 
-A Composite CRDT class is also included for making arbitrary compositions of
-CRDTs for more complex data structures. The Composite CRDT functions like the
-LWWRegister, but with CRDTs instead of register values. To make all of this work
-without a separate logical clock package, a simple Lamport scalar clock is
-included.
+For synchronization without a separate logical clock package, a simple Lamport
+`ScalarClock` class is included, though any logical clock that fulfills the
+simple `ClockProtocol` interface can be used. The `StateUpdate` class is
+provided as a default implementation of the `StateUpdateProtocol` interface. A
+handful of classes implementing the `DataWrapperProtocol` interface are included
+for use in the CRDTs that need them.
+
+Everything in this package is designed to serialize and deserialize for reliable
+network transmission and/or persistence to disk.
 
 ## Status
 
@@ -57,9 +63,49 @@ Requires python 3+.
 
 To install, clone/unpack the repo.
 
-#### Usage
+### Usage
 
-@todo
+Each CRDT follows the `CRDTProtocol` and includes the following methods:
+
+- `read(self) -> Any`: produces the view of the data
+- `update(self, state_update: StateUpdateProtocol) -> CRDTProtocol`: applies an
+update and returns `self` in monad pattern
+- `pack(self) -> bytes`: serializes entire CRDT to bytes
+- `@classmethod unpack(cls, data: bytes) -> CRDTProtocol`: deserializes a CRDT
+
+Beyond this, each CRDT has its own specific methods unique to the type. Full
+documentation for each class in this library can be found in the
+[docs.md](https://github.com/k98kurz/CRDTs/blob/master/docs.md) file generated
+using [autodox](https://pypi.org/project/autodox/).
+
+Documentation explaining how each CRDT works can be found here:
+- [GSet](https://github.com/k98kurz/CRDTs/blob/docs/gset.md)
+- [ORSet](https://github.com/k98kurz/CRDTs/blob/docs/orset.md)
+- [Counter](https://github.com/k98kurz/CRDTs/blob/docs/counter.md)
+- [PNCounter](https://github.com/k98kurz/CRDTs/blob/docs/pncounter.md)
+- [RGArray](https://github.com/k98kurz/CRDTs/blob/docs/rgarray.md)
+- [LWWRegister](https://github.com/k98kurz/CRDTs/blob/docs/lwwregister.md)
+- [LWWMap](https://github.com/k98kurz/CRDTs/blob/docs/lwwmap.md)
+- [MVRegister](https://github.com/k98kurz/CRDTs/blob/docs/mvregister.md)
+- [MVMap](https://github.com/k98kurz/CRDTs/blob/docs/mvmap.md)
+- [FIArray](https://github.com/k98kurz/CRDTs/blob/docs/fiarray.md)
+- [CausalTree](https://github.com/k98kurz/CRDTs/blob/docs/causaltree.md)
+
+Each documentation file includes examples of how the CRDT can be used.
+
+To use custom implementations of included interfaces, note that they must be
+injected properly. For a custom implementation of `StateUpdateProtocol`, the
+class will have to be passed to any CRDT method that produces `StateUpdate`s by
+default by using the `update_class=` named parameter. For a custom
+implementation of `DataWrapperProtocol`, the relevant class must be provided to
+any calls to `unpack` when anything containing the custom class is deserialized,
+e.g. `LWWMap.unpack(data, inject={'MyDataWrapper': MyDataWrapper})`.
+
+Additionally, the functions `serialize_part` and `deserialize_part` can be used
+for serializing and deserializing complex structures to and from bytes. Any
+custom class implementing the `PackableProtocol` interface will be compatible
+with these functions and must be injected into `deserialize_part`, e.g.
+`deserialize_part(data, inject={'MyPackableClass': MyPackableClass})`.
 
 ## Interfaces and Classes
 
@@ -207,9 +253,12 @@ find ./tests -name test_*.py -exec python {} \;
 Alternately, for non-POSIX systems, run the following:
 
 ```
+python test_datawrappers.py
+python test_scalarclock.py
+python test_serialization.py
+python test_stateupdate.py
 python test_causaltree.py
 python test_counter.py
-python test_datawrappers.py
 python test_fiarray.py
 python test_gset.py
 python test_lwwmap.py
@@ -219,12 +268,9 @@ python test_mvregister.py
 python test_orset.py
 python test_pncounter.py
 python test_rgarray.py
-python test_scalarclock.py
-python test_serialization.py
-python test_stateupdate.py
 ```
 
-The tests demonstrate the intended (and actual) behavior of the classes, as
+The 226 tests demonstrate the intended (and actual) behavior of the classes, as
 well as some contrived examples of how they are used. Perusing the tests will be
 informative to anyone seeking to use this package.
 
