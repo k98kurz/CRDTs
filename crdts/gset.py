@@ -133,8 +133,6 @@ class GSet:
                 if self.clock.is_later(state_update.ts, until_ts):
                     continue
             updates.append(member)
-
-        for member in updates:
             total_crc32 += crc32(member.pack())
 
         return (

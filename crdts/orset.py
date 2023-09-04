@@ -197,6 +197,8 @@ class ORSet:
             desynchronization due to message failure.
         """
         observed, removed = [], []
+        total_observed_crc32 = 0
+        total_removed_crc32 = 0
         for member, ts in self.observed_metadata.items():
             if from_ts is not None and until_ts is not None:
                 if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
@@ -207,7 +209,14 @@ class ORSet:
             elif until_ts is not None:
                 if self.clock.is_later(ts, until_ts):
                     continue
+
             observed.append(member)
+            if type(member) is str:
+                total_observed_crc32 += crc32(bytes(member, 'utf-8'))
+            elif isinstance(member, DataWrapperProtocol):
+                total_observed_crc32 += crc32(member.pack())
+            else:
+                total_observed_crc32 += crc32(bytes(str(member), 'utf-8'))
 
         for member, ts in self.removed_metadata.items():
             if from_ts is not None and until_ts is not None:
@@ -219,21 +228,14 @@ class ORSet:
             elif until_ts is not None:
                 if self.clock.is_later(ts, until_ts):
                     continue
+
             removed.append(member)
-
-        total_observed_crc32 = 0
-        for o in observed:
-            if type(o) is str:
-                total_observed_crc32 += crc32(bytes(o, 'utf-8'))
+            if type(member) is str:
+                total_removed_crc32 += crc32(bytes(member, 'utf-8'))
+            elif isinstance(member, DataWrapperProtocol):
+                total_removed_crc32 += crc32(member.pack())
             else:
-                total_observed_crc32 += crc32(bytes(str(o), 'utf-8'))
-
-        total_removed_crc32 = 0
-        for r in removed:
-            if type(r) is str:
-                total_removed_crc32 += crc32(bytes(r, 'utf-8'))
-            else:
-                total_removed_crc32 += crc32(bytes(str(r), 'utf-8'))
+                total_removed_crc32 += crc32(bytes(str(member), 'utf-8'))
 
         return (
             len(observed),
