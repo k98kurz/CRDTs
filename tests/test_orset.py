@@ -231,6 +231,27 @@ class TestORSet(unittest.TestCase):
         orset.read()
         assert orset.cache is not None
 
+    def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
+        ors = classes.ORSet(clock=StrClock())
+        ors.observe('test')
+        packed = ors.pack()
+
+        with self.assertRaises(errors.UsagePreconditionError) as e:
+            unpacked = classes.ORSet.unpack(packed)
+        assert str(e.exception) == 'cannot find StrClock'
+
+        # inject and repeat
+        unpacked = classes.ORSet.unpack(packed, {'StrClock': StrClock})
+
+        assert unpacked.clock == ors.clock
+        assert unpacked.read() == ors.read()
+
+    def test_ORSet_pack_unpack_e2e_with_injected_StateUpdateProtocol_class(self):
+        ors = classes.ORSet()
+        update = ors.observe('test', update_class=CustomStateUpdate)
+        assert type(update) is CustomStateUpdate
+        assert type(ors.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
+
     def test_ORSet_convergence_from_ts(self):
         orset1 = classes.ORSet()
         orset2 = classes.ORSet()
@@ -264,27 +285,6 @@ class TestORSet(unittest.TestCase):
             orset1.update(update)
 
         assert orset1.checksums() == orset2.checksums()
-
-    def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
-        ors = classes.ORSet(clock=StrClock())
-        ors.observe('test')
-        packed = ors.pack()
-
-        with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.ORSet.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
-
-        # inject and repeat
-        unpacked = classes.ORSet.unpack(packed, {'StrClock': StrClock})
-
-        assert unpacked.clock == ors.clock
-        assert unpacked.read() == ors.read()
-
-    def test_ORSet_pack_unpack_e2e_with_injected_StateUpdateProtocol_class(self):
-        ors = classes.ORSet()
-        update = ors.observe('test', update_class=CustomStateUpdate)
-        assert type(update) is CustomStateUpdate
-        assert type(ors.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':
