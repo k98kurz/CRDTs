@@ -41,7 +41,7 @@ class StrWrapper:
         return struct.pack(f'!{len(data)}s', data)
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrWrapper:
         return cls(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8'))
 
 
@@ -58,11 +58,11 @@ class BytesWrapper(StrWrapper):
         return struct.pack(f'!{len(self.value)}s', self.value)
 
     @classmethod
-    def unpack(cls, data: bytes) -> BytesWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> BytesWrapper:
         return cls(struct.unpack(f'!{len(data)}s', data)[0])
 
 
-class CTDataWrapper(StrWrapper):
+class CTDataWrapper:
     value: DataWrapperProtocol
     uuid: bytes
     parent_uuid: bytes
@@ -86,6 +86,15 @@ class CTDataWrapper(StrWrapper):
     def __repr__(self) -> str:
         return f"CTDataWrapper(value={self.value}, uuid={self.uuid.hex()}, " + \
             f"parent_uuid={self.parent_uuid.hex()}, visible={self.visible})"
+
+    def __hash__(self) -> int:
+        return hash(self.__to_tuple__())
+
+    def __eq__(self, other: DataWrapperProtocol) -> bool:
+        return type(self) == type(other) and hash(self) == hash(other)
+
+    def __ne__(self, other: DataWrapperProtocol) -> bool:
+        return not self.__eq__(other)
 
     def __gt__(self, other: CTDataWrapper) -> bool:
         return self.__to_tuple__() > other.__to_tuple__()
@@ -173,7 +182,7 @@ class DecimalWrapper(StrWrapper):
         return struct.pack(f'!{len(str(self.value))}s', bytes(str(self.value), 'utf-8'))
 
     @classmethod
-    def unpack(cls, data: bytes) -> DecimalWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> DecimalWrapper:
         return cls(Decimal(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8')))
 
 
@@ -188,7 +197,7 @@ class IntWrapper(DecimalWrapper):
         return struct.pack('!i', self.value)
 
     @classmethod
-    def unpack(cls, data: bytes) -> IntWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> IntWrapper:
         return cls(struct.unpack('!i', data)[0])
 
 
@@ -271,5 +280,5 @@ class NoneWrapper:
         return b''
 
     @classmethod
-    def unpack(cls, data: bytes) -> NoneWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> NoneWrapper:
         return cls()

@@ -132,7 +132,7 @@ class DataWrapperProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes) -> DataWrapperProtocol:
+    def unpack(cls, data: bytes, inject: dict = {}) -> DataWrapperProtocol:
         """Unpack value from bytes."""
         ...
 
