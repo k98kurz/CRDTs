@@ -276,6 +276,37 @@ class TestRGArray(unittest.TestCase):
         assert type(update) is CustomStateUpdate
         assert type(rga.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
+    def test_RGArray_convergence_from_ts(self):
+        rga1 = classes.RGArray()
+        rga2 = classes.RGArray()
+        rga2.clock.uuid = rga1.clock.uuid
+        for i in range(10):
+            update = rga1.append(datawrappers.IntWrapper(i), i)
+            rga2.update(update)
+        assert rga1.checksums() == rga2.checksums()
+
+        rga1.append(datawrappers.IntWrapper(69420), 1)
+        rga1.append(datawrappers.IntWrapper(42096), 1)
+        rga2.append(datawrappers.IntWrapper(23878), 2)
+
+        # not the most efficient algorithm, but it demonstrates the concept
+        from_ts = 0
+        until_ts = rga1.clock.read()
+        while rga1.checksums(from_ts=from_ts, until_ts=until_ts) != \
+            rga2.checksums(from_ts=from_ts, until_ts=until_ts) \
+            and until_ts > 0:
+            until_ts -= 1
+        from_ts = until_ts
+        assert from_ts > 0
+
+        for update in rga1.history(from_ts=from_ts):
+            rga2.update(update)
+        for update in rga2.history(from_ts=from_ts):
+            rga1.update(update)
+
+        assert rga1.checksums() == rga2.checksums()
+
+
 
 if __name__ == '__main__':
     unittest.main()

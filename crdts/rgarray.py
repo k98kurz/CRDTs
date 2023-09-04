@@ -85,7 +85,7 @@ class RGArray:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
-        return self.items.checksums()
+        return self.items.checksums(from_ts=from_ts, until_ts=until_ts)
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
