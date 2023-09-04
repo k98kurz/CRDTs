@@ -245,7 +245,7 @@ class MVMap:
 
         return state_update
 
-    def unset(self, name: DataWrapperProtocol,
+    def unset(self, name: DataWrapperProtocol, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
         tressa(isinstance(name, DataWrapperProtocol),
