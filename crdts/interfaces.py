@@ -82,13 +82,14 @@ class CRDTProtocol(Protocol):
         """Apply an update and return self (monad pattern)."""
         ...
 
-    def checksums(self) -> tuple[Any]:
+    def checksums(self, from_ts: Any = None, until_ts: Any = None) -> tuple[Any]:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
         ...
 
-    def history(self, update_class: type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:
+    def history(self, from_ts: Any = None, until_ts: Any = None, /, *,
+                update_class: type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.

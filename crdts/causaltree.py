@@ -94,18 +94,23 @@ class CausalTree:
         self.positions.update(state_update)
         self.update_cache(state_update.data[3])
 
-    def checksums(self) -> tuple[int]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns checksums for the underlying data to detect
             desynchronization due to network partition.
         """
-        return self.positions.checksums()
+        return self.positions.checksums(from_ts=from_ts, until_ts=until_ts)
 
-    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
+                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
-        return self.positions.history(update_class)
+        return self.positions.history(
+            from_ts=from_ts,
+            until_ts=until_ts,
+            update_class=update_class
+        )
 
     def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
             parent_uuid: bytes = b'',

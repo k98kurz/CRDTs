@@ -257,7 +257,7 @@ class TestMVRegister(unittest.TestCase):
         )
         update = mvregister.write(datawrappers.StrWrapper('first'), update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(mvregister.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(mvregister.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':

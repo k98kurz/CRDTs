@@ -382,7 +382,7 @@ class TestFIArray(unittest.TestCase):
         fia = classes.FIArray()
         update = fia.put_first(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(fia.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(fia.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':

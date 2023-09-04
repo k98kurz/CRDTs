@@ -250,7 +250,7 @@ class TestORSet(unittest.TestCase):
         ors = classes.ORSet()
         update = ors.observe('test', update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(ors.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(ors.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':

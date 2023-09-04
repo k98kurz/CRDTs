@@ -113,7 +113,7 @@ class GSet:
 
         return self
 
-    def checksums(self, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure. If from_ts and/or
             until_ts are supplied, only those updates that are not
@@ -143,7 +143,7 @@ class GSet:
             total_crc32 % 2**32,
         )
 
-    def history(self, from_ts: Any = None, until_ts: Any = None) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes. If from_ts and/

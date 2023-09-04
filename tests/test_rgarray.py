@@ -274,7 +274,7 @@ class TestRGArray(unittest.TestCase):
         rga = classes.RGArray()
         update = rga.append(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(rga.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(rga.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':

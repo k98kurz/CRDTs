@@ -194,7 +194,7 @@ class TestCounter(unittest.TestCase):
         ctr = classes.Counter()
         update = ctr.increase(update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(ctr.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(ctr.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
         packed = ctr.pack()
         unpacked = classes.Counter.unpack(packed)

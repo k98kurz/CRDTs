@@ -242,7 +242,7 @@ class TestLWWRegister(unittest.TestCase):
         )
         update = lwwr.write(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(lwwr.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(lwwr.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':

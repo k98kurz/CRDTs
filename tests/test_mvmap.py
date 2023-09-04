@@ -251,7 +251,7 @@ class TestMVMap(unittest.TestCase):
             update_class=CustomStateUpdate
         )
         assert type(update) is CustomStateUpdate
-        assert type(mvm.history(CustomStateUpdate)[0]) is CustomStateUpdate
+        assert type(mvm.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
 
 if __name__ == '__main__':

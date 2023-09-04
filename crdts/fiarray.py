@@ -92,18 +92,23 @@ class FIArray:
 
         return self
 
-    def checksums(self) -> tuple[int]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns checksums for the underlying data to detect
             desynchronization due to network partition.
         """
         return self.positions.checksums()
 
-    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
+                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
-        return self.positions.history(update_class)
+        return self.positions.history(
+            from_ts=from_ts,
+            until_ts=until_ts,
+            update_class=update_class,
+        )
 
     @classmethod
     def index_between(cls, first: Decimal, second: Decimal) -> Decimal:

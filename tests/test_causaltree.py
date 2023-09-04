@@ -353,7 +353,7 @@ class TestCausalTree(unittest.TestCase):
             update_class=CustomStateUpdate
         )
         assert type(update) is CustomStateUpdate
-        assert type(causaltree.history(CustomStateUpdate)[0] is CustomStateUpdate)
+        assert type(causaltree.history(update_class=CustomStateUpdate)[0] is CustomStateUpdate)
         assert causaltree.read() == (b'first',)
 
 

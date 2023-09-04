@@ -15,6 +15,7 @@ from .orset import ORSet
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
+from typing import Any
 import json
 import struct
 
@@ -181,7 +182,7 @@ class MVMap:
 
         return self
 
-    def checksums(self) -> tuple[int]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
@@ -200,17 +201,25 @@ class MVMap:
             *names_checksums
         )
 
-    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdateProtocols that will
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.
         """
         registers_history: dict[DataWrapperProtocol, tuple[StateUpdateProtocol]] = {}
-        orset_history = self.names.history(update_class)
+        orset_history = self.names.history(
+            from_ts=from_ts,
+            until_ts=until_ts,
+            update_class=update_class,
+        )
         history = []
 
         for name in self.registers:
-            registers_history[name] = self.registers[name].history(update_class)
+            registers_history[name] = self.registers[name].history(
+                from_ts=from_ts,
+                until_ts=until_ts,
+                update_class=update_class,
+            )
 
         for update in orset_history:
             name = update.data[1]

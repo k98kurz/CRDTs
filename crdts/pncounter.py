@@ -86,7 +86,7 @@ class PNCounter:
 
         return self
 
-    def checksums(self) -> tuple[int]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
@@ -96,7 +96,8 @@ class PNCounter:
             self.negative,
         )
 
-    def history(self, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
+                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
