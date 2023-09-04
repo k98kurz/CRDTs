@@ -18,9 +18,10 @@ class implementing the `DataWrapperProtocol` interface. For example:
 from crdts import GSet, StrWrapper
 ```
 
-To instantiate a new {abbreviation}, use the following:
+To instantiate a new GSet, use the following:
 
 ```python
+gset = GSet()
 ```
 
 To create a local representation of a shared instance, use a shared, unique
