@@ -26,3 +26,7 @@ from crdts.datawrappers import (
     RGATupleWrapper,
     StrWrapper
 )
+from crdts.serialization import (
+    serialize_part,
+    deserialize_part,
+)
