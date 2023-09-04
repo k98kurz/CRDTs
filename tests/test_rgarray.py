@@ -1,5 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass, field
+from itertools import permutations
 from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors
 import unittest
@@ -235,6 +236,14 @@ class TestRGArray(unittest.TestCase):
             rga2.update(update)
 
         assert rga1.read() == rga2.read()
+
+        histories = permutations(rga1.history())
+        for history in histories:
+            rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+            for update in history:
+                rga2.update(update)
+            assert rga2.read() == rga1.read()
+            assert rga2.checksums() == rga1.checksums()
 
     def test_RGArray_pack_unpack_e2e(self):
         rga = classes.RGArray()

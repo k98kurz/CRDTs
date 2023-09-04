@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from decimal import Decimal
+from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -198,8 +198,7 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_updates_from_history_converge(self):
         mvmap1 = classes.MVMap()
-        mvmap2 = classes.MVMap()
-        mvmap2.clock.uuid = mvmap1.clock.uuid
+        mvmap2 = classes.MVMap(clock=classes.ScalarClock(0, mvmap1.clock.uuid))
         mvmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
         mvmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
         mvmap1.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
@@ -208,6 +207,13 @@ class TestMVMap(unittest.TestCase):
             mvmap2.update(update)
 
         assert mvmap1.checksums() == mvmap2.checksums()
+
+        histories = permutations(mvmap1.history())
+        for history in histories:
+            mvmap2 = classes.MVMap(clock=classes.ScalarClock(0, mvmap1.clock.uuid))
+            for update in history:
+                mvmap2.update(update)
+            assert mvmap2.read() == mvmap1.read()
 
     def test_MVMap_pack_unpack_e2e(self):
         mvmap = classes.MVMap()
@@ -287,7 +293,6 @@ class TestMVMap(unittest.TestCase):
             mvmap1.update(update)
 
         assert mvmap1.checksums() == mvmap2.checksums()
-
 
 
 if __name__ == '__main__':

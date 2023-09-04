@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from decimal import Decimal
+from dataclasses import dataclass, field
+from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -199,8 +199,7 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_updates_from_history_converge(self):
         lwwmap1 = classes.LWWMap()
-        lwwmap2 = classes.LWWMap()
-        lwwmap2.clock.uuid = lwwmap1.clock.uuid
+        lwwmap2 = classes.LWWMap(clock=classes.ScalarClock(0, lwwmap1.clock.uuid))
         lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
         lwwmap1.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
@@ -209,6 +208,13 @@ class TestLWWMap(unittest.TestCase):
             lwwmap2.update(update)
 
         assert lwwmap1.checksums() == lwwmap2.checksums()
+
+        histories = permutations(lwwmap1.history())
+        for history in histories:
+            lwwmap2 = classes.LWWMap(clock=classes.ScalarClock(0, lwwmap1.clock.uuid))
+            for update in history:
+                lwwmap2.update(update)
+            assert lwwmap2.read() == lwwmap1.read()
 
     def test_LWWMap_pack_unpack_e2e(self):
         lwwmap = classes.LWWMap()

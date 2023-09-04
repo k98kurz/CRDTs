@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from decimal import Decimal
+from dataclasses import dataclass, field
+from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -164,12 +164,20 @@ class TestGSet(unittest.TestCase):
         gset2 = classes.GSet(set(), classes.ScalarClock(0, gset1.clock.uuid))
         gset1.add(datawrappers.IntWrapper(1))
         gset1.add(datawrappers.IntWrapper(2))
+        gset1.add(datawrappers.IntWrapper(3))
 
         for update in gset1.history():
             gset2.update(update)
 
         assert gset1.read() == gset2.read()
         assert gset1.checksums() == gset2.checksums()
+
+        histories = permutations(gset1.history())
+        for history in histories:
+            gset3 = classes.GSet(clock=classes.ScalarClock(0, gset1.clock.uuid))
+            for update in history:
+                gset3.update(update)
+            assert gset3.read() == gset1.read()
 
     def test_GSet_pack_unpack_e2e(self):
         gset1 = classes.GSet()

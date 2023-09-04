@@ -1,6 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
+from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -347,6 +348,14 @@ class TestFIArray(unittest.TestCase):
         view1 = fiarray1.read()
         view2 = fiarray2.read()
         assert view1 == view2, f'{view1} != {view2}'
+
+        histories = permutations(fiarray1.history())
+        for history in histories:
+            fiarray3 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
+            for update in history:
+                fiarray3.update(update)
+            view3 = fiarray3.read()
+            assert view3 == view1, f'{view3} != {view1}'
 
     def test_FIArray_pack_unpack_e2e(self):
         fiarray = classes.FIArray()

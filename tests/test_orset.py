@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from decimal import Decimal
+from dataclasses import dataclass, field
+from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -203,12 +203,21 @@ class TestORSet(unittest.TestCase):
         orset2 = classes.ORSet(clock=classes.ScalarClock(0, orset1.clock.uuid))
         orset1.observe(1)
         orset1.remove(2)
+        orset1.observe(3)
 
         for update in orset1.history():
             orset2.update(update)
 
         assert orset1.read() == orset2.read()
         assert orset1.checksums() == orset2.checksums()
+
+        histories = permutations(orset1.history())
+        for history in histories:
+            orset2 = classes.ORSet(clock=classes.ScalarClock(0, orset1.clock.uuid))
+            for update in history:
+                orset2.update(update)
+            assert orset2.read() == orset1.read()
+            assert orset2.checksums() == orset1.checksums()
 
     def test_ORSet_pack_unpack_e2e(self):
         orset1 = classes.ORSet()
