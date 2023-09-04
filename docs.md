@@ -105,7 +105,7 @@ data. Useful for resynchronization by replaying all updates from divergent
 nodes. If from_ts and/ or until_ts are supplied, only those updates that are not
 outside of these temporal constraints will be included.
 
-##### `add(member: Hashable, update_class: type[StateUpdateProtocol]) -> StateUpdateProtocol:` 
+##### `add(member: DataWrapperProtocol, update_class: type[StateUpdateProtocol]) -> StateUpdateProtocol:` 
 
 Create, apply, and return a StateUpdate adding member to the set.
 
@@ -788,5 +788,17 @@ Unpack value from bytes.
 ##### `pack() -> bytes:` 
 
 ##### `@classmethod unpack(data: bytes, inject: dict) -> StrWrapper:` 
+
+## Functions
+
+### `serialize_part(data: Any) -> bytes:` 
+
+Serializes an instance of a PackableProtocol implementation or built-in type,
+recursively calling itself as necessary.
+
+### `deserialize_part(data: bytes, inject: dict = {}) -> Any:` 
+
+Deserializes an instance of a PackableProtocol implementation or built-in type,
+recursively calling itself as necessary.
 
 
