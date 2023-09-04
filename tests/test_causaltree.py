@@ -356,6 +356,41 @@ class TestCausalTree(unittest.TestCase):
         assert type(causaltree.history(update_class=CustomStateUpdate)[0] is CustomStateUpdate)
         assert causaltree.read() == (b'first',)
 
+    def test_CausalTree_convergence_from_ts(self):
+        causaltree1 = classes.CausalTree()
+        causaltree2 = classes.CausalTree()
+        causaltree2.clock.uuid = causaltree1.clock.uuid
+        update = causaltree1.put_first(datawrappers.StrWrapper('first'), 1)
+        causaltree2.update(update)
+        parent = update.data[3]
+        for i in range(5):
+            update = causaltree2.put_after(datawrappers.IntWrapper(i), 1, parent.uuid)
+            causaltree1.update(update)
+            parent = update.data[3]
+        assert causaltree1.checksums() == causaltree2.checksums()
+
+        causaltree1.put_first(datawrappers.IntWrapper(69420), 1)
+        causaltree1.put_first(datawrappers.IntWrapper(42069), 1)
+        causaltree2.put_first(datawrappers.IntWrapper(23212), 2)
+
+       # not the most efficient algorithm, but it demonstrates the concept
+        from_ts = 0
+        until_ts = causaltree1.clock.read()
+        while causaltree1.checksums(from_ts=from_ts, until_ts=until_ts) != \
+            causaltree2.checksums(from_ts=from_ts, until_ts=until_ts) \
+            and until_ts > 0:
+            until_ts -= 1
+        from_ts = until_ts
+        assert from_ts > 0
+
+        for update in causaltree1.history(from_ts=from_ts):
+            causaltree2.update(update)
+        for update in causaltree2.history(from_ts=from_ts):
+            causaltree1.update(update)
+
+        assert causaltree1.checksums() == causaltree2.checksums()
+
+
 
 if __name__ == '__main__':
     unittest.main()

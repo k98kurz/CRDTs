@@ -113,7 +113,7 @@ class CausalTree:
         )
 
     def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
-            parent_uuid: bytes = b'',
+            parent_uuid: bytes = b'', /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns a update_class (StateUpdate by
             default) that puts the item after the parent.
@@ -136,8 +136,8 @@ class CausalTree:
         return state_update
 
     def put_after(self, item: DataWrapperProtocol, writer: int,
-        parent_uuid: bytes,
-        update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                  parent_uuid: bytes, /, *,
+                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
             after the parent item.
         """
@@ -146,9 +146,9 @@ class CausalTree:
 
         uuid = uuid4().bytes
 
-        return self.put(item, writer, uuid, parent_uuid, update_class)
+        return self.put(item, writer, uuid, parent_uuid, update_class=update_class)
 
-    def put_first(self, item: DataWrapperProtocol, writer: int,
+    def put_first(self, item: DataWrapperProtocol, writer: int, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item as the first item. Note that if
@@ -156,9 +156,9 @@ class CausalTree:
             due to tie breaking; in such a case, update the other item's
             parent_uuid to move it to the right index.
         """
-        return self.put(item, writer, uuid4().bytes, b'', update_class)
+        return self.put(item, writer, uuid4().bytes, b'', update_class=update_class)
 
-    def move_item(self, item: CTDataWrapper, writer: int, parent_uuid: bytes = b'',
+    def move_item(self, item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that moves the item with the given uuid to behind
@@ -180,7 +180,7 @@ class CausalTree:
         self.update(state_update)
         return state_update
 
-    def delete(self, ctdw: CTDataWrapper, writer: int,
+    def delete(self, ctdw: CTDataWrapper, writer: int, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item specified by ctdw.
