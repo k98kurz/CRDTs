@@ -261,7 +261,7 @@ class ORSet:
 
         return state_update
 
-    def remove(self, member: Hashable,
+    def remove(self, member: Hashable, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the removed set."""
         tressa(type(hash(member)) is int, 'member must be Hashable')

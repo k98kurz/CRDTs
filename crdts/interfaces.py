@@ -88,7 +88,7 @@ class CRDTProtocol(Protocol):
         """
         ...
 
-    def history(self) -> tuple[StateUpdateProtocol]:
+    def history(self, update_class: type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
@@ -143,7 +143,7 @@ class StateUpdateProtocol(Protocol):
     ts: Any
     data: Hashable
 
-    def __init__(self, clock_uuid: bytes, ts: Any, data: Hashable) -> None:
+    def __init__(self, /, *, clock_uuid: bytes, ts: Any, data: Hashable) -> None:
         """Initialize the instance."""
         ...
 

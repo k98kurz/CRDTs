@@ -230,7 +230,8 @@ class LWWMap:
         return tuple(history)
 
     def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
-                writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                writer: int, /, *,
+                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
             nodes.

@@ -108,7 +108,7 @@ class PNCounter:
             data=(self.positive, self.negative)
         ),)
 
-    def increase(self, amount: int = 1,
+    def increase(self, amount: int = 1, /, *,
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
@@ -126,7 +126,7 @@ class PNCounter:
 
         return state_update
 
-    def decrease(self, amount: int = 1,
+    def decrease(self, amount: int = 1, /, *,
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Decrease the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be

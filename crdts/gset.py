@@ -168,7 +168,7 @@ class GSet:
 
         return tuple(updates)
 
-    def add(self, member: Hashable,
+    def add(self, member: Hashable, /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
         tressa(type(hash(member)) is int, 'member must be hashable')

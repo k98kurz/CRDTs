@@ -90,7 +90,7 @@ class Counter:
             data=self.counter),
         )
 
-    def increase(self, amount: int = 1,
+    def increase(self, amount: int = 1, /, *,
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be

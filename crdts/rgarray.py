@@ -113,14 +113,14 @@ class RGArray:
 
         return state_update
 
-    def delete(self, item: RGATupleWrapper,
+    def delete(self, item: RGATupleWrapper, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the specified item.
         """
         tressa(isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper')
 
-        state_update = self.items.remove(item, update_class)
+        state_update = self.items.remove(item, update_class=update_class)
 
         self.update(state_update)
 
