@@ -231,6 +231,40 @@ class TestORSet(unittest.TestCase):
         orset.read()
         assert orset.cache is not None
 
+    def test_ORSet_convergence_from_ts(self):
+        orset1 = classes.ORSet()
+        orset2 = classes.ORSet()
+        orset2.clock.uuid = orset1.clock.uuid
+        for i in range(10):
+            update = orset1.observe(datawrappers.IntWrapper(i))
+            orset2.update(update)
+        assert orset1.checksums() == orset2.checksums()
+        for i in range(5):
+            update = orset2.remove(datawrappers.IntWrapper(i))
+            orset1.update(update)
+        assert orset1.checksums() == orset2.checksums()
+
+        orset1.observe(datawrappers.IntWrapper(69420))
+        orset1.observe(datawrappers.IntWrapper(42096))
+        orset2.observe(datawrappers.IntWrapper(23878))
+
+        # not the most efficient algorithm, but it demonstrates the concept
+        from_ts = 0
+        until_ts = orset1.clock.read()
+        while orset1.checksums(from_ts=from_ts, until_ts=until_ts) != \
+            orset2.checksums(from_ts=from_ts, until_ts=until_ts) \
+            and until_ts > 0:
+            until_ts -= 1
+        from_ts = until_ts
+        assert until_ts > 0
+
+        for update in orset1.history(from_ts=from_ts):
+            orset2.update(update)
+        for update in orset2.history(from_ts=from_ts):
+            orset1.update(update)
+
+        assert orset1.checksums() == orset2.checksums()
+
     def test_ORSet_pack_unpack_e2e_with_injected_clock(self):
         ors = classes.ORSet(clock=StrClock())
         ors.observe('test')

@@ -14,7 +14,7 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
-from typing import Hashable, Optional
+from typing import Any, Hashable, Optional
 import json
 import struct
 
@@ -196,23 +196,48 @@ class ORSet:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
+        observed, removed = [], []
+        for member, ts in self.observed_metadata.items():
+            if from_ts is not None and until_ts is not None:
+                if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
+                    continue
+            elif from_ts is not None:
+                if self.clock.is_later(from_ts, ts):
+                    continue
+            elif until_ts is not None:
+                if self.clock.is_later(ts, until_ts):
+                    continue
+            observed.append(member)
+
+        for member, ts in self.removed_metadata.items():
+            if from_ts is not None and until_ts is not None:
+                if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
+                    continue
+            elif from_ts is not None:
+                if self.clock.is_later(from_ts, ts):
+                    continue
+            elif until_ts is not None:
+                if self.clock.is_later(ts, until_ts):
+                    continue
+            removed.append(member)
+
         total_observed_crc32 = 0
-        for o in self.observed:
+        for o in observed:
             if type(o) is str:
                 total_observed_crc32 += crc32(bytes(o, 'utf-8'))
             else:
                 total_observed_crc32 += crc32(bytes(str(o), 'utf-8'))
 
         total_removed_crc32 = 0
-        for r in self.removed:
+        for r in removed:
             if type(r) is str:
                 total_removed_crc32 += crc32(bytes(r, 'utf-8'))
             else:
                 total_removed_crc32 += crc32(bytes(str(r), 'utf-8'))
 
         return (
-            len(self.observed),
-            len(self.removed),
+            len(observed),
+            len(removed),
             total_observed_crc32 % 2**32,
             total_removed_crc32 % 2**32,
         )
