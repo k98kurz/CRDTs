@@ -84,7 +84,11 @@ class Counter:
             for resynchronization by replaying updates from divergent
             nodes.
         """
-        return (update_class(self.clock.uuid, self.clock.read()-1, self.counter),)
+        return (update_class(
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read()-1,
+            data=self.counter),
+        )
 
     def increase(self, amount: int = 1,
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
@@ -96,9 +100,9 @@ class Counter:
         tressa(amount > 0, 'amount must be positive')
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            self.counter + amount
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=self.counter + amount
         )
         self.update(state_update)
 

@@ -248,7 +248,7 @@ class TestORSet(unittest.TestCase):
 
     def test_ORSet_pack_unpack_e2e_with_injected_StateUpdateProtocol_class(self):
         ors = classes.ORSet()
-        update = ors.observe('test', CustomStateUpdate)
+        update = ors.observe('test', update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
         assert type(ors.history(CustomStateUpdate)[0]) is CustomStateUpdate
 

@@ -143,6 +143,10 @@ class StateUpdateProtocol(Protocol):
     ts: Any
     data: Hashable
 
+    def __init__(self, clock_uuid: bytes, ts: Any, data: Hashable) -> None:
+        """Initialize the instance."""
+        ...
+
     def pack(self) -> bytes:
         """Pack the instance into bytes."""
         ...

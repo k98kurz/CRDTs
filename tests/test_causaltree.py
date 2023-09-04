@@ -291,7 +291,8 @@ class TestCausalTree(unittest.TestCase):
                 ct2.update(update)
 
             assert ct2.checksums() == causaltree.checksums()
-            assert ct2.read() == expected
+            view = ct2.read()
+            assert view == expected, f'expected {expected} but encountered {view}'
 
     def test_CausalTree_concurrent_updates_converge(self):
         ct1 = classes.CausalTree()
@@ -349,7 +350,7 @@ class TestCausalTree(unittest.TestCase):
         update = causaltree.put_first(
             datawrappers.BytesWrapper(b'first'),
             1,
-            CustomStateUpdate
+            update_class=CustomStateUpdate
         )
         assert type(update) is CustomStateUpdate
         assert type(causaltree.history(CustomStateUpdate)[0] is CustomStateUpdate)

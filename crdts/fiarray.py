@@ -119,9 +119,9 @@ class FIArray:
             default) that puts the item at the index.
         """
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(
                 'o',
                 item,
                 writer,
@@ -191,7 +191,7 @@ class FIArray:
 
         return self.put(item, writer, index, update_class)
 
-    def put_first(self, item: DataWrapperProtocol, writer: int,
+    def put_first(self, item: DataWrapperProtocol, writer: int, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between 0 and the
@@ -231,9 +231,9 @@ class FIArray:
             default) that deletes the item.
         """
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(
                 'r',
                 item,
                 writer,

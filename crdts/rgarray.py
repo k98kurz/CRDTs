@@ -95,7 +95,7 @@ class RGArray:
         """
         return self.items.history(update_class)
 
-    def append(self, item: DataWrapperProtocol, writer: int,
+    def append(self, item: DataWrapperProtocol, writer: int, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item.
@@ -104,7 +104,10 @@ class RGArray:
         tressa(type(writer) is int, 'writer must be int')
 
         ts = self.clock.wrap_ts(self.clock.read())
-        state_update = self.items.observe(RGATupleWrapper((item, (ts, writer))), update_class)
+        state_update = self.items.observe(
+            RGATupleWrapper((item, (ts, writer))),
+            update_class=update_class
+        )
 
         self.update(state_update)
 

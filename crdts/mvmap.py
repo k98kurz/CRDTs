@@ -218,9 +218,9 @@ class MVMap:
                 register_update = registers_history[name][0]
                 update_class = register_update.__class__
                 history.append(update_class(
-                    update.clock_uuid,
-                    register_update.ts,
-                    (update.data[0], name, register_update.data)
+                    clock_uuid=update.clock_uuid,
+                    ts=register_update.ts,
+                    data=(update.data[0], name, register_update.data)
                 ))
 
         return tuple(history)

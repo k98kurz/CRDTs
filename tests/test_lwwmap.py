@@ -252,7 +252,7 @@ class TestLWWMap(unittest.TestCase):
             datawrappers.StrWrapper('first name'),
             datawrappers.StrWrapper('first value'),
             1,
-            CustomStateUpdate
+            update_class=CustomStateUpdate
         )
         assert type(update) is CustomStateUpdate
         assert type(lwwm.history(CustomStateUpdate)[0]) is CustomStateUpdate

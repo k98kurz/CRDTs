@@ -240,7 +240,7 @@ class TestLWWRegister(unittest.TestCase):
         lwwr = classes.LWWRegister(
             name=datawrappers.StrWrapper('test register')
         )
-        update = lwwr.write(datawrappers.StrWrapper('first'), 1, CustomStateUpdate)
+        update = lwwr.write(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
         assert type(lwwr.history(CustomStateUpdate)[0]) is CustomStateUpdate
 

@@ -116,9 +116,9 @@ class CausalTree:
         tressa(type(uuid) is bytes, "uuid must be bytes")
         tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(
                 'o',
                 BytesWrapper(uuid),
                 writer,
@@ -163,9 +163,9 @@ class CausalTree:
 
         item.parent_uuid = parent_uuid
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(
                 'o',
                 BytesWrapper(item.uuid),
                 writer,
@@ -183,9 +183,9 @@ class CausalTree:
         tressa(ctdw.value in self.positions.registers)
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(
                 'r',
                 BytesWrapper(ctdw.uuid),
                 writer,

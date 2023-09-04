@@ -272,7 +272,7 @@ class TestRGArray(unittest.TestCase):
 
     def test_RGArray_with_injected_StateUpdateProtocol_class(self):
         rga = classes.RGArray()
-        update = rga.append(datawrappers.StrWrapper('first'), 1, CustomStateUpdate)
+        update = rga.append(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
         assert type(rga.history(CustomStateUpdate)[0]) is CustomStateUpdate
 

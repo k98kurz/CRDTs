@@ -380,7 +380,7 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_with_injected_StateUpdateProtocol_class(self):
         fia = classes.FIArray()
-        update = fia.put_first(datawrappers.StrWrapper('first'), 1, CustomStateUpdate)
+        update = fia.put_first(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
         assert type(fia.history(CustomStateUpdate)[0]) is CustomStateUpdate
 

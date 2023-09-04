@@ -228,33 +228,33 @@ class ORSet:
         for o in self.observed:
             updates.append(
                 update_class(
-                    self.clock.uuid,
-                    self.observed_metadata[o],
-                    ('o', o)
+                    clock_uuid=self.clock.uuid,
+                    ts=self.observed_metadata[o],
+                    data=('o', o)
                 )
             )
 
         for r in self.removed:
             updates.append(
                 update_class(
-                    self.clock.uuid,
-                    self.removed_metadata[r],
-                    ('r', r)
+                    clock_uuid=self.clock.uuid,
+                    ts=self.removed_metadata[r],
+                    data=('r', r)
                 )
             )
 
         return tuple(updates)
 
-    def observe(self, member: Hashable,
+    def observe(self, member: Hashable, /, *,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the observed set."""
         tressa(type(hash(member)) is int, 'member must be Hashable')
 
         member = str(member) if type(member) is int else member
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            ('o', member)
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=('o', member)
         )
 
         self.update(state_update)
@@ -268,9 +268,9 @@ class ORSet:
 
         member = str(member) if type(member) is int else member
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            ('r', member)
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=('r', member)
         )
 
         self.update(state_update)

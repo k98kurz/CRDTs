@@ -200,12 +200,12 @@ class LWWRegister:
             nodes.
         """
         return (update_class(
-            self.clock.uuid,
-            self.last_update,
-            (self.last_writer, self.value)
+            clock_uuid=self.clock.uuid,
+            ts=self.last_update,
+            data=(self.last_writer, self.value)
         ),)
 
-    def write(self, value: DataWrapperProtocol, writer: int,
+    def write(self, value: DataWrapperProtocol, writer: int, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default). Requires a writer int
@@ -216,9 +216,9 @@ class LWWRegister:
         tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (writer, value)
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(writer, value)
         )
         self.update(state_update)
 

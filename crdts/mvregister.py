@@ -22,7 +22,6 @@ class MVRegister:
     name: DataWrapperProtocol
     values: list[DataWrapperProtocol]
     clock: ClockProtocol
-    last_updates: Any
 
     def __init__(self, name: DataWrapperProtocol,
                  values: list[DataWrapperProtocol] = [],
@@ -204,7 +203,7 @@ class MVRegister:
             nodes.
         """
         return tuple([
-            update_class(self.clock.uuid, self.last_update, v)
+            update_class(clock_uuid=self.clock.uuid, ts=self.last_update, data=v)
             for v in self.values
         ])
 

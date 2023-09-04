@@ -222,15 +222,15 @@ class LWWMap:
                 register_update = registers_history[name][0]
                 update_class = register_update.__class__
                 history.append(update_class(
-                    update.clock_uuid,
-                    register_update.ts,
-                    (update.data[0], name, register_update.data[0], register_update.data[1])
+                    clock_uuid=update.clock_uuid,
+                    ts=register_update.ts,
+                    data=(update.data[0], name, register_update.data[0], register_update.data[1])
                 ))
 
         return tuple(history)
 
     def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
-                writer: int, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
             nodes.
@@ -242,15 +242,15 @@ class LWWMap:
         tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            ('o', name, writer, value)
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=('o', name, writer, value)
         )
         self.update(state_update)
 
         return state_update
 
-    def unset(self, name: DataWrapperProtocol, writer: int,
+    def unset(self, name: DataWrapperProtocol, writer: int, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
         tressa(isinstance(name, DataWrapperProtocol),
@@ -258,9 +258,9 @@ class LWWMap:
         tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            ('r', name, writer, NoneWrapper())
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=('r', name, writer, NoneWrapper())
         )
         self.update(state_update)
 

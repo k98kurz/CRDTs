@@ -102,7 +102,11 @@ class PNCounter:
             for resynchronization by replaying updates from divergent
             nodes.
         """
-        return (update_class(self.clock.uuid, self.clock.read()-1, (self.positive, self.negative)),)
+        return (update_class(
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read()-1,
+            data=(self.positive, self.negative)
+        ),)
 
     def increase(self, amount: int = 1,
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
@@ -114,9 +118,9 @@ class PNCounter:
         tressa(amount > 0, 'amount must be positive')
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (self.positive + amount, self.negative)
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(self.positive + amount, self.negative)
         )
         self.update(state_update)
 
@@ -132,9 +136,9 @@ class PNCounter:
         tressa(amount > 0, 'amount must be positive')
 
         state_update = update_class(
-            self.clock.uuid,
-            self.clock.read(),
-            (self.positive, self.negative + amount)
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(self.positive, self.negative + amount)
         )
         self.update(state_update)
 

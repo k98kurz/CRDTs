@@ -176,7 +176,7 @@ class GSet:
             'member must be instance implementing DataWrapperProtocol')
 
         ts = self.clock.read()
-        state_update = update_class(self.clock.uuid, ts, member)
+        state_update = update_class(clock_uuid=self.clock.uuid, ts=ts, data=member)
         self.update(state_update)
 
         return state_update
