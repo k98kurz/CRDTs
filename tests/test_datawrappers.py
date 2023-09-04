@@ -287,6 +287,10 @@ class TestDataWrappers(unittest.TestCase):
         assert ctw1 != ctw2
         assert hash(ctw1) != hash(ctw2)
 
+    # NoneWrapper tests
+    def test_NoneWrapper_implements_DataWrapperProtocil(self):
+        assert isinstance(datawrappers.NoneWrapper, interfaces.DataWrapperProtocol)
+
 
 if __name__ == '__main__':
     unittest.main()

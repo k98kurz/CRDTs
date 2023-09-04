@@ -276,6 +276,18 @@ class NoneWrapper:
     def __eq__(self, other) -> bool:
         return type(self) == type(other)
 
+    def __gt__(self, other) -> bool:
+        return False
+
+    def __ge__(self, other) -> bool:
+        return False
+
+    def __lt__(self, other) -> bool:
+        return False
+
+    def __le__(self, other) -> bool:
+        return False
+
     def pack(self) -> bytes:
         return b''
 
