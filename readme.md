@@ -7,18 +7,18 @@ This package implements several CRDTs in a hopefully easy-to-use way.
 This package includes several Conflict-free Replicated Data Types. See
 [Verifying Strong Eventual Consistency in Distributed Systems by Gomes,
 Kleppmann, Mulligan, and Beresford](https://doi.org/10.1145/3133933) for more
-details. This package includes the following CRDTs:
-- Grow-only Set
-- Counter
-- Observed-Removed Set
-- Positive-Negative Counter
-- Fractionally-Indexed Array
-- Replicated Growable Array
-- Last-Writer-Wins Register
-- Last-Writer-Wins Map
-- Multi-Value Register
-- Multi-Value Map
-- Causal Tree
+details. This package includes the following CRDTs (class names in parentheses):
+- Counter (Counter)
+- Positive-Negative Counter (PNCounter)
+- Grow-only Set (GSet)
+- Observed-Removed Set (ORSet)
+- Fractionally-Indexed Array (FIArray)
+- Replicated Growable Array (RGArray)
+- Last-Writer-Wins Register (LWWRegister)
+- Last-Writer-Wins Map (LWWMap)
+- Multi-Value Register (MVRegister)
+- Multi-Value Map (MVMap)
+- Causal Tree (CausalTree)
 
 These are implemented as delta-CRDTs with small update messages and additional
 methods for resynchronization to recover from dropped messages/transmission
@@ -102,27 +102,41 @@ style monad pattern.
 - StateUpdate(StateUpdateProtocol)
 - ScalarClock(ClockProtocol)
     - `counter: int`
+- StrWrapper(DataWrapperProtocol)
+    - `value: str`
+- BytesWrapper(StrWrapper)
+    - `value: bytes`
+- CTDataWrapper(DataWrapperProtocol)
+    - `value: DataWrapperProtocol`
+- DecimalWrapper(StrWrapper)
+    - `value: Decimal`
+- IntWrapper(DecimalWrapper)
+    - `value: int`
+- RGATupleWrapper(StrWrapper)
+    - `value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]`
+- NoneWrapper(DataWrapperProtocol)
 - GSet(CRDTProtocol)
-    - `members: set = field(default_factory=set)`
-    - `clock: ClockProtocol = field(default_factory=ScalarClock)`
+    - `members: set`
+    - `clock: ClockProtocol`
+    - `update_history: dict[DataWrapperProtocol, StateUpdateProtocol]`
     - `add(self, member: Hashable) -> StateUpdate`
 - Counter(CRDTProtocol)
-    - `counter: int = field(default=0)`
-    - `clock: ClockProtocol = field(default_factory=ScalarClock)`
+    - `counter: int`
+    - `clock: ClockProtocol`
     - `increase(self, amount: int = 1) -> StateUpdate`
 - ORSet(CRDTProtocol)
-    - `observed: set = field(default_factory=set)`
-    - `observed_metadata: dict = field(default_factory=dict)`
-    - `removed: set = field(default_factory=set)`
-    - `removed_metadata: dict = field(default_factory=dict)`
-    - `clock: ClockProtocol = field(default_factory=ScalarClock)`
-    - `cache: Optional[tuple] = field(default=None)`
+    - `observed: set`
+    - `observed_metadata: dict`
+    - `removed: set`
+    - `removed_metadata: dict`
+    - `clock: ClockProtocol`
+    - `cache: Optional[tuple]`
     - `observe(self, member: Hashable) -> StateUpdate`
     - `remove(self, member: Hashable) -> StateUpdate`
 - PNCounter(CRDTProtocol)
-    - `positive: int = field(default=0)`
-    - `negative: int = field(default=0)`
-    - `clock: ClockProtocol = field(default_factory=ScalarClock)`
+    - `positive: int`
+    - `negative: int`
+    - `clock: ClockProtocol`
     - `increase(self, amount: int = 1) -> StateUpdate`
     - `decrease(self, amount: int = 1) -> StateUpdate`
 - RGArray (CRDTProtocol)
@@ -131,43 +145,56 @@ style monad pattern.
     - `cache_full: list[RGATupleWrapper]`
     - `cache: tuple[Any]`
     - `__init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None`
-    - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes) -> RGArray`
-    - `read(self) -> tuple[RGATupleWrapper]`
+    - `read(self) -> tuple[Any]`
     - `read_full(self) -> tuple[RGATupleWrapper]`
-    - `update(self, state_update: StateUpdateProtocol) -> RGArray`
-    - `checksums(self) -> tuple[int]`
-    - `history(self) -> tuple[StateUpdate]`
     - `append(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
     - `delete(self, item: RGATupleWrapper) -> StateUpdate`
     - `calculate_cache(self) -> None`
     - `update_cache(self, item: RGATupleWrapper, visible: bool) -> None`
 - LWWRegister(CRDTProtocol)
     - `name: DataWrapperProtocol`
-    - `value: DataWrapperProtocol = field(default=NoneWrapper)`
-    - `clock: ClockProtocol = field(default_factory=ScalarClock)`
-    - `last_update: int = field(default=0)`
-    - `last_writer: int = field(default=0)`
-    - `write(self, value: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `value: DataWrapperProtocol`
+    - `clock: ClockProtocol`
+    - `last_update: int`
+    - `last_writer: int`
+    - `__init__(self, name: DataWrapperProtocol, value: DataWrapperProtocol = None, clock: ClockProtocol = None, last_update: Any = None, last_writer: int = 0) -> None`
+    - `@classmethod compare_values(cls, value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool`
+    - `write(self, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - LWWMap(CRDTProtocol)
     - `names: ORSet`
     - `registers: dict[DataWrapperProtocol, LWWRegister]`
     - `clock: ClockProtocol`
-    - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int) -> StateUpdate`
-    - `unset(self, name: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `unset(self, name: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+- MVRegister(CRDTProtocol)
+    - `name: DataWrapperProtocol`
+    - `values: list[DataWrapperProtocol]`
+    - `clock: ClockProtocol`
+    - `@classmethod compare_values(cls, value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool`
+    - `write(self, value: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+- MVMap(CRDTProtocol)
+    - `names: ORSet`
+    - `registers: dict[DataWrapperProtocol, MVRegister]`
+    - `clock: ClockProtocol`
+    - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `unset(self, name: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - FIArray(CRDTProtocol)
     - `positions: LWWMap`
     - `clock: ClockProtocol`
-    - `cache: Optional[tuple]`
-    - `@classmethod index_offset(cls, index: Decimal) -> Decimal`
+    - `cache_full: list[DataWrapperProtocol]`
+    - `cache: list[Any]`
+    - `__init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None`
     - `@classmethod index_between(cls, first: Decimal, second: Decimal) -> Decimal`
-    - `put(self, item: DataWrapperProtocol, writer: int, index: Decimal) -> StateUpdate`
-    - `put_between(self, item: DataWrapperProtocol, writer: int, first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate`
-    - `put_before(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol) -> StateUpdate`
-    - `put_after(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol) -> StateUpdate`
-    - `put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
-    - `put_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
-    - `delete(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
+    - `read_full(self) -> tuple[DataWrapperProtocol]`
+    - `put(self, item: DataWrapperProtocol, writer: int, index: Decimal, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+    - `put_between(self, item: DataWrapperProtocol, writer: int, first: DataWrapperProtocol, second: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `put_before(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `put_after(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `put_first(self, item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `put_last(self, item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `delete(self, item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `calculate_cache(self) -> None`
+    - `update_cache(self, item: DataWrapperProtocol, visible: bool) -> None`
 
 ## Tests
 
@@ -187,6 +214,8 @@ python test_fiarray.py
 python test_gset.py
 python test_lwwmap.py
 python test_lwwregister.py
+python test_mvmap.py
+python test_mvregister.py
 python test_orset.py
 python test_pncounter.py
 python test_rgarray.py
