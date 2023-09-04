@@ -246,6 +246,12 @@ class MVMap:
                     ts=register_update.ts,
                     data=(update.data[0], name, register_update.data)
                 ))
+            else:
+                history.append(update_class(
+                    clock_uuid=update.clock_uuid,
+                    ts=update.td,
+                    data=(update.data[0], name, NoneWrapper())
+                ))
 
         return tuple(history)
 

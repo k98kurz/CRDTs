@@ -251,6 +251,12 @@ class LWWMap:
                     ts=register_update.ts,
                     data=(update.data[0], name, register_update.data[0], register_update.data[1])
                 ))
+            else:
+                history.append(update_class(
+                    clock_uuid=update.clock_uuid,
+                    ts=update.ts,
+                    data=(update.data[0], name, 0, NoneWrapper())
+                ))
 
         return tuple(history)
 
