@@ -87,4 +87,11 @@ gset.add(StrWrapper("string 2"))
 gset.add(StrWrapper("string 1"))
 
 view = gset.read() # should be set([StrWrapper("string 1"), StrWrapper("string 2")])
+
+# Updates to send to a replica
+updates = gset.history()
+
+# merge updates received from a replica
+for update in updates:
+    gset.update(update)
 ```
