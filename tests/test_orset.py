@@ -256,7 +256,7 @@ class TestORSet(unittest.TestCase):
             and until_ts > 0:
             until_ts -= 1
         from_ts = until_ts
-        assert until_ts > 0
+        assert from_ts > 0
 
         for update in orset1.history(from_ts=from_ts):
             orset2.update(update)

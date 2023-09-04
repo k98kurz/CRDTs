@@ -203,7 +203,7 @@ class TestGSet(unittest.TestCase):
             and until_ts > 0:
             until_ts -= 1
         from_ts = until_ts
-        assert until_ts > 0
+        assert from_ts > 0
 
         for update in gset1.history(from_ts=from_ts):
             gset2.update(update)
