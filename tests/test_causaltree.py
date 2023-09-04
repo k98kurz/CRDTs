@@ -1,6 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
+from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -284,7 +285,9 @@ class TestCausalTree(unittest.TestCase):
         for update in history:
             assert isinstance(update, interfaces.StateUpdateProtocol)
 
-        for _ in range(5):
+        histories = permutations(history)
+
+        for history in histories:
             ct2 = classes.CausalTree()
             ct2.clock.uuid = causaltree.clock.uuid
             for update in history:
@@ -292,7 +295,61 @@ class TestCausalTree(unittest.TestCase):
 
             assert ct2.checksums() == causaltree.checksums()
             view = ct2.read()
-            assert view == expected, f'expected {expected} but encountered {view}'
+            assert view == expected, self.debug_info(causaltree, ct2, history)
+
+    def test_CausalTree_history_convergence_Heisenbug_1(self):
+        causaltree = classes.CausalTree()
+        causaltree.put_first(datawrappers.StrWrapper('first'), 1)
+        first = causaltree.read_full()[0]
+        causaltree.put_after(datawrappers.StrWrapper('second'), 1, first.uuid)
+        second = causaltree.read_full()[1]
+        causaltree.put_after(datawrappers.StrWrapper('third'), 1, second.uuid)
+        causaltree.put(datawrappers.StrWrapper('alt_first'), 1, first.uuid + b'f')
+        expected = causaltree.read()
+
+        # first Heisenbug encountered: updates applied in order 1,2,4,3
+        history = causaltree.history()
+        updates = []
+        updates.append([update for update in history if update.ts == 1][0])
+        updates.append([update for update in history if update.ts == 2][0])
+        updates.append([update for update in history if update.ts == 4][0])
+        updates.append([update for update in history if update.ts == 3][0])
+
+        ct2 = classes.CausalTree()
+        ct2.clock.uuid = causaltree.clock.uuid
+        for update in updates:
+            ct2.update(update)
+
+        assert ct2.checksums() == causaltree.checksums()
+        view = ct2.read()
+        assert view == expected, f'{expected} != {view}'
+
+    def test_CausalTree_history_convergence_Heisenbug_2(self):
+        causaltree = classes.CausalTree()
+        causaltree.put_first(datawrappers.StrWrapper('first'), 1)
+        first = causaltree.read_full()[0]
+        causaltree.put_after(datawrappers.StrWrapper('second'), 1, first.uuid)
+        second = causaltree.read_full()[1]
+        causaltree.put_after(datawrappers.StrWrapper('third'), 1, second.uuid)
+        causaltree.put(datawrappers.StrWrapper('alt_first'), 1, first.uuid + b'f')
+        expected = causaltree.read()
+
+        # second Heisenbug encountered: updates applied in order 2,1,4,3
+        history = causaltree.history()
+        updates = []
+        updates.append([update for update in history if update.ts == 2][0])
+        updates.append([update for update in history if update.ts == 1][0])
+        updates.append([update for update in history if update.ts == 4][0])
+        updates.append([update for update in history if update.ts == 3][0])
+
+        ct2 = classes.CausalTree()
+        ct2.clock.uuid = causaltree.clock.uuid
+        for update in updates:
+            ct2.update(update)
+
+        assert ct2.checksums() == causaltree.checksums()
+        view = ct2.read()
+        assert view == expected, f'{expected} != {view}'
 
     def test_CausalTree_concurrent_updates_converge(self):
         ct1 = classes.CausalTree()
@@ -390,6 +447,21 @@ class TestCausalTree(unittest.TestCase):
 
         assert causaltree1.checksums() == causaltree2.checksums()
 
+    def debug_info(self, ct1: classes.CausalTree, ct2: classes.CausalTree, history) -> str:
+        result = f'expected {ct1.read()} but encountered {ct2.read()}\n\n'
+        for item in ct1.read_full():
+            result += f'{item}\n'
+            if len(item.children()):
+                result += f'children={item.children()}\n'
+        result += '\nvs\n\n'
+        for item in ct2.read_full():
+            result += f'{item}\n'
+            if len(item.children()):
+                result += f'children={item.children()}\n'
+        result += '\nupdates:\n'
+        for update in history:
+            result += f'{update}\n'
+        return result
 
 
 if __name__ == '__main__':

@@ -152,9 +152,8 @@ class CausalTree:
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item as the first item. Note that if
-            another item was already put first, this might be put second
-            due to tie breaking; in such a case, update the other item's
-            parent_uuid to move it to the right index.
+            another item was already put first, this might be put after
+            the chain of descendants due to tie breaking on uuid.
         """
         return self.put(item, writer, uuid4().bytes, b'', update_class=update_class)
 
@@ -287,7 +286,7 @@ class CausalTree:
             break
 
         def walk(item: CTDataWrapper) -> CTDataWrapper:
-            if not len(item.children()) > 0:
+            if len(item.children()) == 0:
                 return item
             children = sorted(list(item.children()), key=lambda c: c.uuid)
             return walk(children[-1])
@@ -303,12 +302,13 @@ class CausalTree:
         if item.parent_uuid == b'':
             heads = [ctdw for ctdw in self.cache if ctdw.parent_uuid == b'']
             heads.append(item)
-            heads.sort(key=lambda x: x.uuid)
+            heads.sort(key=lambda ctdw: ctdw.uuid)
             index = heads.index(item)
             if index != 0:
                 descendant = walk(heads[index-1])
-                if descendant in self.cache:
-                    index = self.cache.index(descendant) + 1
+                while descendant not in self.cache:
+                    descendant = descendant.parent()
+                index = self.cache.index(descendant) + 1
             self.cache.insert(index, item)
             add_orphans()
             return
