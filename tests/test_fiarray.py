@@ -344,7 +344,9 @@ class TestFIArray(unittest.TestCase):
         for state_update in fiarray2.history():
             fiarray1.update(state_update)
 
-        assert fiarray1.read() == fiarray2.read()
+        view1 = fiarray1.read()
+        view2 = fiarray2.read()
+        assert view1 == view2, f'{view1} != {view2}'
 
     def test_FIArray_pack_unpack_e2e(self):
         fiarray = classes.FIArray()
@@ -383,6 +385,36 @@ class TestFIArray(unittest.TestCase):
         update = fia.put_first(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
         assert type(fia.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
+
+    def test_FIArray_convergence_from_ts(self):
+        fiarray1 = classes.FIArray()
+        fiarray2 = classes.FIArray()
+        fiarray2.clock.uuid = fiarray1.clock.uuid
+        for i in range(5):
+            update = fiarray2.put_first(datawrappers.IntWrapper(i), i)
+            fiarray1.update(update)
+        assert fiarray1.checksums() == fiarray2.checksums()
+
+        fiarray1.put_last(datawrappers.IntWrapper(69420), 1)
+        fiarray1.put_last(datawrappers.IntWrapper(42069), 1)
+        fiarray2.put_last(datawrappers.IntWrapper(23212), 2)
+
+       # not the most efficient algorithm, but it demonstrates the concept
+        from_ts = 0
+        until_ts = fiarray1.clock.read()
+        while fiarray1.checksums(from_ts=from_ts, until_ts=until_ts) != \
+            fiarray2.checksums(from_ts=from_ts, until_ts=until_ts) \
+            and until_ts > 0:
+            until_ts -= 1
+        from_ts = until_ts
+        assert from_ts > 0
+
+        for update in fiarray1.history(from_ts=from_ts):
+            fiarray2.update(update)
+        for update in fiarray2.history(from_ts=from_ts):
+            fiarray1.update(update)
+
+        assert fiarray1.checksums() == fiarray2.checksums()
 
 
 if __name__ == '__main__':

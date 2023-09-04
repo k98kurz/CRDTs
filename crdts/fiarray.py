@@ -96,7 +96,7 @@ class FIArray:
         """Returns checksums for the underlying data to detect
             desynchronization due to network partition.
         """
-        return self.positions.checksums()
+        return self.positions.checksums(from_ts=from_ts, until_ts=until_ts)
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
