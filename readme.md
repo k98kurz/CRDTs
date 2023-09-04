@@ -37,8 +37,8 @@ Each implementation must include a full test suite to be considered complete.
 
 - [x] Base Interfaces
 - [x] GSet
-- [x] Counter
 - [x] ORSet
+- [x] Counter
 - [x] PNCounter
 - [x] RGArray
 - [x] LWWRegister

@@ -13,6 +13,7 @@ from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from dataclasses import dataclass, field
+from typing import Any
 import struct
 
 
