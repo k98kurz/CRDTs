@@ -81,22 +81,23 @@ def serialize_part(data: Any) -> bytes:
         )
 
 
-def deserialize_part(data: bytes) -> Any:
+def deserialize_part(data: bytes, inject: dict = {}) -> Any:
     """Deserializes an instance of a PackableProtocol implementation
         or built-in type, recursively calling itself as necessary.
     """
     code, data = struct.unpack(f'!1s{len(data)-1}s', data)
+    dependencies = {**globals(), **inject}
 
     if code == b'p':
         packed_len, data = struct.unpack(f'!I{len(data)-4}s', data)
         packed, _ = struct.unpack(f'!{packed_len}s{len(data)-packed_len}s', data)
         packed_class, _, packed_data = packed.partition(b'_')
         packed_class = str(bytes.fromhex(str(packed_class, 'utf-8')), 'utf-8')
-        tressa(packed_class in globals(),
-            f'{packed_class} not found in globals; cannot unpack')
-        tressa(hasattr(globals()[packed_class], 'unpack'),
+        tressa(packed_class in dependencies,
+            f'{packed_class} not found in globals or inject; cannot unpack')
+        tressa(hasattr(dependencies[packed_class], 'unpack'),
             f'{packed_class} must have unpack method')
-        return globals()[packed_class].unpack(packed_data)
+        return dependencies[packed_class].unpack(packed_data)
 
     if code in (b'l', b'e', b't'):
         let_len, data = struct.unpack(f'!I{len(data)-4}s', data)
