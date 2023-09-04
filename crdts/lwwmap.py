@@ -178,6 +178,9 @@ class LWWMap:
             # try to remove from the names ORSet
             self.names.update(StateUpdate(self.clock.uuid, ts, ('r', name)))
 
+            if name not in self.names.read() and name in self.registers:
+                del self.registers[name]
+
         # if the register exists, update it
         if name in self.registers:
             self.registers[name].update(StateUpdate(self.clock.uuid, ts, (writer, value)))
@@ -188,13 +191,25 @@ class LWWMap:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
-        names_checksums = self.names.checksums()
+        names_checksums = self.names.checksums(from_ts=from_ts, until_ts=until_ts)
         total_last_update = 0
         total_last_writer = 0
         total_register_crc32 = 0
 
-        for name in self.names.read():
-            total_register_crc32 += crc32(self.registers[name].pack())
+        for name in self.registers:
+            ts = self.registers[name].last_update
+            if from_ts is not None and until_ts is not None:
+                if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
+                    continue
+            elif from_ts is not None:
+                if self.clock.is_later(from_ts, ts):
+                    continue
+            elif until_ts is not None:
+                if self.clock.is_later(ts, until_ts):
+                    continue
+            total_register_crc32 += crc32(
+                self.registers[name].name.pack() + self.registers[name].value.pack()
+            )
             total_last_update += self.registers[name].last_update
             total_last_writer += self.registers[name].last_writer
 
