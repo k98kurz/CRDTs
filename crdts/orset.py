@@ -196,7 +196,7 @@ class ORSet:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
-        observed, removed = [], []
+        observed, removed = 0, 0
         total_observed_crc32 = 0
         total_removed_crc32 = 0
         for member, ts in self.observed_metadata.items():
@@ -210,7 +210,7 @@ class ORSet:
                 if self.clock.is_later(ts, until_ts):
                     continue
 
-            observed.append(member)
+            observed += 1
             if type(member) is str:
                 total_observed_crc32 += crc32(bytes(member, 'utf-8'))
             elif isinstance(member, DataWrapperProtocol):
@@ -229,7 +229,7 @@ class ORSet:
                 if self.clock.is_later(ts, until_ts):
                     continue
 
-            removed.append(member)
+            removed += 1
             if type(member) is str:
                 total_removed_crc32 += crc32(bytes(member, 'utf-8'))
             elif isinstance(member, DataWrapperProtocol):
@@ -238,8 +238,8 @@ class ORSet:
                 total_removed_crc32 += crc32(bytes(str(member), 'utf-8'))
 
         return (
-            len(observed),
-            len(removed),
+            observed,
+            removed,
             total_observed_crc32 % 2**32,
             total_removed_crc32 % 2**32,
         )
