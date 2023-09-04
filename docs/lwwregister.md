@@ -7,10 +7,17 @@ id integer and then value itself if necessary.
 
 ## Mathematics
 
+The mutable state of the LWWRegister is composed of the following:
+- `value: DataWrapperProtocol` - the current value at the local replica
+- `clock: ClockProtocol` - the clock used for synchronization
+- `last_update: Any` - the timestamp of the last update
+- `last_writer: int` - the ID of the source of the most recent write/overwrite
+of the `value`
+
 The mathematics of the LWWRegister are simple: given two concurrent updates, the
-resultant state will be determined by the update with the highest writer id;
-given two concurrent updates with identical writer id, the resultant state will
-be determined by which value has the higher byte value when serialized.
+resultant `value` will be determined by the update with the highest writer ID;
+given two concurrent updates with identical writer ID, the resultant `value`
+will be determined by which value has the higher byte value when serialized.
 
 ## Usage
 

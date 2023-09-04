@@ -9,7 +9,13 @@ logic on top.
 
 ## Mathematics
 
-The conflict-free merge semantics are coded in the LWWMap and the underlying
+The state of the FIArray is composed of the following:
+- `positions: LWWMap` - the LWWMap mapping items to indices
+- `clock: ClockProtocol` - the clock used for synchronization
+- `cache_full: list[DataWrapperProtocol]` - the ordered list of items
+- `cache: list[Any]` - the ordered list of unwrapped items
+
+The conflict-free merge semantics are coded in the LWWMap and its underlying
 classes. The FIArray class has the following unique mathematical properties:
 
 - Inserting at the beginning is done by averaging between 0 and the first item
@@ -22,6 +28,8 @@ by different nodes asynchronously, a small random offset is added.
 - Deleting removes the item from the underlying LWWMap.
 - Performance optimization for large lists is accomplished with a cache system
 and the `bisect` algorithm for quickly finding the correct insertion point.
+
+To avoid resorting the entire list on each read, a cache system is included.
 
 ## Usage
 

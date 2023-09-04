@@ -5,6 +5,12 @@ that can only increase in membership over time.
 
 ## Mathematics
 
+The state of the GSet is composed of the following:
+- `members: set[DataWrapperProtocol]` - the members of the GSet
+- `clock: ClockProtocol` - the clock used for synchronization
+- `update_history: dict[DataWrapperProtocol, StateUpdateProtocol]` - a map
+containing the state update for each member
+
 This is one of the simplest CRDTs. Since it uses a set, each item can be added
 multiple times but will appear in the data structure only once. The only
 operation available is `add`. As it is a set, order of items is not maintained.
