@@ -158,9 +158,6 @@ class CausalTree:
         """Creates, applies, and returns an update_class that puts the item
             after the parent item.
         """
-        tressa(parent_uuid in [ctdw.uuid for ctdw in self.read_full()],
-            'parent must already be assigned a position')
-
         uuid = uuid4().bytes
 
         return self.put(item, writer, uuid, parent_uuid, update_class=update_class)
