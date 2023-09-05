@@ -90,6 +90,11 @@ class TestGSet(unittest.TestCase):
         gset.members.add(datawrappers.IntWrapper(1))
         assert gset.read() == gset.members
 
+    def test_GSet_add_errors_on_incorrect_type(self):
+        gset = classes.GSet()
+        with self.assertRaises(errors.UsagePreconditionError):
+            gset.add(gset)
+
     def test_GSet_add_returns_state_update(self):
         gset = classes.GSet()
         update = gset.add(datawrappers.IntWrapper(1))
@@ -198,7 +203,7 @@ class TestGSet(unittest.TestCase):
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.GSet.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
+        assert 'not found' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.GSet.unpack(packed, {'StrClock': StrClock})
@@ -216,7 +221,7 @@ class TestGSet(unittest.TestCase):
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.GSet.unpack(packed)
-        assert str(e.exception) == 'CustomStateUpdate not found'
+        assert 'CustomStateUpdate not found' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.GSet.unpack(packed, {'CustomStateUpdate': CustomStateUpdate})

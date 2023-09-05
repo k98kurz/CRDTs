@@ -15,86 +15,45 @@ from .interfaces import (
     StateUpdateProtocol,
 )
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
+from types import NoneType
 from typing import Any
 import json
 import struct
 
 
+AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+
 @dataclass
 class GSet:
     """Implements the Grow-only Set (GSet) CRDT."""
-    members: set[DataWrapperProtocol] = field(default_factory=set)
+    members: set[AcceptableType] = field(default_factory=set)
     clock: ClockProtocol = field(default_factory=ScalarClock)
-    update_history: dict[DataWrapperProtocol, StateUpdateProtocol] = field(default_factory=dict)
+    update_history: dict[AcceptableType, StateUpdateProtocol] = field(default_factory=dict)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        members = [m.__class__.__name__ + '_' + m.pack().hex() for m in self.members]
-        members = bytes(json.dumps(members, separators=(',', ':')), 'utf-8')
-        clock_size, set_size = len(clock), len(members)
-        history = bytes(json.dumps({
-            k.__class__.__name__ + '_' + k.pack().hex(): v.__class__.__name__ + '_' + v.pack().hex()
-            for k,v in self.update_history.items()
-        }), 'utf-8')
-        history_size = len(history)
-
-        return struct.pack(
-            f'!III{clock_size}s{set_size}s{history_size}s',
-            clock_size,
-            set_size,
-            history_size,
-            clock,
-            members,
-            history
-        )
+        return serialize_part([
+            self.clock,
+            self.members,
+            [
+                (k, v) for k,v in self.update_history.items()
+            ]
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> GSet:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 8, 'data must be more than 8 bytes')
-        dependencies = {**globals(), **inject}
-
-        clock_size, set_size, history_size, data = struct.unpack(
-            f'!III{len(data)-12}s',
-            data
+        clock, members, update_history = deserialize_part(
+            data,
+            inject={**inject, 'StateUpdate': StateUpdate}
         )
-        clock, set_bytes, history_bytes = struct.unpack(
-            f'!{clock_size}s{set_size}s{history_size}s',
-            data
-        )
-
-        # parse clock and members
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-        _members: list[str] = json.loads(str(set_bytes, 'utf-8'))
-        members = []
-        for m in _members:
-            class_name, data = m.split('_')
-            tressa(class_name in dependencies, f'{class_name} not found')
-            members.append(dependencies[class_name].unpack(bytes.fromhex(data)))
-
-        # parse history
-        _history = json.loads(history_bytes)
-        history = {}
-        for k,v in _history.items():
-            class_name, data = k.split('_')
-            tressa(class_name in dependencies, f'{class_name} not found')
-            key = dependencies[class_name].unpack(bytes.fromhex(data))
-            update_class_name, data = v.split('_')
-            tressa(update_class_name in dependencies, f'{update_class_name} not found')
-            history[key] = dependencies[update_class_name].unpack(bytes.fromhex(data))
-
-        return cls(members=set(members), clock=clock, update_history=history)
+        return cls(members, clock, {k:v for k,v in update_history})
 
     def read(self) -> set:
         """Return the eventually consistent data view."""
@@ -106,8 +65,8 @@ class GSet:
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, DataWrapperProtocol),
-            'state_update.data must be instance implementing DataWrapperProtocol')
+        tressa(isinstance(state_update.data, AcceptableType),
+            'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         if state_update.data not in self.members:
             self.members.add(state_update.data)
@@ -137,7 +96,7 @@ class GSet:
                 if self.clock.is_later(state_update.ts, until_ts):
                     continue
             updates.append(member)
-            total_crc32 += crc32(member.pack())
+            total_crc32 += crc32(serialize_part(member))
 
         return (
             self.clock.read() if until_ts is None else until_ts,
@@ -170,11 +129,11 @@ class GSet:
 
         return tuple(updates)
 
-    def add(self, member: DataWrapperProtocol, /, *,
+    def add(self, member: AcceptableType, /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
-        tressa(isinstance(member, DataWrapperProtocol),
-            'member must be instance implementing DataWrapperProtocol')
+        tressa(isinstance(member, AcceptableType),
+            'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         ts = self.clock.read()
         state_update = update_class(clock_uuid=self.clock.uuid, ts=ts, data=member)

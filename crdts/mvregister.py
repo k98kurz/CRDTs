@@ -73,9 +73,7 @@ class MVRegister:
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, DataWrapperProtocol) or
-               type(state_update.data) in (int,float,str,bytes,bytearray) or
-               state_update.data is None,
+        tressa(isinstance(state_update.data, AcceptableType),
             'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         # set the value if the update happens after current state
@@ -119,8 +117,7 @@ class MVRegister:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default).
         """
-        tressa(isinstance(value, DataWrapperProtocol) or
-               type(value) in (int,float,str,bytes,bytearray) or value is None,
+        tressa(isinstance(value, AcceptableType),
             'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         state_update = update_class(
