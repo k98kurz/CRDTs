@@ -103,7 +103,7 @@ class TestCausalTree(unittest.TestCase):
         causaltree.positions.extend(
             datawrappers.BytesWrapper(b'first'),
             datawrappers.CTDataWrapper(
-                datawrappers.StrWrapper('first'),
+                'first',
                 b'first',
                 b''
             ),
@@ -112,7 +112,7 @@ class TestCausalTree(unittest.TestCase):
         causaltree.positions.extend(
             datawrappers.BytesWrapper(b'second'),
             datawrappers.CTDataWrapper(
-                datawrappers.BytesWrapper(b'second'),
+                b'second',
                 b'second',
                 b'first'
             ),
@@ -158,7 +158,7 @@ class TestCausalTree(unittest.TestCase):
         view1 = causaltree.read()
 
         su = causaltree.put(
-            datawrappers.StrWrapper("first"),
+            "first",
             1,
             b'first'
         )
@@ -166,7 +166,7 @@ class TestCausalTree(unittest.TestCase):
         view2 = causaltree.read()
 
         su = causaltree.put(
-            datawrappers.StrWrapper("third"),
+            "third",
             1,
             b'third',
             b'first'
@@ -175,7 +175,7 @@ class TestCausalTree(unittest.TestCase):
         view3 = causaltree.read()
 
         su = causaltree.put(
-            datawrappers.StrWrapper("second"),
+            "second",
             1,
             b'second',
             b'first'
@@ -193,7 +193,7 @@ class TestCausalTree(unittest.TestCase):
         view1 = causaltree.read()
 
         su = causaltree.put_first(
-            datawrappers.StrWrapper("first"),
+            "first",
             1,
         )
         assert type(su) is classes.StateUpdate
@@ -203,7 +203,7 @@ class TestCausalTree(unittest.TestCase):
         assert type(parent) is datawrappers.CTDataWrapper
 
         su = causaltree.put_after(
-            datawrappers.StrWrapper("second"),
+            "second",
             1,
             parent.uuid
         )
@@ -218,12 +218,12 @@ class TestCausalTree(unittest.TestCase):
         causaltree = classes.CausalTree()
 
         causaltree.put_first(
-            datawrappers.StrWrapper("second"),
+            "second",
             1,
         )
         parent = causaltree.read_full()[0]
         causaltree.put_after(
-            datawrappers.StrWrapper("first"),
+            "first",
             1,
             parent.uuid
         )
@@ -248,12 +248,12 @@ class TestCausalTree(unittest.TestCase):
         causaltree = classes.CausalTree()
 
         causaltree.put_first(
-            datawrappers.StrWrapper("item1"),
+            "item1",
             1,
         )
         parent = causaltree.read_full()[0]
         causaltree.put_after(
-            datawrappers.StrWrapper("item2"),
+            "item2",
             1,
             parent.uuid
         )
@@ -285,12 +285,12 @@ class TestCausalTree(unittest.TestCase):
 
     def test_CausalTree_history_returns_tuple_of_StateUpdateProtocol_that_converge(self):
         causaltree = classes.CausalTree()
-        causaltree.put_first(datawrappers.StrWrapper('first'), 1)
+        causaltree.put_first('first', 1)
         first = causaltree.read_full()[0]
-        causaltree.put_after(datawrappers.StrWrapper('second'), 1, first.uuid)
+        causaltree.put_after('second', 1, first.uuid)
         second = causaltree.read_full()[1]
-        causaltree.put_after(datawrappers.StrWrapper('third'), 1, second.uuid)
-        causaltree.put_first(datawrappers.StrWrapper('alt_first'), 1)
+        causaltree.put_after('third', 1, second.uuid)
+        causaltree.put_first('alt_first', 1)
         expected = causaltree.read()
 
         history = causaltree.history()
@@ -420,7 +420,7 @@ class TestCausalTree(unittest.TestCase):
     def test_CausalTree_with_injected_StateUpdateProtocol_class(self):
         causaltree = classes.CausalTree(clock=StrClock())
         update = causaltree.put_first(
-            datawrappers.BytesWrapper(b'first'),
+            b'first',
             1,
             update_class=CustomStateUpdate
         )

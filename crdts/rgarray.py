@@ -9,7 +9,7 @@ from types import NoneType
 from typing import Any
 
 
-AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class RGArray:
     """Implements the Replicated Growable Array CRDT. This uses the ORSet
@@ -46,7 +46,7 @@ class RGArray:
         items = ORSet.unpack(data, inject=inject)
         return cls(items=items, clock=items.clock)
 
-    def read(self) -> tuple[AcceptableType]:
+    def read(self) -> tuple[SerializableType]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
@@ -102,12 +102,12 @@ class RGArray:
             update_class=update_class,
         )
 
-    def append(self, item: AcceptableType, writer: int, /, *,
+    def append(self, item: SerializableType, writer: int, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item.
         """
-        tressa(isinstance(item, AcceptableType),
+        tressa(isinstance(item, SerializableType),
                'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(writer) is int, 'writer must be int')
 

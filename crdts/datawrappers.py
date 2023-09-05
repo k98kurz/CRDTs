@@ -3,10 +3,13 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from .errors import tressa
 from .interfaces import DataWrapperProtocol
+from .serialization import serialize_part, deserialize_part
 from types import NoneType
 from typing import Any
 import struct
 
+
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 @dataclass
 class StrWrapper:
@@ -63,14 +66,15 @@ class BytesWrapper(StrWrapper):
 
 
 class CTDataWrapper:
-    value: DataWrapperProtocol
+    value: SerializableType
     uuid: bytes
     parent_uuid: bytes
     visible: bool
 
-    def __init__(self, value: DataWrapperProtocol, uuid: bytes, parent_uuid: bytes,
+    def __init__(self, value: SerializableType, uuid: bytes, parent_uuid: bytes,
                  visible: bool = True) -> None:
-        tressa(isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol')
+        tressa(isinstance(value, SerializableType),
+               'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(uuid) is bytes, 'uuid must be bytes')
         tressa(type(parent_uuid) is bytes, 'parent_uuid must be bytes')
         tressa(type(visible) is bool, 'visible must be bool')
@@ -90,10 +94,10 @@ class CTDataWrapper:
     def __hash__(self) -> int:
         return hash(self.__to_tuple__())
 
-    def __eq__(self, other: DataWrapperProtocol) -> bool:
+    def __eq__(self, other: CTDataWrapper) -> bool:
         return type(self) == type(other) and hash(self) == hash(other)
 
-    def __ne__(self, other: DataWrapperProtocol) -> bool:
+    def __ne__(self, other: CTDataWrapper) -> bool:
         return not self.__eq__(other)
 
     def __gt__(self, other: CTDataWrapper) -> bool:
@@ -132,44 +136,23 @@ class CTDataWrapper:
             self.parent_uuid = parent.uuid
 
     def pack(self) -> bytes:
-        value_type = bytes(self.value.__class__.__name__, 'utf-8')
-        value_packed = self.value.pack()
-
-        return struct.pack(
-            f'!IIII{len(value_type)}s{len(value_packed)}s' +
-            f'{len(self.uuid)}s{len(self.parent_uuid)}s?',
-            len(value_type),
-            len(value_packed),
-            len(self.uuid),
-            len(self.parent_uuid),
-            value_type,
-            value_packed,
+        return serialize_part([
+            self.value,
             self.uuid,
             self.parent_uuid,
-            self.visible,
-        )
+            int(self.visible)
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> CTDataWrapper:
         dependencies = {**globals(), **inject}
-        value_type_len, value_len, uuid_len, parent_len, _ = struct.unpack(
-            f'!IIII{len(data)-16}s',
-            data
+        value, uuid, parent_uuid, visible = deserialize_part(data, inject=dependencies)
+        return cls(
+            value=value,
+            uuid=uuid,
+            parent_uuid=parent_uuid,
+            visible=bool(visible)
         )
-        _, value_type, value_packed, uuid, parent_uuid, visible = struct.unpack(
-            f'!16s{value_type_len}s{value_len}s{uuid_len}s{parent_len}s?',
-            data
-        )
-
-        # parse value
-        value_type = str(value_type, 'utf-8')
-        tressa(value_type in dependencies,
-               f'{value_type} must be accessible from globals() or injected')
-        tressa(hasattr(dependencies[value_type], 'unpack'),
-            f'{value_type} missing unpack method')
-        value = globals()[value_type].unpack(value_packed)
-
-        return cls(value, uuid, parent_uuid, visible)
 
 
 class DecimalWrapper(StrWrapper):

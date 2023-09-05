@@ -18,7 +18,7 @@ from types import NoneType
 from typing import Any
 
 
-AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class MVRegister:
     """Implements the Multi-Value Register CRDT."""
@@ -60,7 +60,7 @@ class MVRegister:
         )
         return cls(name, values, clock, last_update)
 
-    def read(self, inject: dict = {}) -> tuple[AcceptableType]:
+    def read(self, inject: dict = {}) -> tuple[SerializableType]:
         """Return the eventually consistent data view."""
         return tuple([
             deserialize_part(
@@ -70,8 +70,8 @@ class MVRegister:
         ])
 
     @classmethod
-    def compare_values(cls, value1: AcceptableType,
-                       value2: AcceptableType) -> bool:
+    def compare_values(cls, value1: SerializableType,
+                       value2: SerializableType) -> bool:
         return serialize_part(value1) > serialize_part(value2)
 
     def update(self, state_update: StateUpdateProtocol) -> MVRegister:
@@ -80,7 +80,7 @@ class MVRegister:
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, AcceptableType),
+        tressa(isinstance(state_update.data, SerializableType),
             'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         # set the value if the update happens after current state
@@ -119,12 +119,12 @@ class MVRegister:
             for v in self.values
         ])
 
-    def write(self, value: AcceptableType, /, *,
+    def write(self, value: SerializableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default).
         """
-        tressa(isinstance(value, AcceptableType),
+        tressa(isinstance(value, SerializableType),
             'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         state_update = update_class(

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from context import interfaces, datawrappers, errors
+from context import interfaces, datawrappers, errors, serialization
 from decimal import Decimal
 import struct
 import unittest
@@ -212,8 +212,8 @@ class TestDataWrappers(unittest.TestCase):
 
     def test_CTDataWrapper_raises_UsagePreconditionError_for_bad_value(self):
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            datawrappers.CTDataWrapper(b'123', b'str', b'132')
-        assert str(e.exception) == 'value must be DataWrapperProtocol'
+            datawrappers.CTDataWrapper([], b'str', b'132')
+        assert 'value must be' in str(e.exception)
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), '321', b'123')
@@ -240,21 +240,12 @@ class TestDataWrappers(unittest.TestCase):
         value = datawrappers.BytesWrapper(b'123')
         uuid = b'321'
         parent = b'123'
-        value_type = bytes(value.__class__.__name__, 'utf-8')
-        value_packed = value.pack()
-        data = struct.pack(
-            f'!IIII{len(value_type)}s{len(value_packed)}s{len(uuid)}s' +
-            f'{len(parent)}s?',
-            len(value_type),
-            len(value_packed),
-            len(uuid),
-            len(parent),
-            value_type,
-            value_packed,
+        data = serialization.serialize_part([
+            value,
             uuid,
             parent,
-            False,
-        )
+            0
+        ])
         unpacked = datawrappers.CTDataWrapper.unpack(data)
         assert type(unpacked) is datawrappers.CTDataWrapper
 

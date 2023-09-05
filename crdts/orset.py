@@ -10,7 +10,7 @@ from types import NoneType
 from typing import Any, Optional
 
 
-AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 @dataclass
 class ORSet:
@@ -53,7 +53,7 @@ class ORSet:
         removed_metadata = {k:v for k,v in removed_metadata}
         return cls(observed, observed_metadata, removed, removed_metadata, clock)
 
-    def read(self) -> set[AcceptableType]:
+    def read(self) -> set[SerializableType]:
         """Return the eventually consistent data view."""
         if self.cache is not None:
             if self.cache[0] == self.clock.read():
@@ -76,7 +76,7 @@ class ORSet:
             'state_update.data must be 2 long')
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(isinstance(state_update.data[1], AcceptableType),
+        tressa(isinstance(state_update.data[1], SerializableType),
             'state_update.data[1] must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         op, member = state_update.data
@@ -205,10 +205,10 @@ class ORSet:
 
         return tuple(updates)
 
-    def observe(self, member: AcceptableType, /, *,
+    def observe(self, member: SerializableType, /, *,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the observed set."""
-        tressa(isinstance(member, AcceptableType),
+        tressa(isinstance(member, SerializableType),
                'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         member = str(member) if type(member) is int else member
@@ -222,10 +222,10 @@ class ORSet:
 
         return state_update
 
-    def remove(self, member: AcceptableType, /, *,
+    def remove(self, member: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the removed set."""
-        tressa(isinstance(member, AcceptableType),
+        tressa(isinstance(member, SerializableType),
                'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         member = str(member) if type(member) is int else member

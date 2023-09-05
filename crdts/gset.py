@@ -14,14 +14,14 @@ from types import NoneType
 from typing import Any
 
 
-AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 @dataclass
 class GSet:
     """Implements the Grow-only Set (GSet) CRDT."""
-    members: set[AcceptableType] = field(default_factory=set)
+    members: set[SerializableType] = field(default_factory=set)
     clock: ClockProtocol = field(default_factory=ScalarClock)
-    update_history: dict[AcceptableType, StateUpdateProtocol] = field(default_factory=dict)
+    update_history: dict[SerializableType, StateUpdateProtocol] = field(default_factory=dict)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
@@ -44,7 +44,7 @@ class GSet:
         )
         return cls(members, clock, {k:v for k,v in update_history})
 
-    def read(self, inject: dict = {}) -> set:
+    def read(self, inject: dict = {}) -> set[SerializableType]:
         """Return the eventually consistent data view."""
         return self.members.copy()
 
@@ -54,7 +54,7 @@ class GSet:
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, AcceptableType),
+        tressa(isinstance(state_update.data, SerializableType),
             'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         if state_update.data not in self.members:
@@ -118,10 +118,10 @@ class GSet:
 
         return tuple(updates)
 
-    def add(self, member: AcceptableType, /, *,
+    def add(self, member: SerializableType, /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
-        tressa(isinstance(member, AcceptableType),
+        tressa(isinstance(member, SerializableType),
             'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         ts = self.clock.read()

@@ -1,13 +1,24 @@
 from __future__ import annotations
-from .datawrappers import BytesWrapper, CTDataWrapper, NoneWrapper
+from .datawrappers import (
+    BytesWrapper,
+    StrWrapper,
+    IntWrapper,
+    DecimalWrapper,
+    CTDataWrapper,
+    NoneWrapper,
+)
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
+from types import NoneType
 from typing import Any
 from uuid import uuid4
 
+
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class CausalTree:
     """Implements a Causal Tree CRDT."""
@@ -38,19 +49,23 @@ class CausalTree:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> CausalTree:
         """Unpack the data bytes string into an instance."""
-        positions = LWWMap.unpack(data, inject)
+        positions = LWWMap.unpack(data, inject=inject)
         return cls(positions=positions, clock=positions.clock)
 
-    def read(self) -> tuple[Any]:
+    def read(self, inject: dict = {}) -> tuple[SerializableType]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
         if self.cache is None:
             self.calculate_cache()
 
-        return tuple([item.value.value for item in self.cache if item.visible])
+        return tuple([
+            deserialize_part(serialize_part(item.value), {**globals(), **inject})
+            for item in self.cache
+            if item.visible
+        ])
 
-    def read_full(self) -> tuple[CTDataWrapper]:
+    def read_full(self, inject: dict = {}) -> tuple[CTDataWrapper]:
         """Return the full, eventually consistent list of items with
             tombstones and complete DataWrapperProtocols rather than the
             underlying values. Use this for preparing deletion updates --
@@ -83,8 +98,8 @@ class CausalTree:
             'state_update.data must be tuple')
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(isinstance(state_update.data[1], DataWrapperProtocol),
-            'state_update.data[1] must be instance implementing DataWrapperProtocol')
+        tressa(isinstance(state_update.data[1], SerializableType),
+            'state_update.data[1] must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(state_update.data[2]) is int,
             'state_update.data[2] must be writer int')
         tressa(type(state_update.data[3]) is CTDataWrapper,
@@ -112,12 +127,14 @@ class CausalTree:
             update_class=update_class
         )
 
-    def put(self, item: DataWrapperProtocol, writer: int, uuid: bytes,
+    def put(self, item: SerializableType, writer: int, uuid: bytes,
             parent_uuid: bytes = b'', /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns a update_class (StateUpdate by
             default) that puts the item after the parent.
         """
+        tressa(isinstance(item, SerializableType),
+               'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(uuid) is bytes, "uuid must be bytes")
         tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
         state_update = update_class(
@@ -135,7 +152,7 @@ class CausalTree:
 
         return state_update
 
-    def put_after(self, item: DataWrapperProtocol, writer: int,
+    def put_after(self, item: SerializableType, writer: int,
                   parent_uuid: bytes, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
