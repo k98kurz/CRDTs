@@ -62,7 +62,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -81,6 +81,19 @@ class CustomStateUpdate(classes.StateUpdate):
 
 
 class TestCounter(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_Counter_implements_CRDTProtocol(self):
         assert isinstance(classes.Counter(), interfaces.CRDTProtocol)
 
@@ -168,7 +181,7 @@ class TestCounter(unittest.TestCase):
         counter1.increase()
         counter1.increase()
         packed = counter1.pack()
-        counter2 = classes.Counter.unpack(packed)
+        counter2 = classes.Counter.unpack(packed, inject=self.inject)
 
         assert counter1.clock.uuid == counter2.clock.uuid
         assert counter1.read() == counter2.read()
@@ -181,7 +194,7 @@ class TestCounter(unittest.TestCase):
         packed = ctr.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.Counter.unpack(packed)
+            unpacked = classes.Counter.unpack(packed, inject=self.inject)
         assert 'not found' in str(e.exception)
 
         # inject and repeat
@@ -197,7 +210,7 @@ class TestCounter(unittest.TestCase):
         assert type(ctr.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
         packed = ctr.pack()
-        unpacked = classes.Counter.unpack(packed)
+        unpacked = classes.Counter.unpack(packed, inject=self.inject)
 
         assert unpacked.clock == ctr.clock
         assert unpacked.read() == ctr.read()

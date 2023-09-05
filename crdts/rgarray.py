@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .datawrappers import RGATupleWrapper
+from .datawrappers import RGAItemWrapper
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .orset import ORSet
@@ -9,13 +9,15 @@ from types import NoneType
 from typing import Any
 
 
+AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+
 class RGArray:
     """Implements the Replicated Growable Array CRDT. This uses the ORSet
         to handle CRDT logic and provides a logical view over top of it.
     """
     items: ORSet
     clock: ClockProtocol
-    cache_full: list[RGATupleWrapper]
+    cache_full: list[RGAItemWrapper]
     cache: tuple[Any]
 
     def __init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None:
@@ -41,10 +43,10 @@ class RGArray:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> RGArray:
         """Unpack the data bytes string into an instance."""
-        items = ORSet.unpack(data, inject)
+        items = ORSet.unpack(data, inject=inject)
         return cls(items=items, clock=items.clock)
 
-    def read(self) -> tuple[Any]:
+    def read(self) -> tuple[AcceptableType]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
@@ -52,15 +54,15 @@ class RGArray:
             self.calculate_cache()
 
         if self.cache is None:
-            self.cache = tuple([item.value[0].value for item in self.cache_full])
+            self.cache = tuple([item.value for item in self.cache_full])
 
         return self.cache
 
-    def read_full(self) -> tuple[RGATupleWrapper]:
+    def read_full(self) -> tuple[RGAItemWrapper]:
         """Return the full, eventually consistent list of items without
-            tombstones but with complete RGATupleWrappers rather than the
+            tombstones but with complete RGAItemWrappers rather than the
             underlying values. Use this for preparing deletion updates --
-            only a RGATupleWrapper can be used for delete.
+            only a RGAItemWrapper can be used for delete.
         """
         if self.cache_full is None:
             self.calculate_cache()
@@ -74,7 +76,7 @@ class RGArray:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
 
-        tressa(isinstance(state_update.data[1], RGATupleWrapper), 'item must be RGATupleWrapper')
+        tressa(isinstance(state_update.data[1], RGAItemWrapper), 'item must be RGAItemWrapper')
 
         self.items.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[1] in self.items.read())
@@ -100,17 +102,18 @@ class RGArray:
             update_class=update_class,
         )
 
-    def append(self, item: DataWrapperProtocol, writer: int, /, *,
+    def append(self, item: AcceptableType, writer: int, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item.
         """
-        tressa(isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol')
+        tressa(isinstance(item, AcceptableType),
+               'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(writer) is int, 'writer must be int')
 
         ts = self.clock.wrap_ts(self.clock.read())
         state_update = self.items.observe(
-            RGATupleWrapper((item, (ts, writer))),
+            RGAItemWrapper(item, ts, writer),
             update_class=update_class
         )
 
@@ -118,12 +121,12 @@ class RGArray:
 
         return state_update
 
-    def delete(self, item: RGATupleWrapper, /, *,
+    def delete(self, item: RGAItemWrapper, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the specified item.
         """
-        tressa(isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper')
+        tressa(isinstance(item, RGAItemWrapper), 'item must be RGAItemWrapper')
 
         state_update = self.items.remove(item, update_class=update_class)
 
@@ -136,20 +139,23 @@ class RGArray:
             sets the cache_full list. Resets the cache.
         """
         # create sorted list of all items
-        # sorted by ((timestamp, writer), wrapper class name, wrapped value)
+        # sorted by (timestamp, writer, wrapper class name, packed value)
         items = list(self.items.observed)
-        items.sort(key=lambda item: (item.value[1], item.value[0].__class__.__name__, item.value[0].value))
+        items.sort(key=lambda item: (
+            item.ts, item.writer, item.value.__class__.__name__,
+            item.value.pack())
+        )
 
         # set instance values
         self.cache_full = items
         self.cache = None
 
-    def update_cache(self, item: RGATupleWrapper, visible: bool) -> None:
+    def update_cache(self, item: RGAItemWrapper, visible: bool) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
-        tressa(isinstance(item, RGATupleWrapper), 'item must be RGATupleWrapper')
+        tressa(isinstance(item, RGAItemWrapper), 'item must be RGAItemWrapper')
         tressa(type(visible) is bool, 'visible must be bool')
 
         if self.cache_full is None:
@@ -158,11 +164,11 @@ class RGArray:
         if visible:
             if item not in self.cache_full:
                 # find correct insertion index
-                # sorted by ((timestamp, writer), wrapper class name, wrapped value)
+                # sorted by (timestamp, writer, wrapper class name, packed value)
                 index = bisect(
                     self.cache_full,
-                    (item.value[1], item.value[0].__class__.__name__, item.value[0].value),
-                    key=lambda a: (a.value[1], a.value[0].__class__.__name__, a.value[0].value)
+                    (item.ts, item.writer, item.value.__class__.__name__, item.value.pack()),
+                    key=lambda a: (a.ts, a.writer, a.value.__class__.__name__, a.value.pack())
                 )
                 self.cache_full.insert(index, item)
         else:

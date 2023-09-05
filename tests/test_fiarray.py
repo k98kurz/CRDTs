@@ -63,7 +63,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -82,6 +82,19 @@ class CustomStateUpdate(classes.StateUpdate):
 
 
 class TestFIArray(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_FIArray_implements_CRDTProtocol(self):
         assert isinstance(classes.FIArray(), interfaces.CRDTProtocol)
 
@@ -362,7 +375,7 @@ class TestFIArray(unittest.TestCase):
         fiarray.put_first(datawrappers.StrWrapper('test'), 1)
         fiarray.put_last(datawrappers.BytesWrapper(b'test'), 1)
         packed = fiarray.pack()
-        unpacked = classes.FIArray.unpack(packed)
+        unpacked = classes.FIArray.unpack(packed, inject=self.inject)
 
         assert fiarray.checksums() == unpacked.checksums()
         assert fiarray.read() == unpacked.read()
@@ -380,11 +393,13 @@ class TestFIArray(unittest.TestCase):
         packed = fia.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.FIArray.unpack(packed)
+            unpacked = classes.FIArray.unpack(packed, inject=self.inject)
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        unpacked = classes.FIArray.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.FIArray.unpack(
+            packed, inject={**self.inject, 'StrClock': StrClock}
+        )
 
         assert unpacked.clock == fia.clock
         assert unpacked.read() == fia.read()

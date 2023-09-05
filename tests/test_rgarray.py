@@ -63,7 +63,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -82,6 +82,18 @@ class CustomStateUpdate(classes.StateUpdate):
 
 
 class TestRGArray(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_RGArray_implements_CRDTProtocol(self):
         assert isinstance(classes.RGArray(), interfaces.CRDTProtocol)
 
@@ -99,29 +111,29 @@ class TestRGArray(unittest.TestCase):
 
         view2 = rga.read()
         assert view1 != view2
-        assert view2[0] == item.value
+        assert view2[0] == item
 
     def test_RGArray_delete_returns_StateUpdateProtocol_and_changes_read(self):
         rga = classes.RGArray()
         rga.append(datawrappers.StrWrapper('item'), 1)
 
         item = rga.read_full()[0]
-        assert item.value[0].value in rga.read()
+        assert item.value in rga.read()
 
         state_update = rga.delete(item)
         assert isinstance(state_update, interfaces.StateUpdateProtocol)
 
-        assert item.value[0].value not in rga.read()
+        assert item.value not in rga.read()
         assert item not in rga.read_full()
 
-    def test_RGArray_read_full_returns_tuple_of_RGATupleWrapper(self):
+    def test_RGArray_read_full_returns_tuple_of_RGAItemWrapper(self):
         rga = classes.RGArray()
         rga.append(datawrappers.BytesWrapper(b'hello'), 1)
         view = rga.read_full()
 
         assert type(view) is tuple
         for item in view:
-            assert isinstance(item, datawrappers.RGATupleWrapper)
+            assert isinstance(item, datawrappers.RGAItemWrapper)
 
     def test_RGArray_history_returns_tuple_of_StateUpdateProtocol(self):
         rga = classes.RGArray()
@@ -144,7 +156,8 @@ class TestRGArray(unittest.TestCase):
         rga2.update(update1)
 
         assert rga1.read() == rga2.read()
-        assert rga1.read() == ('item1', Decimal('0.1'))
+        assert rga1.read() == (datawrappers.StrWrapper('item1'),
+                               datawrappers.DecimalWrapper(Decimal('0.1')))
 
     def test_RGArray_concurrent_appends_with_same_writer_order_identically(self):
         rga1 = classes.RGArray()
@@ -157,7 +170,8 @@ class TestRGArray(unittest.TestCase):
         rga2.update(update1)
 
         assert rga1.read() == rga2.read()
-        assert rga1.read() == (Decimal('0.1'), 'item1')
+        assert rga1.read() == (datawrappers.DecimalWrapper(Decimal('0.1')),
+                               datawrappers.StrWrapper('item1'))
 
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
@@ -169,7 +183,8 @@ class TestRGArray(unittest.TestCase):
         rga2.update(update1)
 
         assert rga1.read() == rga2.read()
-        assert rga1.read() == ('item0', 'item1')
+        assert rga1.read() == (datawrappers.StrWrapper('item0'),
+                               datawrappers.StrWrapper('item1'))
 
     def test_RGArray_checksums_returns_tuple_of_int(self):
         rga = classes.RGArray()
@@ -256,7 +271,7 @@ class TestRGArray(unittest.TestCase):
 
         packed = rga.pack()
         assert type(packed) is bytes
-        unpacked = classes.RGArray.unpack(packed)
+        unpacked = classes.RGArray.unpack(packed, inject=self.inject)
         assert isinstance(unpacked, classes.RGArray)
 
         assert unpacked.clock == rga.clock
@@ -270,11 +285,11 @@ class TestRGArray(unittest.TestCase):
         packed = rga.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.RGArray.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
+            unpacked = classes.RGArray.unpack(packed, inject=self.inject)
+        assert 'StrClock not found' in str(e.exception)
 
         # inject and repeat
-        unpacked = classes.RGArray.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.RGArray.unpack(packed, inject={**self.inject, 'StrClock': StrClock})
 
         assert unpacked.clock == rga.clock
         assert unpacked.read() == rga.read()

@@ -6,6 +6,19 @@ import unittest
 
 
 class TestStateUpdate(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_StateUpdate_is_dataclass_with_attributes(self):
         update = classes.StateUpdate(b'123', 123, 321)
         assert is_dataclass(update)
@@ -50,13 +63,14 @@ class TestStateUpdate(unittest.TestCase):
         update = classes.StateUpdate(
             b'uuid',
             123,
-            datawrappers.RGATupleWrapper((
+            datawrappers.RGAItemWrapper(
                 datawrappers.StrWrapper('hello'),
-                (datawrappers.IntWrapper(123), 321)
-            ))
+                datawrappers.IntWrapper(123),
+                321
+            )
         )
         packed = update.pack()
-        unpacked = classes.StateUpdate.unpack(packed)
+        unpacked = classes.StateUpdate.unpack(packed, inject=self.inject)
         assert unpacked == update
 
         # LWWRegister StateUpdate e2e test
@@ -66,7 +80,7 @@ class TestStateUpdate(unittest.TestCase):
             (1, datawrappers.BytesWrapper(b'example'))
         )
         packed = update.pack()
-        unpacked = classes.StateUpdate.unpack(packed)
+        unpacked = classes.StateUpdate.unpack(packed, inject=self.inject)
         assert unpacked == update
 
         # LWWMap StateUpdate e2e test
@@ -81,7 +95,7 @@ class TestStateUpdate(unittest.TestCase):
             )
         )
         packed = update.pack()
-        unpacked = classes.StateUpdate.unpack(packed)
+        unpacked = classes.StateUpdate.unpack(packed, inject=self.inject)
         assert unpacked == update
 
         # FIArray StateUpdate e2e test
@@ -96,7 +110,7 @@ class TestStateUpdate(unittest.TestCase):
             )
         )
         packed = update.pack()
-        unpacked = classes.StateUpdate.unpack(packed)
+        unpacked = classes.StateUpdate.unpack(packed, inject=self.inject)
         assert unpacked == update
 
         # CausalTree StateUpdate e2e test

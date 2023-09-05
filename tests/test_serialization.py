@@ -34,51 +34,61 @@ class PackableMapEntry:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> PackableMapEntry:
+    def unpack(cls, data: bytes, inject: dict = {}) -> PackableMapEntry:
         key_len, value_len, data = struct.unpack(f'!HH{len(data)-4}s', data)
         key_data, value_data = struct.unpack(f'{key_len}s{value_len}s', data)
 
         assert type(key_data) is bytes
         key_class, key_data = key_data.split(b'_', 1)
         key_class = str(bytes.fromhex(str(key_class, 'utf-8')), 'utf-8')
-        key = getattr(datawrappers, key_class).unpack(key_data)
+        key = getattr(datawrappers, key_class).unpack(key_data, inject=inject)
 
         assert type(value_data) is bytes
         value_class, value_data = value_data.split(b'_', 1)
         value_class = str(bytes.fromhex(str(value_class, 'utf-8')), 'utf-8')
-        value = getattr(datawrappers, value_class).unpack(value_data)
+        value = getattr(datawrappers, value_class).unpack(value_data, inject=inject)
 
         return cls(key, value)
 
 
 class TestSerialization(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+        }
+        super().__init__(methodName)
+
     def test_serialize_and_deserialize_list_e2e(self):
         data = [
-            serialization.StrWrapper("hello world"),
+            datawrappers.StrWrapper("hello world"),
             "hello world",
-            serialization.BytesWrapper(b"hello world"),
+            datawrappers.BytesWrapper(b"hello world"),
             b'hello world',
             bytearray(b'hello world'),
-            serialization.IntWrapper(1234),
+            datawrappers.IntWrapper(1234),
             1234,
             123.456,
-            serialization.RGATupleWrapper((
-                serialization.StrWrapper("first"),
-                (
-                    serialization.StrWrapper("second"),
-                    123
-                )
-            )),
+            datawrappers.RGAItemWrapper(
+                datawrappers.StrWrapper("first"),
+                datawrappers.StrWrapper("second"),
+                123
+            ),
             PackableMapEntry(
-                serialization.StrWrapper("some key"),
-                serialization.BytesWrapper(b"some value"),
+                datawrappers.StrWrapper("some key"),
+                datawrappers.BytesWrapper(b"some value"),
             ),
             None
         ]
         serialized = serialization.serialize_part(data)
         deserialized = serialization.deserialize_part(
             serialized,
-            inject={"PackableMapEntry": PackableMapEntry}
+            inject={**self.inject, "PackableMapEntry": PackableMapEntry}
         )
 
         # compare all parts

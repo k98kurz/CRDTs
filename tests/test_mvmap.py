@@ -62,7 +62,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -81,6 +81,19 @@ class CustomStateUpdate(classes.StateUpdate):
 
 
 class TestMVMap(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_MVMap_implements_CRDTProtocol(self):
         assert isinstance(classes.MVMap(), interfaces.CRDTProtocol)
 
@@ -223,7 +236,7 @@ class TestMVMap(unittest.TestCase):
         mvmap.unset(datawrappers.StrWrapper('floof'))
         mvmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
         packed = mvmap.pack()
-        unpacked = classes.MVMap.unpack(packed)
+        unpacked = classes.MVMap.unpack(packed, inject=self.inject)
 
         assert unpacked.checksums() == mvmap.checksums()
 
@@ -240,11 +253,13 @@ class TestMVMap(unittest.TestCase):
         packed = mvm.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.MVMap.unpack(packed)
+            unpacked = classes.MVMap.unpack(packed, inject=self.inject)
         assert str(e.exception) == 'cannot find StrClock'
 
         # inject and repeat
-        unpacked = classes.MVMap.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.MVMap.unpack(
+            packed, inject={**self.inject, 'StrClock': StrClock}
+        )
 
         assert unpacked.clock == mvm.clock
         assert unpacked.read() == mvm.read()

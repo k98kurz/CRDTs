@@ -1,23 +1,16 @@
 from __future__ import annotations
-from .datawrappers import (
-    BytesWrapper,
-    CTDataWrapper,
-    DecimalWrapper,
-    IntWrapper,
-    NoneWrapper,
-    RGATupleWrapper,
-    StrWrapper,
-)
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
-from typing import Any, Hashable, Optional
-import json
-import struct
+from types import NoneType
+from typing import Any, Optional
 
+
+AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 @dataclass
 class ORSet:
@@ -35,92 +28,32 @@ class ORSet:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        clock_size = len(clock)
-        observed_metadata = {}
-        removed_metadata = {}
-
-        for member in self.observed_metadata:
-            if isinstance(member, DataWrapperProtocol):
-                key = member.__class__.__name__ + '_' + member.pack().hex()
-            else:
-                key = member
-            observed_metadata[key] = self.observed_metadata[member]
-
-        for member in self.removed_metadata:
-            if isinstance(member, DataWrapperProtocol):
-                key = member.__class__.__name__ + '_' + member.pack().hex()
-            else:
-                key = member
-            removed_metadata[key] = self.removed_metadata[member]
-
-        data = bytes(json.dumps(
-            {
-                'o': observed_metadata,
-                'r': removed_metadata
-            },
-            separators=(',', ':'),
-            sort_keys=True
-        ), 'utf-8')
-
-        return struct.pack(
-            f'!I{clock_size}s{len(data)}s',
-            clock_size,
-            clock,
-            data
-        )
+        return serialize_part([
+            self.observed,
+            [
+                (k,v) for k,v in self.observed_metadata.items()
+            ],
+            self.removed,
+            [
+                (k,v) for k,v in self.removed_metadata.items()
+            ],
+            self.clock,
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> ORSet:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 19, 'data must be more than 19 bytes')
-        dependencies = {**globals(), **inject}
-
-        clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
-        _, clock, sets = struct.unpack(
-            f'!I{clock_size}s{len(data)-4-clock_size}s',
-            data
+        observed, observed_metadata, removed, removed_metadata, clock = deserialize_part(
+            data,
+            inject=inject
         )
-
-        # parse clock
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-
-        # parse sets
-        sets = json.loads(str(sets, 'utf-8'))
-        observed_metadata = {}
-        removed_metadata = {}
-        o_metadata = sets['o']
-        r_metadata = sets['r']
-
-        for member in o_metadata:
-            if len(member.split('_')) == 2 and member.split('_')[0] in dependencies:
-                member_class, member_hex = member.split('_')
-                key = dependencies[member_class].unpack(bytes.fromhex(member_hex))
-                observed_metadata[key] = o_metadata[member]
-            else:
-                observed_metadata[member] = o_metadata[member]
-
-        for member in r_metadata:
-            if len(member.split('_')) == 2 and member.split('_')[0] in dependencies:
-                member_class, member_hex = member.split('_')
-                key = dependencies[member_class].unpack(bytes.fromhex(member_hex))
-                removed_metadata[key] = r_metadata[member]
-            else:
-                removed_metadata[member] = r_metadata[member]
-
-        observed = set(observed_metadata.keys())
-        removed = set(removed_metadata.keys())
-
+        observed_metadata = {k:v for k,v in observed_metadata}
+        removed_metadata = {k:v for k,v in removed_metadata}
         return cls(observed, observed_metadata, removed, removed_metadata, clock)
 
-    def read(self) -> set:
+    def read(self) -> set[AcceptableType]:
         """Return the eventually consistent data view."""
         if self.cache is not None:
             if self.cache[0] == self.clock.read():
@@ -143,11 +76,10 @@ class ORSet:
             'state_update.data must be 2 long')
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(type(hash(state_update.data[1])) is int,
-            'state_update.data[1] must be hashable')
+        tressa(isinstance(state_update.data[1], AcceptableType),
+            'state_update.data[1] must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         op, member = state_update.data
-        member = member.hex() if type(member) is bytes else member
         ts = state_update.ts
 
         if op == 'o':
@@ -273,10 +205,11 @@ class ORSet:
 
         return tuple(updates)
 
-    def observe(self, member: Hashable, /, *,
+    def observe(self, member: AcceptableType, /, *,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the observed set."""
-        tressa(type(hash(member)) is int, 'member must be Hashable')
+        tressa(isinstance(member, AcceptableType),
+               'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         member = str(member) if type(member) is int else member
         state_update = update_class(
@@ -289,10 +222,11 @@ class ORSet:
 
         return state_update
 
-    def remove(self, member: Hashable, /, *,
+    def remove(self, member: AcceptableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Adds the given member to the removed set."""
-        tressa(type(hash(member)) is int, 'member must be Hashable')
+        tressa(isinstance(member, AcceptableType),
+               'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         member = str(member) if type(member) is int else member
         state_update = update_class(

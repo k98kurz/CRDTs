@@ -23,7 +23,7 @@ from crdts.datawrappers import (
     DecimalWrapper,
     IntWrapper,
     NoneWrapper,
-    RGATupleWrapper,
+    RGAItemWrapper,
     StrWrapper
 )
 from crdts.serialization import (

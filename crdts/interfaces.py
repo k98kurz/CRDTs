@@ -9,8 +9,10 @@ class PackableProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes) -> PackableProtocol:
-        """Unpacks an instance from bytes."""
+    def unpack(cls, data: bytes, inject: dict = {}) -> PackableProtocol:
+        """Unpacks an instance from bytes. Must accept dependency
+            injection to unpack other Packable types.
+        """
         ...
 
 
@@ -50,7 +52,7 @@ class ClockProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes) -> ClockProtocol:
+    def unpack(cls, data: bytes, inject: dict = {}) -> ClockProtocol:
         """Unpack a clock from bytes."""
         ...
 
@@ -70,11 +72,11 @@ class CRDTProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes) -> CRDTProtocol:
+    def unpack(cls, data: bytes, inject: dict = {}) -> CRDTProtocol:
         """Unpack the data bytes string into an instance."""
         ...
 
-    def read(self) -> Any:
+    def read(self, inject: dict = {}) -> Any:
         """Return the eventually consistent data view."""
         ...
 
@@ -101,6 +103,7 @@ class CRDTProtocol(Protocol):
 class DataWrapperProtocol(Protocol):
     """Duck type protocol for values that can be written to a LWWRegister,
         included in a GSet or ORSet, or be used as the key for a LWWMap.
+        Can also be packed, unpacked, and compared.
     """
     value: Any
 

@@ -5,7 +5,7 @@ from .datawrappers import (
     DecimalWrapper,
     IntWrapper,
     NoneWrapper,
-    RGATupleWrapper,
+    RGAItemWrapper,
     StrWrapper,
 )
 from .errors import tressa
@@ -55,12 +55,19 @@ class MVRegister:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 26, 'data must be at least 26 bytes')
-        name, clock, last_update, values = deserialize_part(data, inject=inject)
+        name, clock, last_update, values = deserialize_part(
+            data, inject={'StateUpdate': StateUpdate, **inject}
+        )
         return cls(name, values, clock, last_update)
 
-    def read(self) -> tuple[AcceptableType]:
+    def read(self, inject: dict = {}) -> tuple[AcceptableType]:
         """Return the eventually consistent data view."""
-        return tuple([deserialize_part(serialize_part(value)) for value in self.values])
+        return tuple([
+            deserialize_part(
+                serialize_part(value), inject={**globals(), **inject}
+            )
+            for value in self.values
+        ])
 
     @classmethod
     def compare_values(cls, value1: AcceptableType,

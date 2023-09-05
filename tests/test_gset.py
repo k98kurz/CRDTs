@@ -62,7 +62,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -81,6 +81,19 @@ class CustomStateUpdate(classes.StateUpdate):
 
 
 class TestGSet(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_GSet_implements_CRDTProtocol(self):
         assert isinstance(classes.GSet(), interfaces.CRDTProtocol)
 
@@ -189,7 +202,7 @@ class TestGSet(unittest.TestCase):
         gset1.add(datawrappers.IntWrapper(1))
         gset1.add(datawrappers.IntWrapper(2))
         packed = gset1.pack()
-        gset2 = classes.GSet.unpack(packed)
+        gset2 = classes.GSet.unpack(packed, inject=self.inject)
 
         assert gset1.clock.uuid == gset2.clock.uuid
         assert gset1.read() == gset2.read()
@@ -202,11 +215,11 @@ class TestGSet(unittest.TestCase):
         packed = gset.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.GSet.unpack(packed)
+            unpacked = classes.GSet.unpack(packed, inject=self.inject)
         assert 'not found' in str(e.exception)
 
         # inject and repeat
-        unpacked = classes.GSet.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.GSet.unpack(packed, inject={**self.inject, 'StrClock': StrClock})
 
         assert unpacked.clock == gset.clock
         assert unpacked.read() == gset.read()
@@ -220,11 +233,13 @@ class TestGSet(unittest.TestCase):
         packed = gset.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.GSet.unpack(packed)
+            unpacked = classes.GSet.unpack(packed, inject=self.inject)
         assert 'CustomStateUpdate not found' in str(e.exception)
 
         # inject and repeat
-        unpacked = classes.GSet.unpack(packed, {'CustomStateUpdate': CustomStateUpdate})
+        unpacked = classes.GSet.unpack(
+            packed, inject={**self.inject, 'CustomStateUpdate': CustomStateUpdate}
+        )
 
         assert unpacked.clock == gset.clock
         assert unpacked.read() == gset.read()

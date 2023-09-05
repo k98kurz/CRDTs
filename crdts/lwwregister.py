@@ -5,16 +5,16 @@ from .datawrappers import (
     DecimalWrapper,
     IntWrapper,
     NoneWrapper,
-    RGATupleWrapper,
+    RGAItemWrapper,
     StrWrapper,
 )
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
 from typing import Any
-import struct
 
 
 class LWWRegister:
@@ -45,104 +45,35 @@ class LWWRegister:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        # pack name
-        name = self.name.__class__.__name__ + '_' + self.name.pack().hex()
-        name = bytes(name, 'utf-8')
-        name_size = len(name)
-
-        # pack clock
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        clock_size = len(clock)
-
-        # pack value
-        value_type = bytes(self.value.__class__.__name__, 'utf-8')
-        value_type_size = len(value_type)
-        value = self.value.pack()
-        value_size = len(value)
-
-        # pack last_update
-        last_update = self.clock.wrap_ts(self.last_update)
-        ts_class = bytes(last_update.__class__.__name__, 'utf-8')
-        ts_class_size = len(ts_class)
-        last_update = last_update.pack()
-        last_update_size = len(last_update)
-
-        return struct.pack(
-            f'!IIIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s' +
-            f'{ts_class_size}s{last_update_size}s',
-            ts_class_size,
-            last_update_size,
-            self.last_writer,
-            name_size,
-            clock_size,
-            value_type_size,
-            value_size,
-            name,
-            clock,
-            value_type,
-            value,
-            ts_class,
-            last_update,
-        )
+        return serialize_part([
+            self.name,
+            self.clock,
+            self.value,
+            self.last_update,
+            self.last_writer
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> LWWRegister:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 26, 'data must be at least 26 bytes')
-        dependencies = {**globals(), **inject}
-
-        # parse
-        ts_class_size, last_update_size, last_writer, name_size, clock_size, value_type_size, value_size, _ = struct.unpack(
-            f'!IIIIIII{len(data)-28}s',
-            data
+        name, clock, value, last_update, last_writer = deserialize_part(
+            data, inject={**globals(), **inject}
         )
-        _, _, _, _, _, _, _, name, clock, value_type, value, ts_class, last_update = struct.unpack(
-            f'!IIIIIII{name_size}s{clock_size}s{value_type_size}s{value_size}s' +
-            f'{ts_class_size}s{last_update_size}s',
-            data
+        return cls(
+            name=name,
+            clock=clock,
+            value=value,
+            last_update=last_update,
+            last_writer=last_writer,
         )
 
-        # parse name
-        name = str(name, 'utf-8')
-        name_class, name_value = name.split('_')
-        tressa(name_class in dependencies, f'cannot find {name_class}')
-        tressa(hasattr(dependencies[name_class], 'unpack'),
-            f'{name_class} missing unpack method')
-        name = dependencies[name_class].unpack(bytes.fromhex(name_value))
-
-        # parse clock
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-
-        # parse value
-        value_type = str(value_type, 'utf-8')
-        tressa(value_type in dependencies, 'value_type must be resolvable from globals or injected')
-        value = dependencies[value_type].unpack(value)
-        tressa(isinstance(value, DataWrapperProtocol),
-            'value_type must implement DataWrapperProtocol')
-
-        # parse last_update
-        ts_class = str(ts_class, 'utf-8')
-        tressa(ts_class in dependencies,
-            'last_update wrapped class must be resolvable from globals or injected')
-        tressa(hasattr(dependencies[ts_class], 'unpack'),
-            f'{ts_class} missing unpack method')
-        last_update = dependencies[ts_class].unpack(last_update)
-        tressa(isinstance(last_update, DataWrapperProtocol),
-            'last_update class must implement DataWrapperProtocol')
-        last_update = last_update.value
-
-        return cls(name, value, clock, last_update, last_writer)
-
-    def read(self) -> DataWrapperProtocol:
+    def read(self, inject: dict = {}) -> DataWrapperProtocol:
         """Return the eventually consistent data view."""
-        return self.value.__class__.unpack(self.value.pack())
+        return deserialize_part(
+            serialize_part(self.value), inject={**globals(), **inject}
+        )
 
     @classmethod
     def compare_values(cls, value1: DataWrapperProtocol,

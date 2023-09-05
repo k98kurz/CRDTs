@@ -62,7 +62,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -81,6 +81,19 @@ class CustomStateUpdate(classes.StateUpdate):
 
 
 class TestORSet(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest") -> None:
+        self.inject = {
+            'BytesWrapper': datawrappers.BytesWrapper,
+            'StrWrapper': datawrappers.StrWrapper,
+            'IntWrapper': datawrappers.IntWrapper,
+            'DecimalWrapper': datawrappers.DecimalWrapper,
+            'CTDataWrapper': datawrappers.CTDataWrapper,
+            'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'NoneWrapper': datawrappers.NoneWrapper,
+            'ScalarClock': classes.ScalarClock,
+        }
+        super().__init__(methodName)
+
     def test_ORSet_implements_CRDTProtocol(self):
         assert isinstance(classes.ORSet(), interfaces.CRDTProtocol)
 
@@ -226,7 +239,7 @@ class TestORSet(unittest.TestCase):
         orset1.remove(2)
         orset1.remove(datawrappers.BytesWrapper(b'hello'))
         packed = orset1.pack()
-        orset2 = classes.ORSet.unpack(packed)
+        orset2 = classes.ORSet.unpack(packed, inject=self.inject)
 
         assert orset1.clock.uuid == orset2.clock.uuid
         assert orset1.read() == orset2.read()
@@ -246,11 +259,11 @@ class TestORSet(unittest.TestCase):
         packed = ors.pack()
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            unpacked = classes.ORSet.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
+            unpacked = classes.ORSet.unpack(packed, inject=self.inject)
+        assert 'StrClock not found' in str(e.exception)
 
         # inject and repeat
-        unpacked = classes.ORSet.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.ORSet.unpack(packed, inject={**self.inject, 'StrClock': StrClock})
 
         assert unpacked.clock == ors.clock
         assert unpacked.read() == ors.read()

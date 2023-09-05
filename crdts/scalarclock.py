@@ -67,7 +67,7 @@ class ScalarClock:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> ScalarClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> ScalarClock:
         """Unpacks a clock from bytes."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) >= 5, 'data must be at least 5 bytes')

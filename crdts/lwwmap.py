@@ -1,12 +1,6 @@
 from __future__ import annotations
 from .datawrappers import (
-    BytesWrapper,
-    CTDataWrapper,
-    DecimalWrapper,
-    IntWrapper,
     NoneWrapper,
-    RGATupleWrapper,
-    StrWrapper,
 )
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
@@ -134,12 +128,12 @@ class LWWMap:
 
         return cls(names, registers, clock)
 
-    def read(self) -> dict:
+    def read(self, inject: dict = {}) -> dict:
         """Return the eventually consistent data view."""
         result = {}
 
         for name in self.names.read():
-            result[name] = self.registers[name].read()
+            result[name] = self.registers[name].read(inject=inject)
 
         return result
 

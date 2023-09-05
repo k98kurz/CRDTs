@@ -62,7 +62,7 @@ class StrClock:
         return bytes(self.counter, 'utf-8') + b'_' + self.uuid
 
     @classmethod
-    def unpack(cls, data: bytes) -> StrClock:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StrClock:
         """Unpacks a clock from bytes."""
         assert type(data) is bytes, 'data must be bytes'
         assert len(data) >= 5, 'data must be at least 5 bytes'
@@ -228,7 +228,7 @@ class TestLWWRegister(unittest.TestCase):
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.LWWRegister.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
+        assert 'StrClock not found' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.LWWRegister.unpack(packed, {'StrClock': StrClock})

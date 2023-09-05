@@ -33,7 +33,7 @@ class StateUpdate:
         )
 
     @classmethod
-    def unpack(cls, data: bytes) -> StateUpdate:
+    def unpack(cls, data: bytes, inject: dict = {}) -> StateUpdate:
         """Deserialize a StateUpdate. Assumes that all types within
             update.data and update.ts are either built-in types or
             PackableProtocols accessible from this scope.
@@ -44,9 +44,9 @@ class StateUpdate:
         uuid_len, ts_len, data_len, _ = struct.unpack(f'!III{len(data)-12}s', data)
         _, _, _, uuid, ts, data = struct.unpack(f'III{uuid_len}s{ts_len}s{data_len}s', data)
 
-        uuid = deserialize_part(uuid)
-        ts = deserialize_part(ts)
-        data = deserialize_part(data)
+        uuid = deserialize_part(uuid, inject=inject)
+        ts = deserialize_part(ts, inject=inject)
+        data = deserialize_part(data, inject=inject)
 
         return cls(clock_uuid=uuid, ts=ts, data=data)
 

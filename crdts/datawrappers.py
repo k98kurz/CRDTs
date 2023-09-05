@@ -201,43 +201,37 @@ class IntWrapper(DecimalWrapper):
         return cls(struct.unpack('!i', data)[0])
 
 
-class RGATupleWrapper(StrWrapper):
-    value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]
+class RGAItemWrapper(StrWrapper):
+    value: DataWrapperProtocol
+    ts: DataWrapperProtocol
+    writer: int
 
-    def __init__(self, value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]) -> None:
-        tressa(type(value) is tuple,
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
-        tressa(len(value) == 2,
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
-        tressa(isinstance(value[0], DataWrapperProtocol),
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
-        tressa(type(value[1]) is tuple,
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
-        tressa(len(value[1]) == 2,
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
-        tressa(isinstance(value[1][0], DataWrapperProtocol),
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
-        tressa(type(value[1][1]) is int,
-            'value must be of form tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]')
+    def __init__(self, value: DataWrapperProtocol, ts: DataWrapperProtocol,
+                 writer: int) -> None:
+        tressa(isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol')
+        tressa(isinstance(ts, DataWrapperProtocol), 'ts must be DataWrapperProtocol')
+        tressa(type(writer) is int, 'writer must be int')
 
         self.value = value
+        self.ts = ts
+        self.writer = writer
 
     def pack(self) -> bytes:
-        packed_val = bytes(self.value[0].__class__.__name__, 'utf-8').hex() + '_'
-        packed_val = bytes(packed_val, 'utf-8') + self.value[0].pack()
-        packed_ts = bytes(self.value[1][0].__class__.__name__, 'utf-8').hex() + '_'
-        packed_ts = bytes(packed_ts, 'utf-8') + self.value[1][0].pack()
+        packed_val = bytes(self.value.__class__.__name__, 'utf-8').hex() + '_'
+        packed_val = bytes(packed_val, 'utf-8') + self.value.pack()
+        packed_ts = bytes(self.ts.__class__.__name__, 'utf-8').hex() + '_'
+        packed_ts = bytes(packed_ts, 'utf-8') + self.ts.pack()
         return struct.pack(
             f'!II{len(packed_val)}s{len(packed_ts)}sI',
             len(packed_val),
             len(packed_ts),
             packed_val,
             packed_ts,
-            self.value[1][1]
+            self.writer
         )
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> RGATupleWrapper:
+    def unpack(cls, data: bytes, inject: dict = {}) -> RGAItemWrapper:
         dependencies = {**globals(), **inject}
         packed_len, ts_len, _ = struct.unpack(f'!II{len(data)-8}s', data)
         _, packed, ts, writer = struct.unpack(f'!8s{packed_len}s{ts_len}sI', data)
@@ -260,7 +254,7 @@ class RGATupleWrapper(StrWrapper):
             f'{classname} missing unpack method')
         ts = dependencies[classname].unpack(ts)
 
-        return cls((item, (ts, writer)))
+        return cls(item, ts, writer)
 
 
 @dataclass

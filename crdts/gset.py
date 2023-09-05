@@ -1,13 +1,4 @@
 from __future__ import annotations
-from .datawrappers import (
-    BytesWrapper,
-    CTDataWrapper,
-    DecimalWrapper,
-    IntWrapper,
-    NoneWrapper,
-    RGATupleWrapper,
-    StrWrapper,
-)
 from .errors import tressa
 from .interfaces import (
     ClockProtocol,
@@ -21,8 +12,6 @@ from binascii import crc32
 from dataclasses import dataclass, field
 from types import NoneType
 from typing import Any
-import json
-import struct
 
 
 AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
@@ -55,7 +44,7 @@ class GSet:
         )
         return cls(members, clock, {k:v for k,v in update_history})
 
-    def read(self) -> set:
+    def read(self, inject: dict = {}) -> set:
         """Return the eventually consistent data view."""
         return self.members.copy()
 
