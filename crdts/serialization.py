@@ -10,6 +10,7 @@ from .datawrappers import (
 )
 from .errors import tressa
 from .interfaces import PackableProtocol
+from .scalarclock import ScalarClock
 from typing import Any
 import struct
 

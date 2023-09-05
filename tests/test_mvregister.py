@@ -243,7 +243,7 @@ class TestMVRegister(unittest.TestCase):
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.MVRegister.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
+        assert 'not found' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.MVRegister.unpack(packed, {'StrClock': StrClock})

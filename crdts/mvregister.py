@@ -11,17 +11,21 @@ from .datawrappers import (
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
+from types import NoneType
 from typing import Any
-import struct
 
+
+AcceptableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class MVRegister:
     """Implements the Multi-Value Register CRDT."""
     name: DataWrapperProtocol
     values: list[DataWrapperProtocol]
     clock: ClockProtocol
+    last_update: Any
 
     def __init__(self, name: DataWrapperProtocol,
                  values: list[DataWrapperProtocol] = [],
@@ -39,129 +43,29 @@ class MVRegister:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        # pack name
-        name = self.name.__class__.__name__ + '_' + self.name.pack().hex()
-        name = bytes(name, 'utf-8')
-        name_size = len(name)
-
-        # pack clock
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        clock_size = len(clock)
-
-        # pack values
-        packed_values = b''
-        for value in self.values:
-            value_type = bytes(value.__class__.__name__, 'utf-8')
-            value_type_size = len(value_type)
-            value_packed = value.pack()
-            value_size = len(value_packed)
-            value_package = struct.pack(
-                f'!II{value_type_size}s{value_size}s',
-                value_type_size,
-                value_size,
-                value_type,
-                value_packed
-            )
-            packed_values = packed_values + value_package
-        values_size = len(packed_values)
-
-        # pack last_update
-        last_update = self.clock.wrap_ts(self.last_update)
-        ts_class = bytes(last_update.__class__.__name__, 'utf-8')
-        ts_class_size = len(ts_class)
-        last_update = last_update.pack()
-        last_update_size = len(last_update)
-
-        return struct.pack(
-            f'!IIIII{name_size}s{clock_size}s{values_size}s' +
-            f'{ts_class_size}s{last_update_size}s',
-            ts_class_size,
-            last_update_size,
-            name_size,
-            clock_size,
-            values_size,
-            name,
-            clock,
-            packed_values,
-            ts_class,
-            last_update,
-        )
+        return serialize_part([
+            self.name,
+            self.clock,
+            self.last_update,
+            self.values
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> MVRegister:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 26, 'data must be at least 26 bytes')
-        dependencies = {**globals(), **inject}
-
-        # parse
-        ts_class_size, last_update_size, name_size, clock_size, values_size, data = struct.unpack(
-            f'!IIIII{len(data)-20}s',
-            data
-        )
-        name, clock, packed_values, ts_class, last_update = struct.unpack(
-            f'!{name_size}s{clock_size}s{values_size}s' +
-            f'{ts_class_size}s{last_update_size}s',
-            data
-        )
-
-        # parse name
-        name = str(name, 'utf-8')
-        name_class, name_value = name.split('_')
-        tressa(name_class in dependencies, f'cannot find {name_class}')
-        tressa(hasattr(dependencies[name_class], 'unpack'),
-            f'{name_class} missing unpack method')
-        name = dependencies[name_class].unpack(bytes.fromhex(name_value))
-
-        # parse clock
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-
-        # parse values
-        values = []
-        while len(packed_values):
-            value_type_size, value_size, packed_values = struct.unpack(
-                f'!II{len(packed_values)-8}s',
-                packed_values
-            )
-            remaining = len(packed_values) - value_type_size - value_size
-            value_type, value, packed_values = struct.unpack(
-                f'!{value_type_size}s{value_size}s{remaining}s',
-                packed_values
-            )
-            value_type = str(value_type, 'utf-8')
-            tressa(value_type in dependencies, f'cannot find {value_type}')
-            value = dependencies[value_type].unpack(value)
-            tressa(isinstance(value, DataWrapperProtocol),
-                'value_type must implement DataWrapperProtocol')
-            values.append(value)
-
-        # parse last_update
-        ts_class = str(ts_class, 'utf-8')
-        tressa(ts_class in dependencies,
-            'last_update wrapped class must be resolvable from globals')
-        tressa(hasattr(dependencies[ts_class], 'unpack'),
-            f'{ts_class} missing unpack method')
-        last_update = dependencies[ts_class].unpack(last_update)
-        tressa(isinstance(last_update, DataWrapperProtocol),
-            'last_update class must implement DataWrapperProtocol')
-        last_update = last_update.value
-
+        name, clock, last_update, values = deserialize_part(data, inject=inject)
         return cls(name, values, clock, last_update)
 
-    def read(self) -> tuple[DataWrapperProtocol]:
+    def read(self) -> tuple[AcceptableType]:
         """Return the eventually consistent data view."""
-        return tuple([value.__class__.unpack(value.pack()) for value in self.values])
+        return tuple([deserialize_part(serialize_part(value)) for value in self.values])
 
     @classmethod
-    def compare_values(cls, value1: DataWrapperProtocol,
-                       value2: DataWrapperProtocol) -> bool:
-        return value1.pack() > value2.pack()
+    def compare_values(cls, value1: AcceptableType,
+                       value2: AcceptableType) -> bool:
+        return serialize_part(value1) > serialize_part(value2)
 
     def update(self, state_update: StateUpdateProtocol) -> MVRegister:
         """Apply an update and return self (monad pattern)."""
@@ -169,8 +73,10 @@ class MVRegister:
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, DataWrapperProtocol),
-            'state_update.data must be DataWrapperProtocol')
+        tressa(isinstance(state_update.data, DataWrapperProtocol) or
+               type(state_update.data) in (int,float,str,bytes,bytearray) or
+               state_update.data is None,
+            'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         # set the value if the update happens after current state
         if self.clock.is_later(state_update.ts, self.last_update):
@@ -193,7 +99,7 @@ class MVRegister:
         """
         return (
             self.last_update,
-            sum([crc32(v.pack()) for v in self.values]) % 2**32,
+            sum([crc32(serialize_part(v)) for v in self.values]) % 2**32,
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
@@ -208,13 +114,14 @@ class MVRegister:
             for v in self.values
         ])
 
-    def write(self, value: DataWrapperProtocol, /, *,
+    def write(self, value: AcceptableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default).
         """
-        tressa(isinstance(value, DataWrapperProtocol) or value is None,
-            'value must be a DataWrapperProtocol or None')
+        tressa(isinstance(value, DataWrapperProtocol) or
+               type(value) in (int,float,str,bytes,bytearray) or value is None,
+            'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
