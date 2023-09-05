@@ -119,7 +119,7 @@ def deserialize_part(data: bytes, inject: dict = {}) -> Any:
                 f'!{5+item_len}s{len(let_data)-5-item_len}s',
                 let_data
             )
-            items += [deserialize_part(item, inject=inject)]
+            items.append(deserialize_part(item, inject=inject))
 
         if code == b'l':
             return items
