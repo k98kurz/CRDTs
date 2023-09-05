@@ -11,10 +11,10 @@ from .datawrappers import (
 from .errors import tressa
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from dataclasses import dataclass, field
 from typing import Any
-import struct
 
 
 @dataclass
@@ -25,34 +25,15 @@ class Counter:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        clock_size = len(clock)
-
-        return struct.pack(
-            f'!I{clock_size}sI',
-            clock_size,
-            clock,
-            self.counter
-        )
+        return serialize_part([self.counter, self.clock])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> Counter:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 8, 'data must be more than 8 bytes')
-        dependencies = {**globals(), **inject}
-
-        clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
-        _, clock, counter = struct.unpack(f'!I{clock_size}sI', data)
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-
-        return cls(counter=counter, clock=clock)
+        counter, clock = deserialize_part(data, inject=inject)
+        return cls(counter, clock)
 
     def read(self) -> int:
         """Return the eventually consistent data view."""

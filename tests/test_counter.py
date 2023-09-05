@@ -182,7 +182,7 @@ class TestCounter(unittest.TestCase):
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             unpacked = classes.Counter.unpack(packed)
-        assert str(e.exception) == 'cannot find StrClock'
+        assert 'not found' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.Counter.unpack(packed, {'StrClock': StrClock})
