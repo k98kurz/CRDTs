@@ -1,21 +1,33 @@
 from __future__ import annotations
-from .datawrappers import DecimalWrapper, NoneWrapper
+from .datawrappers import (
+    BytesWrapper,
+    StrWrapper,
+    IntWrapper,
+    DecimalWrapper,
+    NoneWrapper,
+    FIAItemWrapper
+)
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from bisect import bisect
 from decimal import Decimal
+from types import NoneType
 from typing import Any
+from uuid import uuid4
 
+
+SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class FIArray:
     """Implements a fractionally-indexed array CRDT."""
     positions: LWWMap
     clock: ClockProtocol
-    cache_full: list[DataWrapperProtocol]
-    cache: list[Any]
+    cache_full: list[FIAItemWrapper]
+    cache: list[SerializableType]
 
     def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
         """Initialize an FIArray from an LWWMap of item positions and a
@@ -47,29 +59,32 @@ class FIArray:
         positions = LWWMap.unpack(data, inject)
         return cls(positions=positions, clock=positions.clock)
 
-    def read(self) -> tuple[Any]:
+    def read(self, inject: dict = {}) -> tuple[Any]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
         if self.cache is None:
             if self.cache_full is None:
-                self.calculate_cache()
+                self.calculate_cache(inject=inject)
             self.cache = [item.value for item in self.cache_full]
 
         return tuple(self.cache)
 
-    def read_full(self) -> tuple[DataWrapperProtocol]:
+    def read_full(self, inject: dict = {}) -> tuple[FIAItemWrapper]:
         """Return the full, eventually consistent list of items without
-            tombstones but with complete DataWrapperProtocols rather than
-            the underlying values. Use this for preparing deletion
-            updates -- only a DataWrapperProtocol can be used for delete.
+            tombstones but with complete FIAItemWrappers rather than the
+            underlying SerializableType values. Use the resulting
+            FIAItemWrapper(s) for calling delete and move_item. (The
+            FIAItemWrapper containing a value put into the list will be
+            index 3 of the StateUpdate returned by a put method.)
         """
         if self.cache_full is None:
-            self.calculate_cache()
+            self.calculate_cache(inject=inject)
 
         return tuple(self.cache_full)
 
-    def update(self, state_update: StateUpdateProtocol) -> FIArray:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> FIArray:
         """Apply an update and return self (monad pattern)."""
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
@@ -79,15 +94,17 @@ class FIArray:
             'state_update.data must be tuple')
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(isinstance(state_update.data[1], DataWrapperProtocol),
-            'state_update.data[1] must be instance implementing DataWrapperProtocol')
+        tressa(isinstance(state_update.data[1], SerializableType),
+            'state_update.data[1] must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(state_update.data[2]) is int,
             'state_update.data[2] must be writer int')
-        tressa(type(state_update.data[3]) in (DecimalWrapper, NoneWrapper),
-            'state_update.data[3] must be DecimalWrapper or NoneWrapper')
+        tressa(isinstance(state_update.data[3], FIAItemWrapper) or
+               isinstance(state_update.data[3], NoneWrapper),
+            'state_update.data[3] must be FIAItemWrapper|NoneWrapper')
 
         self.positions.update(state_update)
-        self.update_cache(state_update.data[1], state_update.data[0] == 'o')
+        self.update_cache(state_update.data[1], state_update.data[3], state_update.data[0] == 'o',
+                          inject=inject)
 
         return self
 
@@ -117,110 +134,120 @@ class FIArray:
 
         return Decimal(first + second)/Decimal(2)
 
-    def put(self, item: DataWrapperProtocol, writer: int, index: Decimal, /, *,
-            update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def put(self, item: SerializableType, writer: int, index: Decimal, /, *,
+            update_class: type[StateUpdateProtocol] = StateUpdate,
+            inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the index.
         """
+        fia_item = FIAItemWrapper(
+            value=item,
+            index=index,
+            uuid=uuid4().bytes
+        )
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
             data=(
                 'o',
-                item,
+                BytesWrapper(fia_item.uuid),
                 writer,
-                DecimalWrapper(index)
+                fia_item
             )
         )
 
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update
 
-    def put_between(self, item: DataWrapperProtocol, writer: int,
-                    first: DataWrapperProtocol, second: DataWrapperProtocol, /, *,
-                    update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def put_between(self, item: SerializableType, writer: int,
+                    first: FIAItemWrapper, second: FIAItemWrapper, /, *,
+                    update_class: type[StateUpdateProtocol] = StateUpdate,
+                    inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between first and
             second.
         """
-        tressa(first in self.read_full(), 'first must already be assigned a position')
-        tressa(second in self.read_full(), 'second must already be assigned a position')
-
-        first_index = self.positions.registers[first].value.value
-        second_index = self.positions.registers[second].value.value
+        first_index = first.index.value
+        second_index = second.index.value
         index = self.index_between(first_index, second_index)
 
-        return self.put(item, writer, index, update_class=update_class)
+        return self.put(item, writer, index, update_class=update_class,
+                        inject=inject)
 
-    def put_before(self, item: DataWrapperProtocol, writer: int,
-                   other: DataWrapperProtocol, /, *,
-                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def put_before(self, item: SerializableType, writer: int,
+                   other: FIAItemWrapper, /, *,
+                   update_class: type[StateUpdateProtocol] = StateUpdate,
+                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item before the other item.
         """
-        tressa(other in self.read_full(), 'other must already be assigned a position')
+        tressa(other in self.read_full(inject=inject),
+               'other must already be assigned a position')
 
-        before_index = self.positions.registers[other].value.value
-        first_index = self.read_full().index(other)
+        before_index = other.index.value
+        first_index = self.read_full(inject=inject).index(other)
 
         if first_index > 0:
-            prior = self.read_full()[first_index-1]
-            prior_index = self.positions.registers[prior].value.value
+            prior = self.read_full(inject=inject)[first_index-1]
+            prior_index = prior.index.value
         else:
             prior_index = Decimal(0)
 
         index = self.index_between(before_index, prior_index)
 
-        return self.put(item, writer, index, update_class=update_class)
+        return self.put(item, writer, index, update_class=update_class, inject=inject)
 
-    def put_after(self, item: DataWrapperProtocol, writer: int,
-                  other: DataWrapperProtocol, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def put_after(self, item: SerializableType, writer: int,
+                  other: FIAItemWrapper, /, *,
+                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item after the other item.
         """
-        tressa(other in self.read_full(), 'other must already be assigned a position')
+        tressa(other in self.read_full(inject=inject), 'other must already be assigned a position')
 
-        after_index = self.positions.registers[other].value.value
-        first_index = self.read_full().index(other)
+        after_index = other.index.value
+        first_index = self.read_full(inject=inject).index(other)
 
-        if len(self.read_full()) > first_index+1:
-            next = self.read_full()[first_index+1]
-            next_index = self.positions.registers[next].value.value
+        if len(self.read_full(inject=inject)) > first_index+1:
+            next = self.read_full(inject=inject)[first_index+1]
+            next_index = next.index
         else:
             next_index = Decimal(1)
 
         index = self.index_between(after_index, next_index)
 
-        return self.put(item, writer, index, update_class=update_class)
+        return self.put(item, writer, index, update_class=update_class, inject=inject)
 
-    def put_first(self, item: DataWrapperProtocol, writer: int, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def put_first(self, item: SerializableType, writer: int, /, *,
+                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between 0 and the
             first item.
         """
-        if len(self.read_full()) > 0:
-            first = self.read_full()[0]
-            first_index = self.positions.registers[first].value.value
+        if len(self.read_full(inject=inject)) > 0:
+            first = self.read_full(inject=inject)[0]
+            first_index = first.index.value
             # average between 0 and first index
             index = Decimal(Decimal(0) + first_index)/Decimal(2)
         else:
             # average between 0 and 1
             index = Decimal('0.5')
 
-        return self.put(item, writer, index, update_class=update_class)
+        return self.put(item, writer, index, update_class=update_class, inject=inject)
 
-    def put_last(self, item: DataWrapperProtocol, writer: int, /, *,
-                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def put_last(self, item: SerializableType, writer: int, /, *,
+                 update_class: type[StateUpdateProtocol] = StateUpdate,
+                 inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between the last
             item and 1.
         """
-        if len(self.read_full()) > 0:
-            last = self.read_full()[-1]
-            last_index = self.positions.registers[last].value.value
+        if len(self.read_full(inject=inject)) > 0:
+            last = self.read_full(inject=inject)[-1]
+            last_index = last.index.value
             # average between last index and 1
             index = Decimal(last_index + Decimal(1))/Decimal(2)
         else:
@@ -229,8 +256,36 @@ class FIArray:
 
         return self.put(item, writer, index, update_class=update_class)
 
-    def delete(self, item: DataWrapperProtocol, writer: int, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def move_item(self, item: FIAItemWrapper, /, *, new_index: Decimal = None,
+                  before_item: FIAItemWrapper = None,
+                  after_item: FIAItemWrapper = None,
+                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that puts the item at the new index, or directly
+            before the before_item, or directly after the after_item, or
+            halfway between before_item and after_item.
+        """
+        tressa(new_index is not None or before_item is not None or
+               after_item is not None,
+               'at least one must be specified: new_index, before_item, or after_item')
+        tressa(new_index is None or type(new_index) is Decimal,
+               'new_index must be Decimal|NoneType')
+        tressa(before_item is None or isinstance(before_item, FIAItemWrapper),
+               'before_item must be FIAItemWrapper|NoneType')
+        tressa(after_item is None or isinstance(after_item, FIAItemWrapper),
+               'after_item must be FIAItemWrapper|NoneType')
+
+        if new_index is None:
+            if before_item and after_item:
+                new_index = self.index_between(after_item.index, before_item.index)
+            elif before_item:
+                bfidx = self.cache_full.index(before_item)
+            elif after_item:
+                ...
+
+    def delete(self, item: FIAItemWrapper, writer: int, /, *,
+               update_class: type[StateUpdateProtocol] = StateUpdate,
+               inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item.
         """
@@ -239,53 +294,59 @@ class FIArray:
             ts=self.clock.read(),
             data=(
                 'r',
-                item,
+                BytesWrapper(item.uuid),
                 writer,
-                NoneWrapper()
+                NoneWrapper(),
             )
         )
 
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update
 
-    def calculate_cache(self) -> None:
+    def calculate_cache(self, inject: dict = {}) -> None:
         """Reads the items from the underlying LWWMap, orders them, then
             sets the cache_full list. Resets the cache.
         """
         # create list of all items
-        positions = self.positions.read()
-        items = [key for key in positions]
-        # sort by (index, wrapper class name, wrapped value)
-        items.sort(key=lambda item: (positions[item], item.__class__.__name__, item.value))
+        positions = self.positions.read(inject={**globals(), **inject})
+        items: list[FIAItemWrapper] = [v for k, v in positions.items()]
+        # sort by (index, serialized value)
+        items.sort(key=lambda item: (item.index, serialize_part(item.value)))
 
         # set instance values
         self.cache_full = items
         self.cache = None
 
-    def update_cache(self, item: DataWrapperProtocol, visible: bool) -> None:
+    def update_cache(self, uuid: BytesWrapper, item: FIAItemWrapper|NoneWrapper,
+                     visible: bool, /, *, inject: dict = {}) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
-        tressa(isinstance(item, DataWrapperProtocol), 'item must be DataWrapperProtocol')
+        tressa(isinstance(item, FIAItemWrapper) or isinstance(item, NoneWrapper),
+               'item must be FIAItemWrapper|NoneWrapper')
         tressa(type(visible) is bool, 'visible must be bool')
 
-        positions = self.positions.read()
+        positions = self.positions.read(inject={**globals(), **inject})
 
         if self.cache_full is None:
-            self.calculate_cache()
+            self.calculate_cache(inject=inject)
 
-        if item in self.cache_full:
-            self.cache_full.remove(item)
+        uuids = [fiaitem.uuid for fiaitem in self.cache_full]
+        try:
+            index = uuids.index(uuid.value)
+            del self.cache_full[index]
+        except BaseException:
+            pass
 
-        if visible and item in positions:
+        if visible and BytesWrapper(item.uuid) in positions:
             # find correct insertion index
-            # sort by (index, wrapper class name, wrapped value)
+            # sort by (index, serialized value)
             index = bisect(
                 self.cache_full,
-                (positions[item], item.__class__.__name__, item.value),
-                key=lambda a: (positions[a], a.__class__.__name__, a.value)
+                (item.index, serialize_part(item.value)),
+                key=lambda a: (a.index, serialize_part(a.value))
             )
             self.cache_full.insert(index, item)
 

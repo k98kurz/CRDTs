@@ -48,7 +48,8 @@ class GSet:
         """Return the eventually consistent data view."""
         return self.members.copy()
 
-    def update(self, state_update: StateUpdateProtocol) -> GSet:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> GSet:
         """Apply an update and return self (monad pattern)."""
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')

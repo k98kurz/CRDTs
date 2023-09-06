@@ -72,15 +72,16 @@ class CRDTProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> CRDTProtocol:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> CRDTProtocol:
         """Unpack the data bytes string into an instance."""
         ...
 
-    def read(self, inject: dict = {}) -> Any:
+    def read(self, /, *, inject: dict = {}) -> Any:
         """Return the eventually consistent data view."""
         ...
 
-    def update(self, state_update: StateUpdateProtocol) -> CRDTProtocol:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> CRDTProtocol:
         """Apply an update and return self (monad pattern)."""
         ...
 

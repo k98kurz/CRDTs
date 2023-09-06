@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 from itertools import permutations
+from uuid import uuid4
 from context import classes, interfaces, datawrappers, errors
 import unittest
 
@@ -90,6 +91,7 @@ class TestFIArray(unittest.TestCase):
             'DecimalWrapper': datawrappers.DecimalWrapper,
             'CTDataWrapper': datawrappers.CTDataWrapper,
             'RGAItemWrapper': datawrappers.RGAItemWrapper,
+            'FIAItemWrapper': datawrappers.FIAItemWrapper,
             'NoneWrapper': datawrappers.NoneWrapper,
             'ScalarClock': classes.ScalarClock,
         }
@@ -100,14 +102,24 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_read_returns_tuple_of_underlying_items(self):
         fiarray = classes.FIArray()
+        first = datawrappers.FIAItemWrapper(
+            value='first',
+            index=Decimal('0.1'),
+            uuid=uuid4().bytes,
+        )
+        second = datawrappers.FIAItemWrapper(
+            value=b'second',
+            index=Decimal('0.2'),
+            uuid=uuid4().bytes,
+        )
         fiarray.positions.extend(
-            datawrappers.StrWrapper('first'),
-            datawrappers.DecimalWrapper(Decimal('0.1')),
+            datawrappers.BytesWrapper(first.uuid),
+            first,
             1
         )
         fiarray.positions.extend(
-            datawrappers.BytesWrapper(b'second'),
-            datawrappers.DecimalWrapper(Decimal('0.2')),
+            datawrappers.BytesWrapper(second.uuid),
+            second,
             1
         )
         view = fiarray.read()
@@ -116,14 +128,24 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_read_full_returns_tuple_of_DataWrapperProtocol(self):
         fiarray = classes.FIArray()
+        first = datawrappers.FIAItemWrapper(
+            value='first',
+            index=Decimal('0.1'),
+            uuid=uuid4().bytes,
+        )
+        second = datawrappers.FIAItemWrapper(
+            value=b'second',
+            index=Decimal('0.2'),
+            uuid=uuid4().bytes,
+        )
         fiarray.positions.extend(
-            datawrappers.StrWrapper('first'),
-            datawrappers.DecimalWrapper(Decimal('0.1')),
+            datawrappers.BytesWrapper(first.uuid),
+            first,
             1
         )
         fiarray.positions.extend(
-            datawrappers.BytesWrapper(b'second'),
-            datawrappers.DecimalWrapper(Decimal('0.2')),
+            datawrappers.BytesWrapper(second.uuid),
+            second,
             1
         )
         view = fiarray.read_full()
@@ -147,29 +169,32 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_returns_StateUpdate_with_tuple(self):
         fiarray = classes.FIArray()
-        update = fiarray.put(datawrappers.StrWrapper('test'), 1, Decimal('0.5'))
+        update = fiarray.put(
+            datawrappers.StrWrapper('test'), 1, Decimal('0.5')
+        )
 
         assert isinstance(update, classes.StateUpdate)
         assert type(update.data) is tuple
         assert len(update.data) == 4
         assert update.data[0] == 'o'
-        assert update.data[1] == datawrappers.StrWrapper('test')
+        assert isinstance(update.data[1], datawrappers.BytesWrapper)
         assert update.data[2] == 1
-        assert update.data[3] == datawrappers.DecimalWrapper(Decimal('0.5'))
+        assert isinstance(update.data[3], datawrappers.FIAItemWrapper)
+        assert update.data[3].index.value == Decimal('0.5')
 
     def test_FIArray_put_changes_view(self):
         fiarray = classes.FIArray()
-        view1 = fiarray.read()
+        view1 = fiarray.read(inject=self.inject)
         fiarray.put(datawrappers.StrWrapper('test'), 1, Decimal('0.5'))
-        view2 = fiarray.read()
+        view2 = fiarray.read(inject=self.inject)
 
         assert view1 != view2
 
     def test_FIArray_put_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(datawrappers.StrWrapper('test'), 1, Decimal('0.5'))
-        fiarray.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
-        update = fiarray.put(datawrappers.StrWrapper('bar'), 1, Decimal('0.375'))
+        fiarray.put(('test'), 1, Decimal('0.5'))
+        fiarray.put(('foo'), 1, Decimal('0.25'))
+        update = fiarray.put(('bar'), 1, Decimal('0.375'))
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -180,10 +205,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_between_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(datawrappers.StrWrapper('first'), 1, Decimal('0.5'))
-        fiarray.put(datawrappers.StrWrapper('last'), 1, Decimal('0.75'))
-        update = fiarray.put_between(datawrappers.StrWrapper('middle'), 1,
-            datawrappers.StrWrapper('first'), datawrappers.StrWrapper('last'))
+        first = fiarray.put(('first'), 1, Decimal('0.5')).data[3]
+        last = fiarray.put(('last'), 1, Decimal('0.75')).data[3]
+        update = fiarray.put_between(('middle'), 1, first, last)
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -194,9 +218,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_before_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(datawrappers.StrWrapper('last'), 1, Decimal('0.5'))
-        fiarray.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.25'))
-        update = fiarray.put_before(datawrappers.StrWrapper('first'), 1, datawrappers.StrWrapper('middle'))
+        fiarray.put(('last'), 1, Decimal('0.5'))
+        middle = fiarray.put(('middle'), 1, Decimal('0.25')).data[3]
+        update = fiarray.put_before('first', 1, middle)
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -207,9 +231,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_after_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put(datawrappers.StrWrapper('first'), 1, Decimal('0.5'))
-        fiarray.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.75'))
-        update = fiarray.put_after(datawrappers.StrWrapper('last'), 1, datawrappers.StrWrapper('middle'))
+        fiarray.put(('first'), 1, Decimal('0.5'))
+        middle = fiarray.put(('middle'), 1, Decimal('0.75')).data[3]
+        update = fiarray.put_after(('last'), 1, middle)
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -220,9 +244,9 @@ class TestFIArray(unittest.TestCase):
 
     def test_FIArray_put_first_results_in_correct_order_read(self):
         fiarray = classes.FIArray()
-        fiarray.put_first(datawrappers.StrWrapper('test'), 1)
-        fiarray.put_first(datawrappers.StrWrapper('bar'), 1)
-        update = fiarray.put_first(datawrappers.StrWrapper('foo'), 1)
+        fiarray.put_first(('test'), 1)
+        fiarray.put_first(('bar'), 1)
+        update = fiarray.put_first(('foo'), 1)
         view = fiarray.read()
 
         assert type(update) is classes.StateUpdate
@@ -239,28 +263,29 @@ class TestFIArray(unittest.TestCase):
         view = fiarray.read_full()
 
         assert len(view) == 3
-        assert view[0] == datawrappers.StrWrapper('foo')
-        assert view[1] == datawrappers.StrWrapper('bar')
-        assert view[2] == datawrappers.StrWrapper('test')
+        assert view[0].value == datawrappers.StrWrapper('foo')
+        assert view[1].value == datawrappers.StrWrapper('bar')
+        assert view[2].value == datawrappers.StrWrapper('test')
 
     def test_FIArray_delete_returns_StateUpdate_with_tuple(self):
         fiarray = classes.FIArray()
-        update = fiarray.delete(datawrappers.StrWrapper('test'), 1)
+        first = fiarray.put_first('test', 1).data[3]
+        update = fiarray.delete(first, 1)
 
         assert type(update) is classes.StateUpdate
         assert type(update.data) is tuple
         assert len(update.data) == 4
         assert update.data[0] == 'r'
-        assert update.data[1] == datawrappers.StrWrapper('test')
+        assert isinstance(update.data[1], datawrappers.BytesWrapper)
         assert update.data[2] == 1
-        assert update.data[3] == datawrappers.NoneWrapper()
+        assert update.data[3]== datawrappers.NoneWrapper()
 
     def test_FIArray_delete_removes_item(self):
         fiarray = classes.FIArray()
-        fiarray.put_first(datawrappers.StrWrapper('test'), 1)
+        first = fiarray.put_first(('test'), 1).data[3]
 
         assert fiarray.read()[0] == 'test'
-        fiarray.delete(datawrappers.StrWrapper('test'), 1)
+        fiarray.delete(first, 1)
         assert fiarray.read() == tuple()
 
     def test_FIArray_history_returns_tuple_of_StateUpdateProtocol(self):
@@ -277,7 +302,7 @@ class TestFIArray(unittest.TestCase):
         fiarray1 = classes.FIArray()
         fiarray2 = classes.FIArray(clock=classes.ScalarClock(uuid=fiarray1.clock.uuid))
         update1 = fiarray1.put(datawrappers.StrWrapper('test'), 1, Decimal('0.75'))
-        update2 = fiarray2.put(datawrappers.StrWrapper('test'), 2, Decimal('0.25'))
+        update2 = fiarray2.put(('test'), 2, Decimal('0.25'))
         update3 = fiarray1.put(datawrappers.StrWrapper('middle'), 1, Decimal('0.5'))
         fiarray1.update(update2)
         fiarray2.update(update1)
@@ -341,7 +366,7 @@ class TestFIArray(unittest.TestCase):
         fiarray1 = classes.FIArray()
         fiarray2 = classes.FIArray(clock=classes.ScalarClock(0, fiarray1.clock.uuid))
         fiarray1.put(datawrappers.StrWrapper('foo'), 1, Decimal('0.25'))
-        fiarray1.put(datawrappers.StrWrapper('test'), 1, Decimal('0.15'))
+        item = fiarray1.put(datawrappers.StrWrapper('test'), 1, Decimal('0.15')).data[3]
         fiarray1.put(datawrappers.StrWrapper('bar'), 1, Decimal('0.5'))
 
         for state_update in fiarray2.history():
@@ -349,7 +374,7 @@ class TestFIArray(unittest.TestCase):
         for state_update in fiarray1.history():
             fiarray2.update(state_update)
 
-        fiarray2.delete(datawrappers.StrWrapper('test'), 1)
+        fiarray2.delete(item, 1)
         fiarray2.put(datawrappers.StrWrapper('something'), 2, Decimal('0.333'))
         fiarray2.put(datawrappers.StrWrapper('something else'), 2, Decimal('0.777'))
 

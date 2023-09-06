@@ -169,6 +169,60 @@ class DecimalWrapper(StrWrapper):
         return cls(Decimal(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8')))
 
 
+class FIAItemWrapper:
+    value: SerializableType
+    index: DecimalWrapper
+    uuid: bytes
+
+    def __init__(self, value: SerializableType, index: Decimal|DecimalWrapper,
+                 uuid: bytes) -> None:
+        tressa(isinstance(value, SerializableType),
+               'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+        tressa(isinstance(index, Decimal) or isinstance(index, DecimalWrapper),
+               'index must be Decimal|DecimalWrapper')
+        tressa(type(uuid) is bytes, 'uuid must be bytes')
+        self.value = value
+        self.index = index if isinstance(index, DecimalWrapper) else DecimalWrapper(index)
+        self.uuid = uuid
+
+    def __hash__(self) -> int:
+        return hash((self.value, self.index, self.uuid))
+
+    def __repr__(self) -> str:
+        return repr((self.value, self.index.value, self.uuid.hex()))
+
+    def __eq__(self, other) -> bool:
+        return type(other) == type(self) and hash(self) == hash(other)
+
+    def __gt__(self, other) -> bool:
+        return (self.value, self.index, self.uuid) > (other.value, other.index, other.uuid)
+
+    def __ge__(self, other) -> bool:
+        return (self.value, self.index, self.uuid) >= (other.value, other.index, other.uuid)
+
+    def __lt__(self, other) -> bool:
+        return (self.value, self.index, self.uuid) < (other.value, other.index, other.uuid)
+
+    def __le__(self, other) -> bool:
+        return (self.value, self.index, self.uuid) <= (other.value, other.index, other.uuid)
+
+    def pack(self) -> bytes:
+        return serialize_part([
+            self.value,
+            self.index,
+            self.uuid
+        ])
+
+    @classmethod
+    def unpack(cls, data: bytes, inject: dict = {}) -> FIAItemWrapper:
+        value, index, uuid = deserialize_part(data, inject={**globals(), **inject})
+        return cls(
+            value=value,
+            index=index,
+            uuid=uuid,
+        )
+
+
 class IntWrapper(DecimalWrapper):
     value: int
 
