@@ -158,7 +158,7 @@ style monad pattern.
     - `value: Decimal`
 - IntWrapper(DecimalWrapper)
     - `value: int`
-- RGATupleWrapper(StrWrapper)
+- RGAItemWrapper(StrWrapper)
     - `value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]`
 - NoneWrapper(DataWrapperProtocol)
 - GSet(CRDTProtocol)
@@ -188,15 +188,15 @@ style monad pattern.
 - RGArray (CRDTProtocol)
     - `items: ORSet`
     - `clock: ClockProtocol`
-    - `cache_full: list[RGATupleWrapper]`
+    - `cache_full: list[RGAItemWrapper]`
     - `cache: tuple[Any]`
     - `__init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None`
     - `read(self) -> tuple[Any]`
-    - `read_full(self) -> tuple[RGATupleWrapper]`
+    - `read_full(self) -> tuple[RGAItemWrapper]`
     - `append(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
-    - `delete(self, item: RGATupleWrapper) -> StateUpdate`
+    - `delete(self, item: RGAItemWrapper) -> StateUpdate`
     - `calculate_cache(self) -> None`
-    - `update_cache(self, item: RGATupleWrapper, visible: bool) -> None`
+    - `update_cache(self, item: RGAItemWrapper, visible: bool) -> None`
 - LWWRegister(CRDTProtocol)
     - `name: DataWrapperProtocol`
     - `value: DataWrapperProtocol`
