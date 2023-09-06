@@ -33,7 +33,7 @@ class StateUpdate:
         )
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> StateUpdate:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdate:
         """Deserialize a StateUpdate. Assumes that all types within
             update.data and update.ts are either built-in types or
             PackableProtocols accessible from this scope.

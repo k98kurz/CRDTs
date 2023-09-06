@@ -138,7 +138,9 @@ class FIArray:
             update_class: type[StateUpdateProtocol] = StateUpdate,
             inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that puts the item at the index.
+            default) that puts the item at the index. The FIAItemWrapper
+            will be at index 3 of the data attribute of the returned
+            update_class instance.
         """
         fia_item = FIAItemWrapper(
             value=item,
@@ -166,7 +168,8 @@ class FIArray:
                     inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between first and
-            second.
+            second. The FIAItemWrapper will be at index 3 of the data
+            attribute of the returned update_class instance.
         """
         first_index = first.index.value
         second_index = second.index.value
@@ -180,7 +183,9 @@ class FIArray:
                    update_class: type[StateUpdateProtocol] = StateUpdate,
                    inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that puts the item before the other item.
+            default) that puts the item before the other item. The
+            FIAItemWrapper will be at index 3 of the data attribute of
+            the returned update_class instance.
         """
         tressa(other in self.read_full(inject=inject),
                'other must already be assigned a position')
@@ -203,7 +208,9 @@ class FIArray:
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that puts the item after the other item.
+            default) that puts the item after the other item. The
+            FIAItemWrapper will be at index 3 of the data attribute of
+            the returned update_class instance.
         """
         tressa(other in self.read_full(inject=inject), 'other must already be assigned a position')
 
@@ -225,7 +232,8 @@ class FIArray:
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between 0 and the
-            first item.
+            first item. The FIAItemWrapper will be at index 3 of the
+            data attribute of the returned update_class instance.
         """
         if len(self.read_full(inject=inject)) > 0:
             first = self.read_full(inject=inject)[0]
@@ -243,7 +251,8 @@ class FIArray:
                  inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between the last
-            item and 1.
+            item and 1. The FIAItemWrapper will be at index 3 of the
+            data attribute of the returned update_class instance.
         """
         if len(self.read_full(inject=inject)) > 0:
             last = self.read_full(inject=inject)[-1]
@@ -264,7 +273,9 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the new index, or directly
             before the before, or directly after the after, or
-            halfway between before and after.
+            halfway between before and after. The FIAItemWrapper will be
+            at index 3 of the data attribute of the returned
+            update_class instance.
         """
         tressa(new_index is not None or before is not None or
                after is not None,
@@ -323,7 +334,9 @@ class FIArray:
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that deletes the item.
+            default) that deletes the item. Index 3 of the data
+            attribute of the returned update_class instance will be the
+            NoneWrapper tombstone.
         """
         state_update = update_class(
             clock_uuid=self.clock.uuid,
@@ -356,9 +369,9 @@ class FIArray:
 
     def update_cache(self, uuid: BytesWrapper, item: FIAItemWrapper|NoneWrapper,
                      visible: bool, /, *, inject: dict = {}) -> None:
-        """Updates the cache by finding the correct insertion index for
+        """Updates cache_full by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
-            the bisect algorithm if necessary. Resets the cache.
+            the bisect algorithm if necessary. Resets cache.
         """
         tressa(isinstance(item, FIAItemWrapper) or isinstance(item, NoneWrapper),
                'item must be FIAItemWrapper|NoneWrapper')
