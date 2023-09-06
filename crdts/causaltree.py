@@ -47,12 +47,12 @@ class CausalTree:
         return self.positions.pack()
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> CausalTree:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> CausalTree:
         """Unpack the data bytes string into an instance."""
         positions = LWWMap.unpack(data, inject=inject)
         return cls(positions=positions, clock=positions.clock)
 
-    def read(self, inject: dict = {}) -> tuple[SerializableType]:
+    def read(self, /, *, inject: dict = {}) -> tuple[SerializableType]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
@@ -65,7 +65,7 @@ class CausalTree:
             if item.visible
         ])
 
-    def read_full(self, inject: dict = {}) -> tuple[CTDataWrapper]:
+    def read_full(self, /, *, inject: dict = {}) -> tuple[CTDataWrapper]:
         """Return the full, eventually consistent list of items with
             tombstones and complete DataWrapperProtocols rather than the
             underlying values. Use this for preparing deletion updates --
@@ -89,7 +89,8 @@ class CausalTree:
             if r.value not in self.cache
         ]
 
-    def update(self, state_update: StateUpdateProtocol, inject: dict = {}) -> CausalTree:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> CausalTree:
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,

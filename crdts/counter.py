@@ -19,14 +19,14 @@ class Counter:
         return serialize_part([self.counter, self.clock])
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> Counter:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> Counter:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 8, 'data must be more than 8 bytes')
         counter, clock = deserialize_part(data, inject=inject)
         return cls(counter, clock)
 
-    def read(self, inject: dict = {}) -> int:
+    def read(self, /, *, inject: dict = {}) -> int:
         """Return the eventually consistent data view."""
         return self.counter
 

@@ -189,7 +189,7 @@ class FIAItemWrapper:
         return hash((self.value, self.index, self.uuid))
 
     def __repr__(self) -> str:
-        return repr((self.value, self.index.value, self.uuid.hex()))
+        return f'FIAItemWrapper(value={self.value}, index={self.index.value}, uuid={self.uuid.hex()}'
 
     def __eq__(self, other) -> bool:
         return type(other) == type(self) and hash(self) == hash(other)

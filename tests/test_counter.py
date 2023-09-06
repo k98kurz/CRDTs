@@ -198,7 +198,9 @@ class TestCounter(unittest.TestCase):
         assert 'not found' in str(e.exception)
 
         # inject and repeat
-        unpacked = classes.Counter.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.Counter.unpack(
+            packed, inject={**self.inject, 'StrClock': StrClock}
+        )
 
         assert unpacked.clock == ctr.clock
         assert unpacked.read() == ctr.read()

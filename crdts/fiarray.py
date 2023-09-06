@@ -54,12 +54,12 @@ class FIArray:
         return self.positions.pack()
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> FIArray:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> FIArray:
         """Unpack the data bytes string into an instance."""
         positions = LWWMap.unpack(data, inject)
         return cls(positions=positions, clock=positions.clock)
 
-    def read(self, inject: dict = {}) -> tuple[Any]:
+    def read(self, /, *, inject: dict = {}) -> tuple[Any]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
@@ -70,7 +70,7 @@ class FIArray:
 
         return tuple(self.cache)
 
-    def read_full(self, inject: dict = {}) -> tuple[FIAItemWrapper]:
+    def read_full(self, /, *, inject: dict = {}) -> tuple[FIAItemWrapper]:
         """Return the full, eventually consistent list of items without
             tombstones but with complete FIAItemWrappers rather than the
             underlying SerializableType values. Use the resulting
@@ -256,32 +256,68 @@ class FIArray:
 
         return self.put(item, writer, index, update_class=update_class)
 
-    def move_item(self, item: FIAItemWrapper, /, *, new_index: Decimal = None,
-                  before_item: FIAItemWrapper = None,
-                  after_item: FIAItemWrapper = None,
-                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+    def move_item(self, item: FIAItemWrapper, writer: int, /, *,
+                  new_index: Decimal = None, after: FIAItemWrapper = None,
+                  before: FIAItemWrapper = None,
+                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the new index, or directly
-            before the before_item, or directly after the after_item, or
-            halfway between before_item and after_item.
+            before the before, or directly after the after, or
+            halfway between before and after.
         """
-        tressa(new_index is not None or before_item is not None or
-               after_item is not None,
-               'at least one must be specified: new_index, before_item, or after_item')
+        tressa(new_index is not None or before is not None or
+               after is not None,
+               'at least one must be specified: new_index, before, or after')
         tressa(new_index is None or type(new_index) is Decimal,
                'new_index must be Decimal|NoneType')
-        tressa(before_item is None or isinstance(before_item, FIAItemWrapper),
-               'before_item must be FIAItemWrapper|NoneType')
-        tressa(after_item is None or isinstance(after_item, FIAItemWrapper),
-               'after_item must be FIAItemWrapper|NoneType')
+        tressa(before is None or isinstance(before, FIAItemWrapper),
+               'before must be FIAItemWrapper|NoneType')
+        tressa(after is None or isinstance(after, FIAItemWrapper),
+               'after must be FIAItemWrapper|NoneType')
+
+        if item in self.cache_full:
+            self.cache_full.remove(item)
 
         if new_index is None:
-            if before_item and after_item:
-                new_index = self.index_between(after_item.index, before_item.index)
-            elif before_item:
-                bfidx = self.cache_full.index(before_item)
-            elif after_item:
-                ...
+            if before and after:
+                new_index = self.index_between(after.index.value,
+                                               before.index.value)
+            elif before:
+                bfidx = self.cache_full.index(before)
+                if bfidx == 0:
+                    new_index = self.index_between(Decimal("0"),
+                                                   before.index.value)
+                else:
+                    after = self.cache_full[bfidx-1]
+                    new_index = self.index_between(after.index.value,
+                                                   before.index.value)
+            elif after:
+                afidx = self.cache_full.index(after)
+                if afidx == len(self.cache_full)-1:
+                    new_index = self.index_between(after.index.value,
+                                                   Decimal("1"))
+                else:
+                    before = self.cache_full[afidx+1]
+                    new_index = self.index_between(after.index,
+                                                   before.index.value)
+
+        item.index.value = new_index
+
+        state_update = update_class(
+            clock_uuid=self.clock.uuid,
+            ts=self.clock.read(),
+            data=(
+                'o',
+                BytesWrapper(item.uuid),
+                writer,
+                item
+            )
+        )
+
+        self.update(state_update, inject=inject)
+
+        return state_update
 
     def delete(self, item: FIAItemWrapper, writer: int, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,

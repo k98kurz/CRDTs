@@ -288,6 +288,26 @@ class TestFIArray(unittest.TestCase):
         fiarray.delete(first, 1)
         assert fiarray.read() == tuple()
 
+    def test_FIArray_move_item_returns_StateUpdate_and_moves_item_to_new_index(self):
+        fiarray = classes.FIArray()
+        second = fiarray.put('second', 1, Decimal('0.5')).data[3]
+        first = fiarray.put_after('first', 1, second).data[3]
+        third = fiarray.put_first('third', 1).data[3]
+        assert fiarray.read() == ('third', 'second', 'first')
+
+        update = fiarray.move_item(first, 1, before=third)
+        assert isinstance(update, interfaces.StateUpdateProtocol)
+        assert fiarray.read() == ('first', 'third', 'second')
+
+        fiarray.move_item(first, 1, after=second)
+        assert fiarray.read() == ('third', 'second', 'first')
+
+        fiarray.move_item(first, 1, new_index=Decimal("0.1"))
+        assert fiarray.read() == ('first', 'third', 'second')
+
+        fiarray.move_item(second, 1, after=first, before=third)
+        assert fiarray.read() == ('first', 'second', 'third')
+
     def test_FIArray_history_returns_tuple_of_StateUpdateProtocol(self):
         fiarray = classes.FIArray()
         fiarray.put_first(datawrappers.StrWrapper('test'), 1)
