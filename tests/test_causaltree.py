@@ -462,6 +462,19 @@ class TestCausalTree(unittest.TestCase):
 
         assert causaltree1.checksums() == causaltree2.checksums()
 
+        # prove it does not converge from bad ts parameters
+        causaltree2 = classes.CausalTree()
+        causaltree2.clock.uuid = causaltree1.clock.uuid
+        for update in causaltree1.history(until_ts=0):
+            causaltree2.update(update)
+        assert causaltree1.checksums() != causaltree2.checksums()
+
+        causaltree2 = classes.CausalTree()
+        causaltree2.clock.uuid = causaltree1.clock.uuid
+        for update in causaltree1.history(from_ts=99):
+            causaltree2.update(update)
+        assert causaltree1.checksums() != causaltree2.checksums()
+
     def debug_info(self, ct1: classes.CausalTree, ct2: classes.CausalTree, history) -> str:
         result = f'expected {ct1.read()} but encountered {ct2.read()}\n\n'
         for item in ct1.read_full():

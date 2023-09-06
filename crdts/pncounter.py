@@ -95,6 +95,11 @@ class PNCounter:
             for resynchronization by replaying updates from divergent
             nodes.
         """
+        if from_ts is not None and self.clock.is_later(from_ts, self.clock.read()-1):
+            return tuple()
+        if until_ts is not None and self.clock.is_later(self.clock.read()-1, until_ts):
+            return tuple()
+
         return (update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read()-1,

@@ -204,6 +204,21 @@ class TestPNCounter(unittest.TestCase):
         assert type(update) is CustomStateUpdate
         assert type(pnc.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
+    def test_PNCounter_history_return_value_determined_by_from_ts_and_until_ts(self):
+        pnc = classes.PNCounter()
+        pnc.increase()
+        pnc.increase()
+        pnc.decrease()
+
+        # from_ts in future of last update, history should return nothing
+        assert len(pnc.history(from_ts=99)) == 0
+
+        # until_ts in past of last update, history should return nothing
+        assert len(pnc.history(until_ts=0)) == 0
+
+        # from_ts in past, until_ts in future: history should return update
+        assert len(pnc.history(from_ts=0, until_ts=99)) > 0
+
 
 if __name__ == '__main__':
     unittest.main()

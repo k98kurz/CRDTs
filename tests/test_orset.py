@@ -244,7 +244,7 @@ class TestORSet(unittest.TestCase):
         assert orset1.clock.uuid == orset2.clock.uuid
         assert orset1.read() == orset2.read()
         assert orset1.checksums() == orset2.checksums()
-        assert orset1.history() == orset2.history()
+        assert orset1.history() in permutations(orset2.history())
 
     def test_ORSet_cache_is_set_upon_first_read(self):
         orset = classes.ORSet()
@@ -307,6 +307,19 @@ class TestORSet(unittest.TestCase):
             orset1.update(update)
 
         assert orset1.checksums() == orset2.checksums()
+
+        # prove it does not converge from bad ts parameters
+        orset2 = classes.ORSet()
+        orset2.clock.uuid = orset1.clock.uuid
+        for update in orset1.history(until_ts=0):
+            orset2.update(update)
+        assert orset1.checksums() != orset2.checksums()
+
+        orset2 = classes.ORSet()
+        orset2.clock.uuid = orset1.clock.uuid
+        for update in orset1.history(from_ts=99):
+            orset2.update(update)
+        assert orset1.checksums() != orset2.checksums()
 
 
 if __name__ == '__main__':

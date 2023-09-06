@@ -314,6 +314,19 @@ class TestLWWMap(unittest.TestCase):
 
         assert lwwmap1.checksums() == lwwmap2.checksums()
 
+        # prove it does not converge from bad ts parameters
+        lwwmap2 = classes.LWWMap()
+        lwwmap2.clock.uuid = lwwmap1.clock.uuid
+        for update in lwwmap1.history(until_ts=0):
+            lwwmap2.update(update)
+        assert lwwmap1.checksums() != lwwmap2.checksums()
+
+        lwwmap2 = classes.LWWMap()
+        lwwmap2.clock.uuid = lwwmap1.clock.uuid
+        for update in lwwmap1.history(from_ts=99):
+            lwwmap2.update(update)
+        assert lwwmap1.checksums() != lwwmap2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()

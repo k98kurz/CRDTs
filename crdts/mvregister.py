@@ -114,6 +114,11 @@ class MVRegister:
             for resynchronization by replaying updates from divergent
             nodes.
         """
+        if from_ts is not None and self.clock.is_later(from_ts, self.last_update):
+            return tuple()
+        if until_ts is not None and self.clock.is_later(self.last_update, until_ts):
+            return tuple()
+
         return tuple([
             update_class(clock_uuid=self.clock.uuid, ts=self.last_update, data=v)
             for v in self.values

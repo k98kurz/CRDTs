@@ -22,7 +22,7 @@ class ClockProtocol(Protocol):
     uuid: bytes
     default_ts: Any
 
-    def read(self) -> Any:
+    def read(self, /, *, inject: dict = {}) -> Any:
         """Return the current timestamp."""
         ...
 
@@ -52,12 +52,12 @@ class ClockProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> ClockProtocol:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> ClockProtocol:
         """Unpack a clock from bytes."""
         ...
 
     @classmethod
-    def wrap_ts(cls, ts: Any) -> DataWrapperProtocol:
+    def wrap_ts(cls, ts: Any, /, *, inject: dict = {}) -> DataWrapperProtocol:
         """Wrap a timestamp in a data wrapper."""
         ...
 
@@ -116,6 +116,10 @@ class DataWrapperProtocol(Protocol):
         """Data type must be comparable."""
         ...
 
+    def __ne__(self, other) -> bool:
+        """Data type must be comparable."""
+        ...
+
     def __gt__(self, other) -> bool:
         """Data type must be comparable."""
         ...
@@ -137,7 +141,7 @@ class DataWrapperProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> DataWrapperProtocol:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> DataWrapperProtocol:
         """Unpack value from bytes."""
         ...
 
@@ -157,6 +161,6 @@ class StateUpdateProtocol(Protocol):
         ...
 
     @classmethod
-    def unpack(cls, data: bytes) -> StateUpdateProtocol:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdateProtocol:
         """Unpack an instance from bytes."""
         ...

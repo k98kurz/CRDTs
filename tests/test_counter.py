@@ -215,6 +215,21 @@ class TestCounter(unittest.TestCase):
         assert unpacked.clock == ctr.clock
         assert unpacked.read() == ctr.read()
 
+    def test_Counter_history_return_value_determined_by_from_ts_and_until_ts(self):
+        counter = classes.Counter()
+        counter.increase()
+        counter.increase()
+        counter.increase()
+
+        # from_ts in future of last update, history should return nothing
+        assert len(counter.history(from_ts=99)) == 0
+
+        # until_ts in past of last update, history should return nothing
+        assert len(counter.history(until_ts=0)) == 0
+
+        # from_ts in past, until_ts in future: history should return update
+        assert len(counter.history(from_ts=0, until_ts=99)) > 0
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -89,7 +89,7 @@ class CausalTree:
             if r.value not in self.cache
         ]
 
-    def update(self, state_update: StateUpdateProtocol) -> CausalTree:
+    def update(self, state_update: StateUpdateProtocol, inject: dict = {}) -> CausalTree:
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
         tressa(state_update.clock_uuid == self.clock.uuid,

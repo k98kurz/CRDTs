@@ -309,6 +309,19 @@ class TestMVMap(unittest.TestCase):
 
         assert mvmap1.checksums() == mvmap2.checksums()
 
+        # prove it does not converge from bad ts parameters
+        mvmap2 = classes.MVMap()
+        mvmap2.clock.uuid = mvmap1.clock.uuid
+        for update in mvmap1.history(until_ts=0):
+            mvmap2.update(update)
+        assert mvmap1.checksums() != mvmap2.checksums()
+
+        mvmap2 = classes.MVMap()
+        mvmap2.clock.uuid = mvmap1.clock.uuid
+        for update in mvmap1.history(from_ts=99):
+            mvmap2.update(update)
+        assert mvmap1.checksums() != mvmap2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()

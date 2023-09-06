@@ -44,7 +44,7 @@ class StrWrapper:
         return struct.pack(f'!{len(data)}s', data)
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> StrWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> StrWrapper:
         return cls(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8'))
 
 
@@ -61,7 +61,7 @@ class BytesWrapper(StrWrapper):
         return struct.pack(f'!{len(self.value)}s', self.value)
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> BytesWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> BytesWrapper:
         return cls(struct.unpack(f'!{len(data)}s', data)[0])
 
 
@@ -144,7 +144,7 @@ class CTDataWrapper:
         ])
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> CTDataWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> CTDataWrapper:
         dependencies = {**globals(), **inject}
         value, uuid, parent_uuid, visible = deserialize_part(data, inject=dependencies)
         return cls(
@@ -165,7 +165,7 @@ class DecimalWrapper(StrWrapper):
         return struct.pack(f'!{len(str(self.value))}s', bytes(str(self.value), 'utf-8'))
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> DecimalWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> DecimalWrapper:
         return cls(Decimal(str(struct.unpack(f'!{len(data)}s', data)[0], 'utf-8')))
 
 
@@ -194,6 +194,9 @@ class FIAItemWrapper:
     def __eq__(self, other) -> bool:
         return type(other) == type(self) and hash(self) == hash(other)
 
+    def __ne__(self, other) -> bool:
+        return not (self == other)
+
     def __gt__(self, other) -> bool:
         return (self.value, self.index, self.uuid) > (other.value, other.index, other.uuid)
 
@@ -214,7 +217,7 @@ class FIAItemWrapper:
         ])
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> FIAItemWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> FIAItemWrapper:
         value, index, uuid = deserialize_part(data, inject={**globals(), **inject})
         return cls(
             value=value,
@@ -234,7 +237,7 @@ class IntWrapper(DecimalWrapper):
         return struct.pack('!i', self.value)
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> IntWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> IntWrapper:
         return cls(struct.unpack('!i', data)[0])
 
 
@@ -268,7 +271,7 @@ class RGAItemWrapper(StrWrapper):
         )
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> RGAItemWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> RGAItemWrapper:
         dependencies = {**globals(), **inject}
         packed_len, ts_len, _ = struct.unpack(f'!II{len(data)-8}s', data)
         _, packed, ts, writer = struct.unpack(f'!8s{packed_len}s{ts_len}sI', data)
@@ -307,6 +310,9 @@ class NoneWrapper:
     def __eq__(self, other) -> bool:
         return type(self) == type(other)
 
+    def __ne__(self, other) -> bool:
+        return not (self == other)
+
     def __gt__(self, other) -> bool:
         return False
 
@@ -323,5 +329,5 @@ class NoneWrapper:
         return b''
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> NoneWrapper:
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> NoneWrapper:
         return cls()

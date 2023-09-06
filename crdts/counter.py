@@ -26,11 +26,12 @@ class Counter:
         counter, clock = deserialize_part(data, inject=inject)
         return cls(counter, clock)
 
-    def read(self) -> int:
+    def read(self, inject: dict = {}) -> int:
         """Return the eventually consistent data view."""
         return self.counter
 
-    def update(self, state_update: StateUpdateProtocol) -> Counter:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> Counter:
         """Apply an update and return self (monad pattern)."""
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
@@ -58,6 +59,11 @@ class Counter:
             for resynchronization by replaying updates from divergent
             nodes.
         """
+        if from_ts is not None and self.clock.is_later(from_ts, self.clock.read()-1):
+            return tuple()
+        if until_ts is not None and self.clock.is_later(self.clock.read()-1, until_ts):
+            return tuple()
+
         return (update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read()-1,
@@ -65,7 +71,8 @@ class Counter:
         )
 
     def increase(self, amount: int = 1, /, *,
-                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                 update_class: type[StateUpdateProtocol] = StateUpdate,
+                 inject: dict = {}) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
             propagated to the network.
@@ -78,6 +85,6 @@ class Counter:
             ts=self.clock.read(),
             data=self.counter + amount
         )
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update

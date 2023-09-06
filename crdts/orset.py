@@ -186,6 +186,10 @@ class ORSet:
         updates = []
 
         for o in self.observed:
+            if from_ts is not None and self.clock.is_later(from_ts, self.observed_metadata[o]):
+                continue
+            if until_ts is not None and self.clock.is_later(self.observed_metadata[o], until_ts):
+                continue
             updates.append(
                 update_class(
                     clock_uuid=self.clock.uuid,
@@ -195,6 +199,10 @@ class ORSet:
             )
 
         for r in self.removed:
+            if from_ts is not None and self.clock.is_later(from_ts, self.removed_metadata[r]):
+                continue
+            if until_ts is not None and self.clock.is_later(self.removed_metadata[r], until_ts):
+                continue
             updates.append(
                 update_class(
                     clock_uuid=self.clock.uuid,

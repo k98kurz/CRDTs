@@ -274,6 +274,18 @@ class TestGSet(unittest.TestCase):
 
         assert gset1.checksums() == gset2.checksums()
 
+        # prove it does not converge from bad ts parameters
+        gset2 = classes.GSet()
+        gset2.clock.uuid = gset1.clock.uuid
+        for update in gset1.history(until_ts=0):
+            gset2.update(update)
+        assert gset1.checksums() != gset2.checksums()
+
+        gset2 = classes.GSet()
+        gset2.clock.uuid = gset1.clock.uuid
+        for update in gset1.history(from_ts=99):
+            gset2.update(update)
+        assert gset1.checksums() != gset2.checksums()
 
 if __name__ == '__main__':
     unittest.main()

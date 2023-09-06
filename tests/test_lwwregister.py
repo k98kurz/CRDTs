@@ -244,6 +244,22 @@ class TestLWWRegister(unittest.TestCase):
         assert type(update) is CustomStateUpdate
         assert type(lwwr.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
+    def test_LWWRegister_history_return_value_determined_by_from_ts_and_until_ts(self):
+        lwwr = classes.LWWRegister(
+            name=datawrappers.StrWrapper('test register')
+        )
+        lwwr.write(datawrappers.StrWrapper('first'), 1)
+        lwwr.write(datawrappers.StrWrapper('second'), 1)
+
+        # from_ts in future of last update, history should return nothing
+        assert len(lwwr.history(from_ts=99)) == 0
+
+        # until_ts in past of last update, history should return nothing
+        assert len(lwwr.history(until_ts=0)) == 0
+
+        # from_ts in past, until_ts in future: history should return update
+        assert len(lwwr.history(from_ts=0, until_ts=99)) == 1
+
 
 if __name__ == '__main__':
     unittest.main()

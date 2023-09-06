@@ -210,7 +210,8 @@ class MVMap:
             *names_checksums
         )
 
-    def history(self, /, *, from_ts: Any = None, until_ts: Any = None, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
+                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdateProtocols that will
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.

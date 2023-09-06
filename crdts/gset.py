@@ -105,11 +105,7 @@ class GSet:
 
         for member in self.members:
             state_update = self.update_history[member]
-            if from_ts is not None and until_ts is not None:
-                if self.clock.is_later(from_ts, state_update.ts) or \
-                    self.clock.is_later(state_update.ts, until_ts):
-                    continue
-            elif from_ts is not None:
+            if from_ts is not None:
                 if self.clock.is_later(from_ts, state_update.ts):
                     continue
             elif until_ts is not None:

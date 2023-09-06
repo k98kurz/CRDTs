@@ -465,6 +465,19 @@ class TestFIArray(unittest.TestCase):
 
         assert fiarray1.checksums() == fiarray2.checksums()
 
+        # prove it does not converge from bad ts parameters
+        fiarray2 = classes.FIArray()
+        fiarray2.clock.uuid = fiarray1.clock.uuid
+        for update in fiarray1.history(until_ts=0):
+            fiarray2.update(update)
+        assert fiarray1.checksums() != fiarray2.checksums()
+
+        fiarray2 = classes.FIArray()
+        fiarray2.clock.uuid = fiarray1.clock.uuid
+        for update in fiarray1.history(from_ts=99):
+            fiarray2.update(update)
+        assert fiarray1.checksums() != fiarray2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()

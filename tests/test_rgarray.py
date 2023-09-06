@@ -330,6 +330,18 @@ class TestRGArray(unittest.TestCase):
 
         assert rga1.checksums() == rga2.checksums()
 
+        # prove it does not converge from bad ts parameters
+        rga2 = classes.RGArray()
+        rga2.clock.uuid = rga1.clock.uuid
+        for update in rga1.history(until_ts=0):
+            rga2.update(update)
+        assert rga1.checksums() != rga2.checksums()
+
+        rga2 = classes.RGArray()
+        rga2.clock.uuid = rga1.clock.uuid
+        for update in rga1.history(from_ts=99):
+            rga2.update(update)
+        assert rga1.checksums() != rga2.checksums()
 
 
 if __name__ == '__main__':
