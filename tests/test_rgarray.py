@@ -170,8 +170,10 @@ class TestRGArray(unittest.TestCase):
         rga2.update(update1)
 
         assert rga1.read() == rga2.read()
-        assert rga1.read() == (datawrappers.DecimalWrapper(Decimal('0.1')),
-                               datawrappers.StrWrapper('item1'))
+        assert rga1.read() == (
+            datawrappers.StrWrapper('item1'),
+            datawrappers.DecimalWrapper(Decimal('0.1')),
+        )
 
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))

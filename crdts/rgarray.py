@@ -1,8 +1,17 @@
 from __future__ import annotations
-from .datawrappers import RGAItemWrapper
+from .datawrappers import (
+    BytesWrapper,
+    StrWrapper,
+    IntWrapper,
+    DecimalWrapper,
+    CTDataWrapper,
+    NoneWrapper,
+    RGAItemWrapper,
+)
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
 from .orset import ORSet
+from .serialization import serialize_part
 from .stateupdate import StateUpdate
 from bisect import bisect
 from types import NoneType
@@ -43,7 +52,7 @@ class RGArray:
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> RGArray:
         """Unpack the data bytes string into an instance."""
-        items = ORSet.unpack(data, inject=inject)
+        items = ORSet.unpack(data, inject={**globals(), **inject})
         return cls(items=items, clock=items.clock)
 
     def read(self, /, *, inject: dict = {}) -> tuple[SerializableType]:
@@ -107,13 +116,14 @@ class RGArray:
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that appends the item.
+            default) that appends the item. The RGAItemWrapper will be
+            in the data attribute at index 1.
         """
         tressa(isinstance(item, SerializableType),
                'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(writer) is int, 'writer must be int')
 
-        ts = self.clock.wrap_ts(self.clock.read())
+        ts = self.clock.read()
         state_update = self.items.observe(
             RGAItemWrapper(item, ts, writer),
             update_class=update_class
@@ -142,12 +152,9 @@ class RGArray:
             sets the cache_full list. Resets the cache.
         """
         # create sorted list of all items
-        # sorted by (timestamp, writer, wrapper class name, packed value)
+        # sorted by (timestamp, writer, serialized value)
         items = list(self.items.observed)
-        items.sort(key=lambda item: (
-            item.ts, item.writer, item.value.__class__.__name__,
-            item.value.pack())
-        )
+        items.sort(key=lambda item: (item.ts, item.writer, serialize_part(item.value)))
 
         # set instance values
         self.cache_full = items
@@ -167,11 +174,11 @@ class RGArray:
         if visible:
             if item not in self.cache_full:
                 # find correct insertion index
-                # sorted by (timestamp, writer, wrapper class name, packed value)
+                # sorted by (timestamp, writer, serialized value)
                 index = bisect(
                     self.cache_full,
-                    (item.ts, item.writer, item.value.__class__.__name__, item.value.pack()),
-                    key=lambda a: (a.ts, a.writer, a.value.__class__.__name__, a.value.pack())
+                    (item.ts, item.writer, serialize_part(item.value)),
+                    key=lambda a: (a.ts, a.writer, serialize_part(a.value))
                 )
                 self.cache_full.insert(index, item)
         else:

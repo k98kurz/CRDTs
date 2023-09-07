@@ -47,7 +47,7 @@ class ORSet:
         tressa(len(data) > 19, 'data must be more than 19 bytes')
         observed, observed_metadata, removed, removed_metadata, clock = deserialize_part(
             data,
-            inject=inject
+            inject={**globals(), **inject}
         )
         observed_metadata = {k:v for k,v in observed_metadata}
         removed_metadata = {k:v for k,v in removed_metadata}
@@ -210,7 +210,10 @@ class ORSet:
 
     def observe(self, member: SerializableType, /, *,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
-        """Adds the given member to the observed set."""
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that adds the given member to the observed set. The
+            member will be in the data attribute at index 1.
+        """
         tressa(isinstance(member, SerializableType),
                'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
 

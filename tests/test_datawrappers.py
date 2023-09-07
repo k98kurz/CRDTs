@@ -139,12 +139,12 @@ class TestDataWrappers(unittest.TestCase):
 
     def test_RGAItemWrapper_raises_UsagePreconditionError_for_bad_value(self):
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            datawrappers.RGAItemWrapper(b'123', b'321', 3)
-        assert str(e.exception) == 'value must be DataWrapperProtocol'
+            datawrappers.RGAItemWrapper({}, b'321', 3)
+        assert str(e.exception) == 'value must be SerializableType'
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
-            datawrappers.RGAItemWrapper(datawrappers.BytesWrapper(b'123'), b'321', 1)
-        assert str(e.exception) == 'ts must be DataWrapperProtocol'
+            datawrappers.RGAItemWrapper(b'123', {}, 3)
+        assert str(e.exception) == 'ts must be SerializableType'
 
         with self.assertRaises(errors.UsagePreconditionError) as e:
             datawrappers.RGAItemWrapper(
@@ -164,20 +164,13 @@ class TestDataWrappers(unittest.TestCase):
         assert type(packed) is bytes
 
     def test_RGAItemWrapper_unpack_returns_instance(Self):
-        bts = datawrappers.BytesWrapper(b'123')
-        data = bytes(bts.__class__.__name__, 'utf-8')
-        data = bytes(data.hex() + '_', 'utf-8') + bts.pack()
-        intw = datawrappers.IntWrapper(1)
-        ts = bytes(intw.__class__.__name__, 'utf-8')
-        ts = bytes(ts.hex() + '_', 'utf-8') + intw.pack()
-        data = struct.pack(
-            f'!II{len(data)}s{len(ts)}sI',
-            len(data),
-            len(ts),
-            data,
+        bts = b'123'
+        ts = 1
+        data = serialization.serialize_part([
+            bts,
             ts,
-            1,
-        )
+            1
+        ])
         unpacked = datawrappers.RGAItemWrapper.unpack(data)
         assert type(unpacked) is datawrappers.RGAItemWrapper
 

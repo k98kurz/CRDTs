@@ -219,14 +219,14 @@ class IntWrapper(DecimalWrapper):
 
 
 class RGAItemWrapper(StrWrapper):
-    value: DataWrapperProtocol
-    ts: DataWrapperProtocol
+    value: SerializableType
+    ts: SerializableType
     writer: int
 
-    def __init__(self, value: DataWrapperProtocol, ts: DataWrapperProtocol,
+    def __init__(self, value: SerializableType, ts: SerializableType,
                  writer: int) -> None:
-        tressa(isinstance(value, DataWrapperProtocol), 'value must be DataWrapperProtocol')
-        tressa(isinstance(ts, DataWrapperProtocol), 'ts must be DataWrapperProtocol')
+        tressa(isinstance(value, SerializableType), 'value must be SerializableType')
+        tressa(isinstance(ts, SerializableType), 'ts must be SerializableType')
         tressa(type(writer) is int, 'writer must be int')
 
         self.value = value
@@ -234,44 +234,25 @@ class RGAItemWrapper(StrWrapper):
         self.writer = writer
 
     def pack(self) -> bytes:
-        packed_val = bytes(self.value.__class__.__name__, 'utf-8').hex() + '_'
-        packed_val = bytes(packed_val, 'utf-8') + self.value.pack()
-        packed_ts = bytes(self.ts.__class__.__name__, 'utf-8').hex() + '_'
-        packed_ts = bytes(packed_ts, 'utf-8') + self.ts.pack()
-        return struct.pack(
-            f'!II{len(packed_val)}s{len(packed_ts)}sI',
-            len(packed_val),
-            len(packed_ts),
-            packed_val,
-            packed_ts,
+        """Pack instance to bytes."""
+        return serialize_part([
+            self.value,
+            self.ts,
             self.writer
-        )
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> RGAItemWrapper:
         dependencies = {**globals(), **inject}
-        packed_len, ts_len, _ = struct.unpack(f'!II{len(data)-8}s', data)
-        _, packed, ts, writer = struct.unpack(f'!8s{packed_len}s{ts_len}sI', data)
+        value, ts, writer = deserialize_part(data, inject=dependencies)
+        return cls(
+            value=value,
+            ts=ts,
+            writer=writer,
+        )
 
-        # parse item value
-        classname, _, packed = packed.partition(b'_')
-        classname = str(bytes.fromhex(str(classname, 'utf-8')), 'utf-8')
-        tressa(classname in dependencies,
-               f'{classname} must be accessible from globals() or injected')
-        tressa(hasattr(dependencies[classname], 'unpack'),
-            f'{classname} missing unpack method')
-        item = dependencies[classname].unpack(packed)
-
-        # parse ts
-        classname, _, ts = ts.partition(b'_')
-        classname = str(bytes.fromhex(str(classname, 'utf-8')), 'utf-8')
-        tressa(classname in dependencies,
-               f'{classname} must be accessible from globals() or injected')
-        tressa(hasattr(dependencies[classname], 'unpack'),
-            f'{classname} missing unpack method')
-        ts = dependencies[classname].unpack(ts)
-
-        return cls(item, ts, writer)
+    def __repr__(self) -> str:
+        return f'RGAItemWrapper(value={self.value}, ts={self.ts}, writer={self.writer})'
 
 
 @dataclass
