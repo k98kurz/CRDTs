@@ -81,3 +81,7 @@ class ScalarClock:
     def wrap_ts(cls, ts: int) -> IntWrapper:
         """Wrap a timestamp in an IntWrapper."""
         return IntWrapper(ts)
+
+    def __repr__(self) -> str:
+        return f"ScalarClock(counter={self.counter}, uuid={self.uuid.hex()}" + \
+            f", default_ts={self.default_ts})"

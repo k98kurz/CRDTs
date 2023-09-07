@@ -72,9 +72,9 @@ Unpacks a clock from bytes.
 
 Wrap a timestamp in an IntWrapper.
 
-##### `__init__(counter: int = 1, uuid: bytes = <factory>, default_ts: int = 0):`
+##### `__repr__() -> str:`
 
-##### `__repr__():`
+##### `__init__(counter: int = 1, uuid: bytes = <factory>, default_ts: int = 0):`
 
 ##### `__eq__():`
 
