@@ -57,7 +57,7 @@ class CausalTree:
             preparing deletion updates.
         """
         if self.cache is None:
-            self.calculate_cache()
+            self.calculate_cache(inject=inject)
 
         return tuple([
             deserialize_part(serialize_part(item.value), {**globals(), **inject})
@@ -72,17 +72,17 @@ class CausalTree:
             only a DataWrapperProtocol can be used for delete.
         """
         if self.cache is None:
-            self.calculate_cache()
+            self.calculate_cache(inject=inject)
 
         return tuple(self.cache)
 
-    def read_excluded(self) -> list[CTDataWrapper]:
+    def read_excluded(self, /, *, inject: dict = {}) -> list[CTDataWrapper]:
         """Returns a list of CTDataWrapper items that are excluded from
             the views returned by read() and read_full() due to circular
             references (i.e. where an item is its own descendant).
         """
         if self.cache is None:
-            self.calculate_cache()
+            self.calculate_cache(inject=inject)
         return [
             r.value
             for _, r in self.positions.registers.items()
@@ -106,9 +106,10 @@ class CausalTree:
         tressa(type(state_update.data[3]) is CTDataWrapper,
             'state_update.data[3] must be CTDataWrapper')
 
+        inject = {**globals(), **inject}
         state_update.data[3].visible = state_update.data[0] == 'o'
-        self.positions.update(state_update)
-        self.update_cache(state_update.data[3])
+        self.positions.update(state_update, inject=inject)
+        self.update_cache(state_update.data[3], inject=inject)
 
     def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
         """Returns checksums for the underlying data to detect
@@ -130,7 +131,8 @@ class CausalTree:
 
     def put(self, item: SerializableType, writer: int, uuid: bytes,
             parent_uuid: bytes = b'', /, *,
-            update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+            update_class: type[StateUpdateProtocol] = StateUpdate,
+            inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns a update_class (StateUpdate by
             default) that puts the item after the parent.
         """
@@ -138,6 +140,7 @@ class CausalTree:
                'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
         tressa(type(uuid) is bytes, "uuid must be bytes")
         tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
+        inject = {**globals(), **inject}
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
@@ -148,10 +151,8 @@ class CausalTree:
                 CTDataWrapper(item, uuid, parent_uuid)
             )
         )
-
-        self.update(state_update)
-
-        return state_update
+        self.update(state_update, inject=inject)
+        return update_class.unpack(state_update.pack(), inject=inject)
 
     def put_after(self, item: SerializableType, writer: int,
                   parent_uuid: bytes, /, *,
@@ -164,23 +165,39 @@ class CausalTree:
         return self.put(item, writer, uuid, parent_uuid, update_class=update_class)
 
     def put_first(self, item: DataWrapperProtocol, writer: int, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
-        """Creates, applies, and returns an update_class (StateUpdate by
-            default) that puts the item as the first item. Note that if
-            another item was already put first, this might be put after
-            the chain of descendants due to tie breaking on uuid.
+                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns at least one update_class
+            (StateUpdate by default) that put the item as the first item.
+            Any ties for first place will be resolved by making the new
+            item the parent of those other first items.
         """
-        return self.put(item, writer, uuid4().bytes, b'', update_class=update_class)
+        updates: list[StateUpdateProtocol] = []
+        updates.append(self.put(item, writer, uuid4().bytes, b'',
+                                update_class=update_class, inject=inject))
+        ct_item: CTDataWrapper = updates[0].data[3]
+        heads = [item for item in self.cache if item.parent_uuid == b'']
 
-    def move_item(self, item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+        while len(heads) > 1:
+            ct_idx = heads.index(ct_item)
+            first = heads[0] if ct_idx > 0 else heads[1]
+            heads.remove(first)
+            updates.append(self.move_item(first, writer, ct_item.uuid,
+                                          update_class=update_class, inject=inject))
+
+        return tuple(updates)
+
+    def move_item(self, item: CTDataWrapper, writer: int,
+                  parent_uuid: bytes = b'', /, *,
+                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that moves the item with the given uuid to behind
-            the new parent.
+            default) that moves the item to after the new parent.
         """
         tressa(isinstance(item, CTDataWrapper), "item must be CTDataWrapper")
 
         item.parent_uuid = parent_uuid
+
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
@@ -188,14 +205,15 @@ class CausalTree:
                 'o',
                 BytesWrapper(item.uuid),
                 writer,
-                item
+                item.unpack(item.pack(), inject={**globals(), **inject})
             )
         )
-        self.update(state_update)
+        self.update(state_update, inject=inject)
         return state_update
 
     def delete(self, ctdw: CTDataWrapper, writer: int, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+               update_class: type[StateUpdateProtocol] = StateUpdate,
+               inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item specified by ctdw.
         """
@@ -212,37 +230,20 @@ class CausalTree:
             )
         )
 
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update
 
-    def calculate_cache(self) -> None:
+    def calculate_cache(self, /, *, inject: dict = {}) -> None:
         """Reads the items from the underlying LWWMap, orders them, then
             sets the cache list.
         """
         # create list of all items
-        positions: list[CTDataWrapper] = [
-            self.positions.registers[register].value
-            for register in self.positions.registers
-        ]
-
-        # create linked lists
-        parsed: dict[bytes, CTDataWrapper] = {}
-        for p in positions:
-            if p.uuid not in parsed:
-                parsed[p.uuid] = p
-            if p.parent_uuid not in parsed:
-                for r in positions:
-                    if r.uuid == p.parent_uuid:
-                        parsed[r.uuid] = r
-                        break
-            if p.parent_uuid in parsed:
-                parsed[p.parent_uuid].add_child(p)
-                p.set_parent(parsed[p.parent_uuid])
+        positions = self.positions.read(inject={**globals(), **inject})
 
         # function for getting sorted list of children
         def get_children(parent_uuid: bytes) -> list[CTDataWrapper]:
-            children = [v for _, v in parsed.items() if v.parent_uuid == parent_uuid]
+            children = [v for _, v in positions.items() if v.parent_uuid == parent_uuid]
             return sorted(children, key=lambda ctdw: ctdw.uuid)
 
         def get_list(parent_uuid: bytes) -> list[CTDataWrapper]:
@@ -256,32 +257,30 @@ class CausalTree:
 
         self.cache = get_list(b'')
 
-    def update_cache(self, item: CTDataWrapper) -> None:
+    def update_cache(self, item: CTDataWrapper, /, *, inject: dict = {}) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
             the bisect algorithm if necessary. Resets the cache.
         """
         tressa(isinstance(item, CTDataWrapper), 'item must be CTDataWrapper')
 
-        if BytesWrapper(item.uuid) not in self.positions.registers:
+        positions = self.positions.read(inject=inject)
+
+        if BytesWrapper(item.uuid) not in positions:
             return
 
         if self.cache is None:
-            self.calculate_cache()
-            return
-
-        if len(self.cache) == 0 and item.parent_uuid == b'' and \
-            len(item.children()) == 0:
-            self.cache.append(item)
+            self.calculate_cache(inject=inject)
             return
 
         def remove_children(
                 ctdw: CTDataWrapper,
                 total: list[CTDataWrapper] = []
         ) -> list[CTDataWrapper]:
-            if len(ctdw.children()) == 0:
+            children = [c for c in self.cache if c.parent_uuid == ctdw.uuid]
+            if len(children) == 0:
                 return total
-            for child in ctdw.children():
+            for child in children:
                 if child in total:
                     continue
                 total.append(child)
@@ -290,28 +289,28 @@ class CausalTree:
                 remove_children(child, total)
             return total
 
-        for ctdw in self.cache:
+        for i in range(len((self.cache))):
+            ctdw = self.cache[i]
             if ctdw.uuid != item.uuid:
                 continue
+            del self.cache[i]
             ctdw.visible = item.visible
-            self.cache.remove(ctdw)
             children = remove_children(ctdw)
             for child in children:
                 self.update_cache(child)
             break
 
         def walk(item: CTDataWrapper) -> CTDataWrapper:
-            if len(item.children()) == 0:
+            children = [c for c in self.cache if c.parent_uuid == item.uuid]
+            if len(children) == 0:
                 return item
-            children = sorted(list(item.children()), key=lambda c: c.uuid)
+            children = sorted(children, key=lambda c: c.uuid)
             return walk(children[-1])
 
         def add_orphans():
             potential_orphans = self.read_excluded()
             for ctdw in potential_orphans:
                 if ctdw.parent_uuid == item.uuid:
-                    ctdw.set_parent(item)
-                    item.add_child(ctdw)
                     self.update_cache(ctdw)
 
         if item.parent_uuid == b'':
@@ -322,7 +321,10 @@ class CausalTree:
             if index != 0:
                 descendant = walk(heads[index-1])
                 while descendant not in self.cache:
-                    descendant = descendant.parent()
+                    descendant = [
+                        c for c in self.cache
+                        if c.uuid == descendant.parent_uuid
+                    ][0]
                 index = self.cache.index(descendant) + 1
             self.cache.insert(index, item)
             add_orphans()
@@ -331,11 +333,10 @@ class CausalTree:
         for i in range(len(self.cache)):
             ctdw = self.cache[i]
             if ctdw.uuid == item.parent_uuid:
-                item.set_parent(ctdw)
-                ctdw.add_child(item)
-                if len(ctdw.children()) > 0:
-                    children = sorted(list(ctdw.children()), key=lambda c: c.uuid)
-                    if children.index(item) > 0:
+                children = [c for c in self.cache if c.parent_uuid == ctdw.uuid]
+                if len(children) > 0:
+                    children = sorted(children, key=lambda c: c.uuid)
+                    if item in children:
                         before = children[children.index(item)-1]
                         index = self.cache.index(walk(before))
                         self.cache.insert(index, item)

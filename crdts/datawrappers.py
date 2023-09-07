@@ -112,29 +112,6 @@ class CTDataWrapper:
     def __le__(self, other: CTDataWrapper) -> bool:
         return self.__to_tuple__() <= other.__to_tuple__()
 
-    def children(self) -> set[CTDataWrapper]:
-        if hasattr(self, '_children'):
-            return self._children
-        return set()
-
-    def add_child(self, child: CTDataWrapper):
-        tressa(isinstance(child, CTDataWrapper), 'child must be CTDataWrapper')
-        if not hasattr(self, '_children'):
-            self._children = set()
-        self._children.add(child)
-        if child.parent_uuid != self.uuid:
-            child.parent_uuid = self.uuid
-
-    def parent(self) -> CTDataWrapper|None:
-        if hasattr(self, '_parent'):
-            return self._parent
-
-    def set_parent(self, parent: CTDataWrapper):
-        tressa(isinstance(parent, CTDataWrapper), 'parent must be CTDataWrapper')
-        self._parent = parent
-        if self.parent_uuid != parent.uuid:
-            self.parent_uuid = parent.uuid
-
     def pack(self) -> bytes:
         return serialize_part([
             self.value,

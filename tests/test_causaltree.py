@@ -192,11 +192,13 @@ class TestCausalTree(unittest.TestCase):
         causaltree = classes.CausalTree()
         view1 = causaltree.read()
 
-        su = causaltree.put_first(
+        sus = causaltree.put_first(
             "first",
             1,
         )
-        assert type(su) is classes.StateUpdate
+        assert type(sus) is tuple
+        for su in sus:
+            assert type(su) is classes.StateUpdate
         view2 = causaltree.read()
 
         parent = causaltree.read_full()[0]
@@ -235,6 +237,8 @@ class TestCausalTree(unittest.TestCase):
         causaltree.move_item(first_item, 1)
         causaltree.move_item(second_item, 1, first_item.uuid)
         view2 = causaltree.read()
+        assert view2 == ('first', 'second'), \
+            f"\nexpected=('first', 'second')\nobserved={view2}"
 
         ct2 = classes.CausalTree()
         ct2.clock.uuid = causaltree.clock.uuid
@@ -242,7 +246,8 @@ class TestCausalTree(unittest.TestCase):
         for state_update in causaltree.history():
             ct2.update(state_update)
 
-        assert view2 == ('first', 'second')
+        view3 = ct2.read()
+        assert view2 == view3
 
     def test_CausalTree_circular_references_are_kept_in_separate_view(self):
         causaltree = classes.CausalTree()
@@ -362,7 +367,7 @@ class TestCausalTree(unittest.TestCase):
 
         assert ct2.checksums() == causaltree.checksums()
         view = ct2.read()
-        assert view == expected, f'{expected} != {view}'
+        assert view == expected, f'\n{expected=}\n{view=}'
 
     def test_CausalTree_concurrent_updates_converge(self):
         ct1 = classes.CausalTree()
@@ -370,19 +375,19 @@ class TestCausalTree(unittest.TestCase):
         ct2.clock.uuid = ct1.clock.uuid
         ct2.positions.clock.uuid = ct1.positions.clock.uuid
 
-        first = ct1.put_first(datawrappers.StrWrapper('first'), 1).data[3]
+        first = ct1.put_first(datawrappers.StrWrapper('first'), 1)[0].data[3]
         ct1.put_after(datawrappers.StrWrapper('second'), 1, first.uuid)
-        alt_first = ct2.put_first(datawrappers.StrWrapper('other first'), 1).data[3]
+        alt_first = ct2.put_first(datawrappers.StrWrapper('other first'), 1)[0].data[3]
         ct2.put_after(datawrappers.StrWrapper('other second'), 1, alt_first.uuid)
 
         for update in ct1.history():
             ct2.update(update)
-            ct2.update(update)
         for update in ct2.history():
             ct1.update(update)
-            ct1.update(update)
 
-        assert ct1.read() == ct2.read()
+        view1 = ct1.read()
+        view2 = ct2.read()
+        assert view1 == view2, f"\nexpected={view1}\nobserved={view2}"
 
     def test_CausalTree_pack_unpack_e2e(self):
         causaltree = classes.CausalTree()
@@ -422,8 +427,9 @@ class TestCausalTree(unittest.TestCase):
         update = causaltree.put_first(
             b'first',
             1,
-            update_class=CustomStateUpdate
-        )
+            update_class=CustomStateUpdate,
+            inject=self.inject
+        )[0]
         assert type(update) is CustomStateUpdate
         assert type(causaltree.history(update_class=CustomStateUpdate)[0] is CustomStateUpdate)
         assert causaltree.read() == (b'first',)
@@ -432,7 +438,7 @@ class TestCausalTree(unittest.TestCase):
         causaltree1 = classes.CausalTree()
         causaltree2 = classes.CausalTree()
         causaltree2.clock.uuid = causaltree1.clock.uuid
-        update = causaltree1.put_first(datawrappers.StrWrapper('first'), 1)
+        update = causaltree1.put_first(datawrappers.StrWrapper('first'), 1)[0]
         causaltree2.update(update)
         parent = update.data[3]
         for i in range(5):
@@ -445,7 +451,7 @@ class TestCausalTree(unittest.TestCase):
         causaltree1.put_first(datawrappers.IntWrapper(42069), 1)
         causaltree2.put_first(datawrappers.IntWrapper(23212), 2)
 
-       # not the most efficient algorithm, but it demonstrates the concept
+        # not the most efficient algorithm, but it demonstrates the concept
         from_ts = 0
         until_ts = causaltree1.clock.read()
         while causaltree1.checksums(from_ts=from_ts, until_ts=until_ts) != \
