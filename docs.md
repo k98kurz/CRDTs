@@ -472,8 +472,8 @@ Initialize an RGA from an ORSet of items and a shared clock.
 
 #### Annotations
 
-- name: DataWrapperProtocol
-- value: DataWrapperProtocol
+- name: SerializableType
+- value: SerializableType
 - clock: ClockProtocol
 - last_update: Any
 - last_writer: int
@@ -488,11 +488,11 @@ Pack the data and metadata into a bytes string.
 
 Unpack the data bytes string into an instance.
 
-##### `read(/, *, inject: dict = {}) -> DataWrapperProtocol:`
+##### `read(/, *, inject: dict = {}) -> SerializableType:`
 
 Return the eventually consistent data view.
 
-##### `@classmethod compare_values(value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool:`
+##### `@classmethod compare_values(value1: SerializableType, value2: SerializableType) -> bool:`
 
 ##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> LWWRegister:`
 
@@ -509,12 +509,12 @@ Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-##### `write(value: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `write(value: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Writes the new value to the register and returns an update_class (StateUpdate by
 default). Requires a writer int for tie breaking.
 
-##### `__init__(name: DataWrapperProtocol, value: DataWrapperProtocol = None, clock: ClockProtocol = None, last_update: Any = None, last_writer: int = 0) -> None:`
+##### `__init__(name: SerializableType, value: SerializableType = None, clock: ClockProtocol = None, last_update: Any = None, last_writer: int = 0) -> None:`
 
 ### `LWWMap`
 

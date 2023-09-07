@@ -21,17 +21,12 @@ will be determined by which value has the higher byte value when serialized.
 
 ## Usage
 
-To use the LWWRegister, import it from the crdts library as well as at least one
-class implementing the `DataWrapperProtocol` interface. For example:
+To use the LWWRegister, import it from the crdts library.
 
 ```python
-from crdts import LWWRegister, StrWrapper
-```
+from crdts import LWWRegister
 
-To instantiate a new LWWRegister use the following:
-
-```python
-lwwr = LWWRegister(name=StrWrapper('some name'))
+lwwr = LWWRegister(name='some name')
 ```
 
 To create a local representation of a shared instance, use a shared, unique
@@ -41,7 +36,7 @@ bytes value as the clock UUID:
 from crdts import ScalarClock
 
 clock_uuid = b'12345 should be unique' # probably shared from another node
-name = StrWrapper('some name')
+name = 'some name'
 name = LWWRegister(name=name, clock=ScalarClock(uuid=clock_uuid))
 ```
 
@@ -55,53 +50,71 @@ Below is an example of how to use this CRDT.
 ```python
 from crdts import ScalarClock, LWWRegister, StrWrapper, IntWrapper
 
-lwwr = LWWRegister(name=StrWrapper('some name'))
-lwwr.write(StrWrapper('some value'))
+writer_id = 1
+lwwr = LWWRegister(name='some name')
+lwwr.write('some value', writer_id)
 
-view = lwwr.read() # should be StrWrapper("some value")
+view = lwwr.read() # should be "some value"
 
-# updates to send to a replica
-updates = lwwr.history()
+# create a replica
+writer_id2 = 2
+lwwr2 = LWWRegister.unpack(lwwr.pack())
+divergence_ts = lwwr.clock.read()
 
-# merge updates received from a replica
-for update in updates:
+# make concurrent updates
+lwwr.write('foo', writer_id)
+lwwr2.write('bar', writer_id2)
+
+# resynchronize
+history1 = lwwr.history(from_ts=divergence_ts)
+history2 = lwwr2.history(from_ts=divergence_ts)
+
+for update in history1:
+    lwwr2.update(update)
+
+for update in history2:
     lwwr.update(update)
+
+# prove they resynchronized and have the same state
+assert lwwr.read() == lwwr2.read()
 ```
 
 ### Methods
 
 Below is documentation for the methods generated automatically by autodox.
 
-#### `pack() -> bytes:`
+##### `pack() -> bytes:`
 
 Pack the data and metadata into a bytes string.
 
-#### `@classmethod unpack(data: bytes, inject: dict) -> LWWRegister:`
+##### `@classmethod unpack(data: bytes, inject: dict = {}) -> LWWRegister:`
 
 Unpack the data bytes string into an instance.
 
-#### `read() -> DataWrapperProtocol:`
+##### `read(/, *, inject: dict = {}) -> SerializableType:`
 
 Return the eventually consistent data view.
 
-#### `@classmethod compare_values(value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool:`
+##### `@classmethod compare_values(value1: SerializableType, value2: SerializableType) -> bool:`
 
-#### `update(state_update: StateUpdateProtocol) -> LWWRegister:`
+##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> LWWRegister:`
 
 Apply an update and return self (monad pattern).
 
-#### `checksums(from_ts: Any, until_ts: Any) -> tuple[int]:`
+##### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
 
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-#### `history(from_ts: Any, until_ts: Any, update_class: type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-#### `write(value: DataWrapperProtocol, writer: int, update_class: type[StateUpdateProtocol]) -> StateUpdateProtocol:`
+##### `write(value: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Writes the new value to the register and returns an update_class (StateUpdate by
 default). Requires a writer int for tie breaking.
+
+##### `__init__(name: SerializableType, value: SerializableType = None, clock: ClockProtocol = None, last_update: Any = None, last_writer: int = 0) -> None:`

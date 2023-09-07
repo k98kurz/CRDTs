@@ -9,7 +9,12 @@ from .datawrappers import (
     StrWrapper,
 )
 from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import (
+    ClockProtocol,
+    DataWrapperProtocol,
+    StateUpdateProtocol,
+    SerializableType,
+)
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
@@ -19,19 +24,17 @@ from typing import Any
 
 class LWWRegister:
     """Implements the Last Writer Wins Register CRDT."""
-    name: DataWrapperProtocol
-    value: DataWrapperProtocol
+    name: SerializableType
+    value: SerializableType
     clock: ClockProtocol
     last_update: Any
     last_writer: int
 
-    def __init__(self, name: DataWrapperProtocol,
-                 value: DataWrapperProtocol = None,
+    def __init__(self, name: SerializableType,
+                 value: SerializableType = None,
                  clock: ClockProtocol = None,
                  last_update: Any = None,
                  last_writer: int = 0) -> None:
-        if value is None:
-            value = NoneWrapper()
         if clock is None:
             clock = ScalarClock()
         if last_update is None:
@@ -69,16 +72,16 @@ class LWWRegister:
             last_writer=last_writer,
         )
 
-    def read(self, /, *, inject: dict = {}) -> DataWrapperProtocol:
+    def read(self, /, *, inject: dict = {}) -> SerializableType:
         """Return the eventually consistent data view."""
         return deserialize_part(
             serialize_part(self.value), inject={**globals(), **inject}
         )
 
     @classmethod
-    def compare_values(cls, value1: DataWrapperProtocol,
-                       value2: DataWrapperProtocol) -> bool:
-        return value1.pack() > value2.pack()
+    def compare_values(cls, value1: SerializableType,
+                       value2: SerializableType) -> bool:
+        return serialize_part(value1) > serialize_part(value2)
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> LWWRegister:
@@ -88,13 +91,13 @@ class LWWRegister:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tressa(type(state_update.data) is tuple,
-            'state_update.data must be tuple of (int, DataWrapperProtocol)')
+            'state_update.data must be tuple of (int, SerializableType)')
         tressa(len(state_update.data) == 2,
-            'state_update.data must be tuple of (int, DataWrapperProtocol)')
+            'state_update.data must be tuple of (int, SerializableType)')
         tressa(type(state_update.data[0]) is int,
             'state_update.data[0] must be int writer_id')
-        tressa(isinstance(state_update.data[1], DataWrapperProtocol),
-            'state_update.data[1] must be DataWrapperProtocol')
+        tressa(isinstance(state_update.data[1], SerializableType),
+            'state_update.data[1] must be SerializableType')
 
         # set the value if the update happens after current state
         if self.clock.is_later(state_update.ts, self.last_update):
@@ -143,15 +146,15 @@ class LWWRegister:
             data=(self.last_writer, self.value)
         ),)
 
-    def write(self, value: DataWrapperProtocol, writer: int, /, *,
+    def write(self, value: SerializableType, writer: int, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate,
               inject: dict = {}) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default). Requires a writer int
             for tie breaking.
         """
-        tressa(isinstance(value, DataWrapperProtocol) or value is None,
-            'value must be a DataWrapperProtocol or None')
+        tressa(isinstance(value, SerializableType) or value is None,
+            'value must be a SerializableType or None')
         tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(

@@ -19,11 +19,8 @@ from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
-from types import NoneType
 from typing import Any
 
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class MVRegister:
     """Implements the Multi-Value Register CRDT."""
@@ -97,7 +94,7 @@ class MVRegister:
             # preserve all concurrent updates
             if state_update.data not in self.values:
                 self.values.append(state_update.data)
-                self.values.sort(key=lambda item: item.pack())
+                self.values.sort(key=lambda item: serialize_part(item))
 
         self.clock.update(state_update.ts)
 
