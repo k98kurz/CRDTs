@@ -481,6 +481,36 @@ class TestCausalTree(unittest.TestCase):
             causaltree2.update(update)
         assert causaltree1.checksums() != causaltree2.checksums()
 
+    def test_CausalTree_edge_case(self):
+        # example from documentation
+        writer_id = 1
+        causaltree = classes.CausalTree()
+        first = causaltree.put_first('first', writer_id)[0].data[3]
+        causaltree.put_after('second', writer_id, first.uuid)
+        second = causaltree.read_full()[1]
+
+        # replicate
+        ct2 = classes.CausalTree.unpack(causaltree.pack())
+
+        # make concurrent updates
+        divergence_ts = causaltree.clock.read()-1
+        causaltree.put_after('third', writer_id, second.uuid)
+        ct2.put_after('alternate third', writer_id, second.uuid)
+
+        # synchronize
+        history1 = causaltree.history(from_ts=divergence_ts)
+        history2 = ct2.history(from_ts=divergence_ts)
+        for update in history1:
+            ct2.update(update)
+
+        for update in history2:
+            causaltree.update(update)
+
+        # prove they have resynchronized and have the same state
+        view1, view1f = causaltree.read(), causaltree.read_full()
+        view2, view2f = ct2.read(), ct2.read_full()
+        assert view1 == view2, f"\n{view1}\n=\n{view2}\n\n{view1f}\n=\n{view2f}"
+
     def debug_info(self, ct1: classes.CausalTree, ct2: classes.CausalTree, history) -> str:
         result = f'expected {ct1.read()} but encountered {ct2.read()}\n\n'
         for item in ct1.read_full():

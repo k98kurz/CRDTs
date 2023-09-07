@@ -336,17 +336,17 @@ class CausalTree:
             ctdw = self.cache[i]
             if ctdw.uuid == item.parent_uuid:
                 children = [c for c in self.cache if c.parent_uuid == ctdw.uuid]
+                children.sort(key=lambda c: c.uuid)
                 if len(children) > 0:
-                    children = sorted(children, key=lambda c: c.uuid)
-                    if item in children:
-                        before = children[children.index(item)-1]
-                        index = self.cache.index(walk(before))
-                        self.cache.insert(index, item)
+                    children.append(item)
+                    children.sort(key=lambda c: c.uuid)
+                    if children.index(item) == 0:
+                        index = i + 1
                     else:
-                        self.cache.insert(i + 1, item)
-                    add_orphans()
-                    return
+                        before = children[children.index(item) - 1]
+                        index = self.cache.index(walk(before)) + 1
                 else:
-                    self.cache.insert(i + 1, item)
-                    add_orphans()
-                    return
+                    index = i + 1
+                self.cache.insert(index, item)
+                add_orphans()
+                return
