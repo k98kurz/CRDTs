@@ -1,7 +1,7 @@
 # Last-Writer-Wins Map
 
 The Last-Writer-Wins Map (LWWMap) is a CRDT that maintains a map of serializable
-values to LWWRegisters that maintain serializable values.
+keys to LWWRegisters that maintain serializable values.
 
 The LWWMap is a composition of the Observed-Removed Set (ORSet) and LWWRegisters.
 The ORSet tracks which map keys have been added and removed. Each key has an

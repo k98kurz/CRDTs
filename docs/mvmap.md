@@ -1,7 +1,7 @@
 # Multi-Value Map
 
 The Multi-Value Map (MVMap) is a CRDT that maintains a map of serializable
-values to MVRegisters that maintain serializable values.
+keys to MVRegisters that maintain serializable values.
 
 The MVMap is a composition of the Observed-Removed Set (ORSet) and MVRegisters.
 The ORSet tracks which map keys have been added and removed. Each key has an

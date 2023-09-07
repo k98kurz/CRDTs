@@ -6,9 +6,9 @@ that can only increase in membership over time.
 ## Mathematics
 
 The state of the GSet is composed of the following:
-- `members: set[DataWrapperProtocol]` - the members of the GSet
+- `members: set[SerializableType]` - the members of the GSet
 - `clock: ClockProtocol` - the clock used for synchronization
-- `update_history: dict[DataWrapperProtocol, StateUpdateProtocol]` - a map
+- `update_history: dict[SerializableType, StateUpdateProtocol]` - a map
 containing the state update for each member
 
 This is one of the simplest CRDTs. Since it uses a set, each item can be added
@@ -17,16 +17,11 @@ operation available is `add`. As it is a set, order of items is not maintained.
 
 ## Usage
 
-To use the GSet, import it from the crdts library as well as at least one
-class implementing the `DataWrapperProtocol` interface. For example:
+To use the GSet, import it from the crdts library.
 
 ```python
-from crdts import GSet, StrWrapper
-```
+from crdts import GSet
 
-To instantiate a new GSet, use the following:
-
-```python
 gset = GSet()
 ```
 
@@ -51,18 +46,32 @@ Below is an example of how to use this CRDT.
 from crdts import ScalarClock, GSet, StrWrapper, IntWrapper
 
 gset = GSet()
-gset.add(StrWrapper("string 1"))
-gset.add(StrWrapper("string 2"))
-gset.add(StrWrapper("string 1"))
+gset.add("string 1")
+gset.add("string 2")
+gset.add("string 1")
 
-view = gset.read() # should be set([StrWrapper("string 1"), StrWrapper("string 2")])
+view = gset.read() # should be set(["string 1", "string 2"])
 
-# Updates to send to a replica
-updates = gset.history()
+# simulate replica
+gset2 = GSet.unpack(gset.pack())
 
-# merge updates received from a replica
-for update in updates:
+# make concurrent updates
+gset.add(123)
+gset2.add(321)
+gset2.add(b'yellow submarine')
+
+# resynchronize
+history1 = gset.history()
+history2 = gset2.history()
+
+for update in history1:
+    gset2.update(update)
+
+for update in history2:
     gset.update(update)
+
+# prove they have synchronized and have the same state
+assert gset.read() == gset2.read()
 ```
 
 ### Methods
