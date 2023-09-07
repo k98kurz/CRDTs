@@ -2,10 +2,10 @@ from __future__ import annotations
 from .errors import tressa
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
+from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from dataclasses import dataclass, field
 from typing import Any
-import struct
 
 
 @dataclass
@@ -20,17 +20,11 @@ class PNCounter:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        clock_size = len(clock)
-
-        return struct.pack(
-            f'!I{clock_size}sII',
-            clock_size,
-            clock,
+        return serialize_part([
             self.positive,
             self.negative,
-        )
+            self.clock
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> PNCounter:
@@ -38,20 +32,12 @@ class PNCounter:
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 20, 'data must be more than 20 bytes')
         dependencies = {**globals(), **inject}
-
-        clock_size, _ = struct.unpack(f'!I{len(data)-4}s', data)
-        _, clock, positive, negative = struct.unpack(
-            f'!I{clock_size}sII',
-            data
+        positive, negative, clock = deserialize_part(data, inject=dependencies)
+        return cls(
+            positive=positive,
+            negative=negative,
+            clock=clock,
         )
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-
-        return cls(positive, negative, clock)
 
     def read(self) -> int:
         """Return the eventually consistent data view."""

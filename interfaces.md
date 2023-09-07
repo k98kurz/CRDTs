@@ -12,7 +12,7 @@
 
 Packs the instance into bytes.
 
-##### `@classmethod unpack(data: bytes, inject: dict = {}) -> PackableProtocol:`
+##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> PackableProtocol:`
 
 Unpacks an instance from bytes. Must accept dependency injection to unpack other
 Packable types.

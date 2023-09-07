@@ -23,7 +23,7 @@ class Counter:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 8, 'data must be more than 8 bytes')
-        counter, clock = deserialize_part(data, inject=inject)
+        counter, clock = deserialize_part(data, inject={**globals(), **inject})
         return cls(counter, clock)
 
     def read(self, /, *, inject: dict = {}) -> int:

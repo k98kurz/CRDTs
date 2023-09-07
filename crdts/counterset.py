@@ -58,12 +58,12 @@ class CounterSet:
     def history(self) -> tuple[StateUpdateProtocol]:
         ...
 
-    def increment(self, amount: int = 1, counter_id: bytes = b'', /, *,
+    def increase(self, amount: int = 1, counter_id: bytes = b'', /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         ...
 
-    def decrement(self, amount: int = 1, counter_id: bytes = b'', /, *,
+    def decrease(self, amount: int = 1, counter_id: bytes = b'', /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         ...
