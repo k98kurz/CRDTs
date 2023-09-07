@@ -112,12 +112,12 @@ class TestFIArray(unittest.TestCase):
             index=Decimal('0.2'),
             uuid=uuid4().bytes,
         )
-        fiarray.positions.extend(
+        fiarray.positions.set(
             datawrappers.BytesWrapper(first.uuid),
             first,
             1
         )
-        fiarray.positions.extend(
+        fiarray.positions.set(
             datawrappers.BytesWrapper(second.uuid),
             second,
             1
@@ -138,12 +138,12 @@ class TestFIArray(unittest.TestCase):
             index=Decimal('0.2'),
             uuid=uuid4().bytes,
         )
-        fiarray.positions.extend(
+        fiarray.positions.set(
             datawrappers.BytesWrapper(first.uuid),
             first,
             1
         )
-        fiarray.positions.extend(
+        fiarray.positions.set(
             datawrappers.BytesWrapper(second.uuid),
             second,
             1

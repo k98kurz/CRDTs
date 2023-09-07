@@ -106,7 +106,7 @@ class TestLWWMap(unittest.TestCase):
         lwwmap = classes.LWWMap()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        update = lwwmap.extend(name, value, 1)
+        update = lwwmap.set(name, value, 1)
         assert isinstance(update, interfaces.StateUpdateProtocol)
 
     def test_LWWMap_read_after_extend_is_correct(self):
@@ -114,7 +114,7 @@ class TestLWWMap(unittest.TestCase):
         view1 = lwwmap.read()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        lwwmap.extend(name, value, 1)
+        lwwmap.set(name, value, 1)
         view2 = lwwmap.read()
         assert isinstance(view2, dict)
         assert view1 != view2
@@ -131,7 +131,7 @@ class TestLWWMap(unittest.TestCase):
         lwwmap = classes.LWWMap()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        lwwmap.extend(name, value, 1)
+        lwwmap.set(name, value, 1)
         view1 = lwwmap.read()
         lwwmap.unset(name, 1)
         view2 = lwwmap.read()
@@ -142,8 +142,8 @@ class TestLWWMap(unittest.TestCase):
         lwwmap = classes.LWWMap()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        lwwmap.extend(name, value, 1)
-        lwwmap.extend(value, name, 1)
+        lwwmap.set(name, value, 1)
+        lwwmap.set(value, name, 1)
         history = lwwmap.history()
         assert type(history) is tuple
         for update in history:
@@ -156,8 +156,8 @@ class TestLWWMap(unittest.TestCase):
         name = datawrappers.StrWrapper('foo')
         value1 = datawrappers.StrWrapper('bar')
         value2 = datawrappers.StrWrapper('test')
-        update1 = lwwmap.extend(name, value1, 1)
-        update2 = lwwmap2.extend(name, value2, 3)
+        update1 = lwwmap.set(name, value1, 1)
+        update2 = lwwmap2.set(name, value2, 3)
         lwwmap.update(update2)
         lwwmap2.update(update1)
 
@@ -167,7 +167,7 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_checksums_returns_tuple_of_int(self):
         lwwmap = classes.LWWMap()
-        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        lwwmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         checksums = lwwmap.checksums()
 
         assert type(checksums) is tuple
@@ -176,11 +176,11 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_checksums_change_after_update(self):
         lwwmap = classes.LWWMap()
-        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        lwwmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         checksums1 = lwwmap.checksums()
-        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
         checksums2 = lwwmap.checksums()
-        lwwmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.set(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
         checksums3 = lwwmap.checksums()
 
         assert checksums1 != checksums2
@@ -189,7 +189,7 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_update_is_idempotent(self):
         lwwmap = classes.LWWMap()
-        update = lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        update = lwwmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         checksums1 = lwwmap.checksums()
         view1 = lwwmap.read()
         lwwmap.update(update)
@@ -202,7 +202,7 @@ class TestLWWMap(unittest.TestCase):
     def test_LWWMap_updates_are_commutative(self):
         lwwmap1 = classes.LWWMap()
         lwwmap2 = classes.LWWMap(clock=classes.ScalarClock(uuid=lwwmap1.clock.uuid))
-        update1 = lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        update1 = lwwmap1.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
         update2 = lwwmap1.unset(datawrappers.StrWrapper('foo'), 1)
 
         lwwmap2.update(update2)
@@ -213,9 +213,9 @@ class TestLWWMap(unittest.TestCase):
     def test_LWWMap_updates_from_history_converge(self):
         lwwmap1 = classes.LWWMap()
         lwwmap2 = classes.LWWMap(clock=classes.ScalarClock(0, lwwmap1.clock.uuid))
-        lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
-        lwwmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
-        lwwmap1.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap1.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        lwwmap1.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap1.set(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
 
         for update in lwwmap1.history():
             lwwmap2.update(update)
@@ -231,11 +231,11 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_pack_unpack_e2e(self):
         lwwmap = classes.LWWMap()
-        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
-        lwwmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
-        lwwmap.extend(datawrappers.StrWrapper('floof'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'), 1)
+        lwwmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.set(datawrappers.StrWrapper('floof'), datawrappers.StrWrapper('bruf'), 1)
         lwwmap.unset(datawrappers.StrWrapper('floof'), 1)
-        lwwmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
+        lwwmap.set(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'), 1)
         packed = lwwmap.pack()
         unpacked = classes.LWWMap.unpack(packed, inject=self.inject)
 
@@ -243,12 +243,12 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_pack_unpack_e2e_with_injected_clock(self):
         lwwm = classes.LWWMap(clock=StrClock())
-        lwwm.extend(
+        lwwm.set(
             datawrappers.StrWrapper('first name'),
             datawrappers.StrWrapper('first value'),
             1
         )
-        lwwm.extend(
+        lwwm.set(
             datawrappers.StrWrapper('second name'),
             datawrappers.StrWrapper('second value'),
             1
@@ -269,7 +269,7 @@ class TestLWWMap(unittest.TestCase):
 
     def test_LWWMap_with_injected_StateUpdateProtocol_class(self):
         lwwm = classes.LWWMap()
-        update = lwwm.extend(
+        update = lwwm.set(
             datawrappers.StrWrapper('first name'),
             datawrappers.StrWrapper('first value'),
             1,
@@ -283,7 +283,7 @@ class TestLWWMap(unittest.TestCase):
         lwwmap2 = classes.LWWMap()
         lwwmap2.clock.uuid = lwwmap1.clock.uuid
         for i in range(10):
-            update = lwwmap1.extend(
+            update = lwwmap1.set(
                 datawrappers.IntWrapper(i),
                 datawrappers.IntWrapper(i),
                 1
@@ -291,9 +291,9 @@ class TestLWWMap(unittest.TestCase):
             lwwmap2.update(update)
         assert lwwmap1.checksums() == lwwmap2.checksums()
 
-        lwwmap1.extend(datawrappers.IntWrapper(69420), datawrappers.IntWrapper(69420), 1)
-        lwwmap1.extend(datawrappers.IntWrapper(42096), datawrappers.IntWrapper(42096), 1)
-        lwwmap2.extend(datawrappers.IntWrapper(23878), datawrappers.IntWrapper(23878), 2)
+        lwwmap1.set(datawrappers.IntWrapper(69420), datawrappers.IntWrapper(69420), 1)
+        lwwmap1.set(datawrappers.IntWrapper(42096), datawrappers.IntWrapper(42096), 1)
+        lwwmap2.set(datawrappers.IntWrapper(23878), datawrappers.IntWrapper(23878), 2)
 
         # not the most efficient algorithm, but it demonstrates the concept
         from_ts = 0

@@ -106,7 +106,7 @@ class TestMVMap(unittest.TestCase):
         mvmap = classes.MVMap()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        update = mvmap.extend(name, value)
+        update = mvmap.set(name, value)
         assert isinstance(update, interfaces.StateUpdateProtocol)
 
     def test_MVMap_read_after_extend_is_correct(self):
@@ -114,7 +114,7 @@ class TestMVMap(unittest.TestCase):
         view1 = mvmap.read()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        mvmap.extend(name, value)
+        mvmap.set(name, value)
         view2 = mvmap.read()
         assert isinstance(view2, dict)
         assert view1 != view2
@@ -131,7 +131,7 @@ class TestMVMap(unittest.TestCase):
         mvmap = classes.MVMap()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        mvmap.extend(name, value)
+        mvmap.set(name, value)
         view1 = mvmap.read()
         mvmap.unset(name)
         view2 = mvmap.read()
@@ -142,8 +142,8 @@ class TestMVMap(unittest.TestCase):
         mvmap = classes.MVMap()
         name = datawrappers.StrWrapper('foo')
         value = datawrappers.StrWrapper('bar')
-        mvmap.extend(name, value)
-        mvmap.extend(value, name)
+        mvmap.set(name, value)
+        mvmap.set(value, name)
         history = mvmap.history()
         assert type(history) is tuple
         for update in history:
@@ -156,8 +156,8 @@ class TestMVMap(unittest.TestCase):
         name = datawrappers.StrWrapper('foo')
         value1 = datawrappers.StrWrapper('bar')
         value2 = datawrappers.StrWrapper('test')
-        update1 = mvmap.extend(name, value1)
-        update2 = mvmap2.extend(name, value2)
+        update1 = mvmap.set(name, value1)
+        update2 = mvmap2.set(name, value2)
         mvmap.update(update2)
         mvmap2.update(update1)
 
@@ -166,7 +166,7 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_checksums_returns_tuple_of_int(self):
         mvmap = classes.MVMap()
-        mvmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
+        mvmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
         checksums = mvmap.checksums()
 
         assert type(checksums) is tuple
@@ -175,11 +175,11 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_checksums_change_after_update(self):
         mvmap = classes.MVMap()
-        mvmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
+        mvmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
         checksums1 = mvmap.checksums()
-        mvmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
+        mvmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
         checksums2 = mvmap.checksums()
-        mvmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
+        mvmap.set(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
         checksums3 = mvmap.checksums()
 
         assert checksums1 != checksums2
@@ -188,7 +188,7 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_update_is_idempotent(self):
         mvmap = classes.MVMap()
-        update = mvmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
+        update = mvmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
         checksums1 = mvmap.checksums()
         view1 = mvmap.read()
         mvmap.update(update)
@@ -201,7 +201,7 @@ class TestMVMap(unittest.TestCase):
     def test_MVMap_updates_are_commutative(self):
         mvmap1 = classes.MVMap()
         mvmap2 = classes.MVMap(clock=classes.ScalarClock(uuid=mvmap1.clock.uuid))
-        update1 = mvmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
+        update1 = mvmap1.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
         update2 = mvmap1.unset(datawrappers.StrWrapper('foo'))
 
         mvmap2.update(update2)
@@ -212,9 +212,9 @@ class TestMVMap(unittest.TestCase):
     def test_MVMap_updates_from_history_converge(self):
         mvmap1 = classes.MVMap()
         mvmap2 = classes.MVMap(clock=classes.ScalarClock(0, mvmap1.clock.uuid))
-        mvmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
-        mvmap1.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
-        mvmap1.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
+        mvmap1.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
+        mvmap1.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
+        mvmap1.set(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
 
         for update in mvmap1.history():
             mvmap2.update(update)
@@ -230,11 +230,11 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_pack_unpack_e2e(self):
         mvmap = classes.MVMap()
-        mvmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
-        mvmap.extend(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
-        mvmap.extend(datawrappers.StrWrapper('floof'), datawrappers.StrWrapper('bruf'))
+        mvmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bar'))
+        mvmap.set(datawrappers.StrWrapper('foo'), datawrappers.StrWrapper('bruf'))
+        mvmap.set(datawrappers.StrWrapper('floof'), datawrappers.StrWrapper('bruf'))
         mvmap.unset(datawrappers.StrWrapper('floof'))
-        mvmap.extend(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
+        mvmap.set(datawrappers.StrWrapper('oof'), datawrappers.StrWrapper('bruf'))
         packed = mvmap.pack()
         unpacked = classes.MVMap.unpack(packed, inject=self.inject)
 
@@ -242,11 +242,11 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_pack_unpack_e2e_with_injected_clock(self):
         mvm = classes.MVMap(clock=StrClock())
-        mvm.extend(
+        mvm.set(
             datawrappers.StrWrapper('first name'),
             datawrappers.StrWrapper('first value'),
         )
-        mvm.extend(
+        mvm.set(
             datawrappers.StrWrapper('second name'),
             datawrappers.StrWrapper('second value'),
         )
@@ -266,7 +266,7 @@ class TestMVMap(unittest.TestCase):
 
     def test_MVMap_with_injected_StateUpdateProtocol_class(self):
         mvm = classes.MVMap()
-        update = mvm.extend(
+        update = mvm.set(
             datawrappers.StrWrapper('first name'),
             datawrappers.StrWrapper('first value'),
             update_class=CustomStateUpdate
@@ -279,16 +279,16 @@ class TestMVMap(unittest.TestCase):
         mvmap2 = classes.MVMap()
         mvmap2.clock.uuid = mvmap1.clock.uuid
         for i in range(10):
-            update = mvmap1.extend(
+            update = mvmap1.set(
                 datawrappers.IntWrapper(i),
                 datawrappers.IntWrapper(i),
             )
             mvmap2.update(update)
         assert mvmap1.checksums() == mvmap2.checksums()
 
-        mvmap1.extend(datawrappers.IntWrapper(69420), datawrappers.IntWrapper(69420))
-        mvmap1.extend(datawrappers.IntWrapper(42096), datawrappers.IntWrapper(42096))
-        mvmap2.extend(datawrappers.IntWrapper(23878), datawrappers.IntWrapper(23878))
+        mvmap1.set(datawrappers.IntWrapper(69420), datawrappers.IntWrapper(69420))
+        mvmap1.set(datawrappers.IntWrapper(42096), datawrappers.IntWrapper(42096))
+        mvmap2.set(datawrappers.IntWrapper(23878), datawrappers.IntWrapper(23878))
 
         # not the most efficient algorithm, but it demonstrates the concept
         from_ts = 0

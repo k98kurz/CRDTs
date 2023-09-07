@@ -100,7 +100,7 @@ class TestCausalTree(unittest.TestCase):
 
     def test_CausalTree_read_returns_tuple_of_underlying_items(self):
         causaltree = classes.CausalTree()
-        causaltree.positions.extend(
+        causaltree.positions.set(
             datawrappers.BytesWrapper(b'first'),
             datawrappers.CTDataWrapper(
                 'first',
@@ -109,7 +109,7 @@ class TestCausalTree(unittest.TestCase):
             ),
             1
         )
-        causaltree.positions.extend(
+        causaltree.positions.set(
             datawrappers.BytesWrapper(b'second'),
             datawrappers.CTDataWrapper(
                 b'second',
@@ -124,7 +124,7 @@ class TestCausalTree(unittest.TestCase):
 
     def test_CausalTree_read_full_returns_tuple_of_DataWrapperProtocol(self):
         causaltree = classes.CausalTree()
-        causaltree.positions.extend(
+        causaltree.positions.set(
             datawrappers.BytesWrapper(b'first'),
             datawrappers.CTDataWrapper(
                 datawrappers.StrWrapper('first'),
@@ -133,7 +133,7 @@ class TestCausalTree(unittest.TestCase):
             ),
             1
         )
-        causaltree.positions.extend(
+        causaltree.positions.set(
             datawrappers.BytesWrapper(b'second'),
             datawrappers.CTDataWrapper(
                 datawrappers.BytesWrapper(b'second'),

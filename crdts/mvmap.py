@@ -247,7 +247,7 @@ class MVMap:
 
         return tuple(history)
 
-    def extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, /,
+    def set(self, name: DataWrapperProtocol, value: DataWrapperProtocol, /,
                 *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
