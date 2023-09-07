@@ -13,7 +13,7 @@ in the cycle from the views returned by `read` and `read_full`, but they will be
 accessible via `read_excluded`.
 
 When an item is deleted, rather than creating multiple updates that excise the
-item and stich the graph back together, the item is replaced with a tombstone,
+item and stitch the graph back together, the item is replaced with a tombstone,
 and its UUID stays in the graph.
 
 ## Usage
@@ -62,7 +62,7 @@ Note that items must meet the following type alias to work properly.
 SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 ```
 
-Custom data types can be use if a class implementing the `DataWrapperProtocol`
+Custom data types can be used if a class implementing the `DataWrapperProtocol`
 is first used to wrap the item. This ensures reliable serialization.
 
 Additionally, it is possible that some items get excluded from the data views
