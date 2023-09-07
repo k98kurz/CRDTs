@@ -498,6 +498,25 @@ class TestFIArray(unittest.TestCase):
             fiarray2.update(update)
         assert fiarray1.checksums() != fiarray2.checksums()
 
+    def test_FIArray_normalize_evenly_spaces_existing_items(self):
+        fia = classes.FIArray()
+        fia.put('first', 1, Decimal('0.9'))
+        fia.put('second', 1, Decimal('0.91'))
+        fia.put('third', 1, Decimal('0.92'))
+        assert fia.read() == ('first', 'second', 'third')
+
+        sus = fia.normalize(1)
+        assert type(sus) is tuple
+        for su in sus:
+            assert isinstance(su, interfaces.StateUpdateProtocol)
+
+        assert fia.read() == ('first', 'second', 'third')
+        indices = [f.index.value for f in fia.read_full()]
+        index_space = Decimal("1")/Decimal("4")
+
+        for i in range(len(indices)):
+            assert indices[i] == index_space*Decimal(i)
+
 
 if __name__ == '__main__':
     unittest.main()

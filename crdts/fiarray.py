@@ -332,6 +332,24 @@ class FIArray:
 
         return state_update
 
+    def normalize(self, writer: int, /, *,
+                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> tuple[StateUpdateProtocol]:
+        """Evenly distribute the item indices. Returns tuple of
+            update_class (StateUpdate by default) that encode the index
+            updates.
+        """
+        index_space = Decimal("1")/Decimal(len(self.read()) + 1)
+        updates = []
+        items = self.read_full()
+        for i in range(len(items)):
+            item = items[i]
+            updates.append(self.move_item(
+                item, writer, new_index=index_space*Decimal(i),
+                update_class=update_class, inject=inject
+            ))
+        return tuple(updates)
+
     def delete(self, item: FIAItemWrapper, writer: int, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
