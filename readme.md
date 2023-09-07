@@ -117,31 +117,46 @@ style monad pattern.
 
 - ClockProtocol(Protocol)
     - `uuid: bytes`
-    - `read(self) -> Any`
+    - `default_ts: Any`
+    - `read(self, /, *, inject: dict = {}) -> Any`
     - `update(self, data: Any = None) -> Any`
     - `@staticmethod is_later(ts1: Any, ts2: Any) -> bool`
     - `@staticmethod are_concurrent(ts1: Any, ts2: Any) -> bool`
     - `@staticmethod compare(ts1: Any, ts2: Any) -> int`
     - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes) -> ClockProtocol`
+    - `@classmethod unpack(cls, data: bytes, /, *, inject: dict = {}) -> ClockProtocol`
+    - `@classmethod wrap_ts(cls, ts: Any, /, *, inject: dict = {}) -> DataWrapperProtocol`
 - CRDTProtocol(Protocol)
     - `clock: ClockProtocol`
     - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes) -> CRDTProtocol`
-    - `read(self) -> Any`
-    - `update(self, state_update: StateUpdateProtocol) -> CRDTProtocol`
-    - `checksums(self) -> tuple[Any]`
-    - `history(self) -> tuple[StateUpdateProtocol]`
+    - `@classmethod unpack(cls, data: bytes, /, *, inject: dict = {}) -> CRDTProtocol`
+    - `read(self, /, *, inject: dict = {}) -> Any`
+    - `update(self, state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> CRDTProtocol`
+    - `checksums(self, from_ts: Any = None, until_ts: Any = None) -> tuple[Any]`
+    - `history(self, from_ts: Any, until_ts: Any = None, update_class: type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]`
 - DataWrapperProtocol(Protocol)
     - `value: Any`
     - `__hash__(self) -> int`
-    - `__eq__(self, other) -> bool`
     - `pack(self) -> bytes`
     - `@classmethod unpack(cls, data: bytes) -> DataWrapperProtocol`
+    - `__eq__(self, other) -> bool`
+    - `__ne__(self) -> bool`
+    - `__gt__(self) -> bool`
+    - `__ge__(self) -> bool`
+    - `__lt__(self) -> bool`
+    - `__le__(self) -> bool`
 - StateUpdateProtocol(Protocol)
     - `clock_uuid: bytes`
     - `ts: Any`
     - `data: Hashable`
+    - `__init__(clock_uuid: bytes, ts: Any, data: Hashable) -> None`
+    - `pack(self) -> bytes`
+    - `@classmethod unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdateProtocol`
+
+### Type Alias
+
+There is a type alias, `SerializableType`, used in several places. It is equal
+to the following: `DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType`.
 
 ### Classes
 - NoneWrapper(DataWrapperProtocol)
@@ -153,32 +168,37 @@ style monad pattern.
 - BytesWrapper(StrWrapper)
     - `value: bytes`
 - CTDataWrapper(DataWrapperProtocol)
-    - `value: DataWrapperProtocol`
+    - `value: SerializableType`
+    - `uuid: bytes`
+    - `parent_uuid: bytes`
+    - `visible: bool`
 - DecimalWrapper(StrWrapper)
     - `value: Decimal`
 - IntWrapper(DecimalWrapper)
     - `value: int`
 - RGAItemWrapper(StrWrapper)
-    - `value: tuple[DataWrapperProtocol, tuple[DataWrapperProtocol, int]]`
+  - `value: DataWrapperProtocol`
+  - `ts: DataWrapperProtocol`
+  - `writer: int`
 - NoneWrapper(DataWrapperProtocol)
 - GSet(CRDTProtocol)
-    - `members: set`
+    - `members: set[SerializableType]`
     - `clock: ClockProtocol`
-    - `update_history: dict[DataWrapperProtocol, StateUpdateProtocol]`
-    - `add(self, member: Hashable) -> StateUpdate`
+    - `update_history: dict[SerializableType, StateUpdateProtocol]`
+    - `add(self, member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - Counter(CRDTProtocol)
     - `counter: int`
     - `clock: ClockProtocol`
-    - `increase(self, amount: int = 1) -> StateUpdate`
+    - `increase(self, amount: int = 1, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol) -> StateUpdate`
 - ORSet(CRDTProtocol)
-    - `observed: set`
-    - `observed_metadata: dict`
-    - `removed: set`
-    - `removed_metadata: dict`
+    - `observed: set[SerializableType]`
+    - `observed_metadata: dict[SerializableType, StateUpdateProtocol]`
+    - `removed: set[SerializableType]`
+    - `removed_metadata: dict[SerializableType, StateUpdateProtocol]`
     - `clock: ClockProtocol`
     - `cache: Optional[tuple]`
-    - `observe(self, member: Hashable) -> StateUpdate`
-    - `remove(self, member: Hashable) -> StateUpdate`
+    - `observe(self, member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
+    - `remove(self, member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - PNCounter(CRDTProtocol)
     - `positive: int`
     - `negative: int`
@@ -270,7 +290,7 @@ python test_pncounter.py
 python test_rgarray.py
 ```
 
-The 226 tests demonstrate the intended (and actual) behavior of the classes, as
+The 232 tests demonstrate the intended (and actual) behavior of the classes, as
 well as some contrived examples of how they are used. Perusing the tests will be
 informative to anyone seeking to use this package.
 

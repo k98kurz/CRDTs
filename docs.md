@@ -105,7 +105,7 @@ data. Useful for resynchronization by replaying all updates from divergent
 nodes. If from_ts and/ or until_ts are supplied, only those updates that are not
 outside of these temporal constraints will be included.
 
-##### `add(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `add(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Create, apply, and return a StateUpdate adding member to the set.
 
@@ -139,13 +139,13 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-##### `increase(amount: int = 1, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `increase(amount: int = 1, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Increase the counter by the given amount (default 1). Returns the update_class
 (StateUpdate by default) that should be propagated to the network.
@@ -154,10 +154,10 @@ Increase the counter by the given amount (default 1). Returns the update_class
 
 #### Annotations
 
-- observed: set
-- observed_metadata: dict
-- removed: set
-- removed_metadata: dict
+- observed: set[SerializableType]
+- observed_metadata: dict[SerializableType, StateUpdateProtocol]
+- removed: set[SerializableType]
+- removed_metadata: dict[SerializableType, StateUpdateProtocol]
 - clock: ClockProtocol
 - cache: Optional[tuple]
 
@@ -171,11 +171,11 @@ Pack the data and metadata into a bytes string.
 
 Unpack the data bytes string into an instance.
 
-##### `read() -> set[SerializableType]:`
+##### `read(/, *, inject: dict = {}) -> set[SerializableType]:`
 
 Return the eventually consistent data view.
 
-##### `update(state_update: StateUpdateProtocol) -> ORSet:`
+##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> ORSet:`
 
 Apply an update and return self (monad pattern).
 
@@ -184,17 +184,17 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-##### `observe(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `observe(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Adds the given member to the observed set.
 
-##### `remove(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `remove(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Adds the given member to the removed set.
 
@@ -229,18 +229,18 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-##### `increase(amount: int = 1, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `increase(amount: int = 1, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Increase the counter by the given amount (default 1). Returns the update_class
 (StateUpdate by default) that should be propagated to the network.
 
-##### `decrease(amount: int = 1, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `decrease(amount: int = 1, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Decrease the counter by the given amount (default 1). Returns the update_class
 (StateUpdate by default) that should be propagated to the network.
@@ -286,7 +286,7 @@ Apply an update and return self (monad pattern).
 Returns checksums for the underlying data to detect desynchronization due to
 network partition.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent
@@ -296,50 +296,50 @@ nodes.
 
 Return an index between first and second with a random offset.
 
-##### `put(item: SerializableType, writer: int, index: Decimal, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put(item: SerializableType, writer: int, index: Decimal, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item at the index. The FIAItemWrapper will be at index 3 of the data
 attribute of the returned update_class instance.
 
-##### `put_between(item: SerializableType, writer: int, first: FIAItemWrapper, second: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_between(item: SerializableType, writer: int, first: FIAItemWrapper, second: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item at an index between first and second. The FIAItemWrapper will be at
 index 3 of the data attribute of the returned update_class instance.
 
-##### `put_before(item: SerializableType, writer: int, other: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_before(item: SerializableType, writer: int, other: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item before the other item. The FIAItemWrapper will be at index 3 of the
 data attribute of the returned update_class instance.
 
-##### `put_after(item: SerializableType, writer: int, other: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_after(item: SerializableType, writer: int, other: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item after the other item. The FIAItemWrapper will be at index 3 of the data
 attribute of the returned update_class instance.
 
-##### `put_first(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_first(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item at an index between 0 and the first item. The FIAItemWrapper will be at
 index 3 of the data attribute of the returned update_class instance.
 
-##### `put_last(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_last(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item at an index between the last item and 1. The FIAItemWrapper will be at
 index 3 of the data attribute of the returned update_class instance.
 
-##### `move_item(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, before: FIAItemWrapper = None, after: FIAItemWrapper = None, new_index: Decimal = None) -> StateUpdateProtocol:`
+##### `move_item(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate, before: FIAItemWrapper = None, after: FIAItemWrapper = None, new_index: Decimal = None) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that puts
 the item at the new index, or directly before the before, or directly after the
 after, or halfway between before and after. The FIAItemWrapper will be at index
 3 of the data attribute of the returned update_class instance.
 
-##### `delete(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `delete(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 deletes the item. Index 3 of the data attribute of the returned update_class
@@ -395,18 +395,18 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying all
 updates from divergent nodes.
 
-##### `append(item: SerializableType, writer: int, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `append(item: SerializableType, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 appends the item.
 
-##### `delete(item: RGAItemWrapper, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `delete(item: RGAItemWrapper, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 deletes the specified item.
@@ -457,13 +457,13 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-##### `write(value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `write(value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Writes the new value to the register and returns an update_class (StateUpdate by
 default). Requires a writer int for tie breaking.
@@ -499,18 +499,18 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdateProtocols that will converge to the
 underlying data. Useful for resynchronization by replaying updates from
 divergent nodes.
 
-##### `extend(name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `extend(name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Extends the dict with name: value. Returns an update_class (StateUpdate by
 default) that should be propagated to all nodes.
 
-##### `unset(name: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `unset(name: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Removes the key name from the dict. Returns a StateUpdate.
 
@@ -556,35 +556,35 @@ own descendant).
 Returns checksums for the underlying data to detect desynchronization due to
 network partition.
 
-##### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent
 nodes.
 
-##### `put(item: SerializableType, writer: int, uuid: bytes, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put(item: SerializableType, writer: int, uuid: bytes, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns a update_class (StateUpdate by default) that puts
 the item after the parent.
 
-##### `put_after(item: SerializableType, writer: int, parent_uuid: bytes, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_after(item: SerializableType, writer: int, parent_uuid: bytes, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class that puts the item after the
 parent item.
 
-##### `put_first(item: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> tuple[StateUpdateProtocol]:`
+##### `put_first(item: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
 
 Creates, applies, and returns at least one update_class (StateUpdate by default)
 that puts the item as the first item. Any ties for first place will be resolved
 by making the new item the parent of those other first items, and those
 update_class instances will also be created, applied, and returned.
 
-##### `move_item(item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `move_item(item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 moves the item to after the new parent.
 
-##### `delete(ctdw: CTDataWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `delete(ctdw: CTDataWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 deletes the item specified by ctdw.
@@ -623,27 +623,27 @@ Unpack an instance from bytes.
 #### Annotations
 
 - uuid: bytes
-- default_ts: Any
+- default_ts: TimestampType
 
 #### Methods
 
-##### `read(/, *, inject: dict = {}) -> Any:`
+##### `read(/, *, inject: dict = {}) -> TimestampType:`
 
 Return the current timestamp.
 
-##### `update(data: Any = None) -> Any:`
+##### `update(data: TimestampType = None) -> TimestampType:`
 
 Update the clock and return the current time stamp.
 
-##### `@staticmethod is_later(ts1: Any, ts2: Any) -> bool:`
+##### `@staticmethod is_later(ts1: TimestampType, ts2: TimestampType) -> bool:`
 
 Return True iff ts1 > ts2.
 
-##### `@staticmethod are_concurrent(ts1: Any, ts2: Any) -> bool:`
+##### `@staticmethod are_concurrent(ts1: TimestampType, ts2: TimestampType) -> bool:`
 
 Return True if not ts1 > ts2 and not ts2 > ts1.
 
-##### `@staticmethod compare(ts1: Any, ts2: Any) -> int:`
+##### `@staticmethod compare(ts1: TimestampType, ts2: TimestampType) -> int:`
 
 Return 1 if ts1 is later than ts2; -1 if ts2 is later than ts1; and 0 if they
 are concurrent/incomparable.
@@ -656,7 +656,7 @@ Pack the clock into bytes.
 
 Unpack a clock from bytes.
 
-##### `@classmethod wrap_ts(ts: Any, /, *, inject: dict = {}) -> DataWrapperProtocol:`
+##### `@classmethod wrap_ts(ts: TimestampType, /, *, inject: dict = {}) -> DataWrapperProtocol:`
 
 Wrap a timestamp in a data wrapper.
 
@@ -684,12 +684,12 @@ Return the eventually consistent data view.
 
 Apply an update and return self (monad pattern).
 
-##### `checksums(from_ts: Any = None, until_ts: Any = None) -> tuple[Any]:`
+##### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[Any]:`
 
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(from_ts: Any, until_ts: Any = None, update_class: type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]:`
+##### `history(update_class: type[StateUpdateProtocol], /, *, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent

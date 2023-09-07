@@ -19,10 +19,10 @@ class ORSet:
         from the observed set. Add-biased. Note that int members are
         converted to str for json compatibility.
     """
-    observed: set = field(default_factory=set)
-    observed_metadata: dict = field(default_factory=dict)
-    removed: set = field(default_factory=set)
-    removed_metadata: dict = field(default_factory=dict)
+    observed: set[SerializableType] = field(default_factory=set)
+    observed_metadata: dict[SerializableType, StateUpdateProtocol] = field(default_factory=dict)
+    removed: set[SerializableType] = field(default_factory=set)
+    removed_metadata: dict[SerializableType, StateUpdateProtocol] = field(default_factory=dict)
     clock: ClockProtocol = field(default_factory=ScalarClock)
     cache: Optional[tuple] = field(default=None)
 
@@ -53,7 +53,7 @@ class ORSet:
         removed_metadata = {k:v for k,v in removed_metadata}
         return cls(observed, observed_metadata, removed, removed_metadata, clock)
 
-    def read(self) -> set[SerializableType]:
+    def read(self, /, *, inject: dict = {}) -> set[SerializableType]:
         """Return the eventually consistent data view."""
         if self.cache is not None:
             if self.cache[0] == self.clock.read():
@@ -64,7 +64,8 @@ class ORSet:
 
         return difference
 
-    def update(self, state_update: StateUpdateProtocol) -> ORSet:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> ORSet:
         """Apply an update and return self (monad pattern)."""
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')

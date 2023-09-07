@@ -2,6 +2,8 @@
 
 ## Classes
 
+### `Decimal`
+
 ### `PackableProtocol(Protocol)`
 
 #### Methods
@@ -89,12 +91,12 @@ Return the eventually consistent data view.
 
 Apply an update and return self (monad pattern).
 
-##### `checksums(from_ts: Any = None, until_ts: Any = None) -> tuple[Any]:`
+##### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[Any]:`
 
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(from_ts: Any, until_ts: Any = None, update_class: type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = None, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent

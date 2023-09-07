@@ -1,6 +1,9 @@
 from __future__ import annotations
+from decimal import Decimal
 from typing import Any, Hashable, Protocol, runtime_checkable
 
+
+# TimestampType = int|float|str|bytes|bytearray|Decimal
 
 @runtime_checkable
 class PackableProtocol(Protocol):
@@ -85,14 +88,14 @@ class CRDTProtocol(Protocol):
         """Apply an update and return self (monad pattern)."""
         ...
 
-    def checksums(self, from_ts: Any = None, until_ts: Any = None) -> tuple[Any]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[Any]:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
         ...
 
-    def history(self, from_ts: Any = None, until_ts: Any = None, /, *,
-                update_class: type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:
+    def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
+                update_class: type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
