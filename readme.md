@@ -224,7 +224,8 @@ to the following: `DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType`.
 
 ## Tests
 
-Open a terminal in the root directory and run the following:
+Clone the repository, then open a terminal in the root directory and run the
+following:
 
 ```bash
 find ./tests -name test_*.py -exec python {} \;
@@ -262,13 +263,6 @@ Permission to use, copy, modify, and/or distribute this software
 for any purpose with or without fee is hereby granted, provided
 that the above copyleft notice and this permission notice appear in
 all copies.
-
-Exceptions: this permission is not granted to Alphabet/Google, Amazon,
-Apple, Microsoft, Netflix, Meta/Facebook, Twitter, or Disney; nor is
-permission granted to any company that contracts to supply weapons or
-logistics to any national military; nor is permission granted to any
-national government or governmental agency; nor is permission granted to
-any employees, associates, or affiliates of these designated entities.
 
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
 WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
