@@ -1,5 +1,10 @@
 from __future__ import annotations
 from .datawrappers import (
+    BytesWrapper,
+    StrWrapper,
+    IntWrapper,
+    DecimalWrapper,
+    CTDataWrapper,
     NoneWrapper,
 )
 from .errors import tressa
@@ -108,7 +113,7 @@ class LWWMap:
         tressa(hasattr(dependencies[clock_class], 'unpack'),
             f'{clock_class} missing unpack method')
         clock = dependencies[clock_class].unpack(clock)
-        names = ORSet.unpack(names, inject)
+        names = ORSet.unpack(names, inject=dependencies)
 
         # parse the registers
         registers_raw = json.loads(str(registers_raw, 'utf-8'))
