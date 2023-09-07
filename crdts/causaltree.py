@@ -17,7 +17,6 @@ from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
-from types import NoneType
 from typing import Any
 from uuid import uuid4
 
@@ -230,7 +229,7 @@ class CausalTree:
                 'r',
                 BytesWrapper(ctdw.uuid),
                 writer,
-                CTDataWrapper(NoneWrapper(), ctdw.uuid, ctdw.parent_uuid, False)
+                CTDataWrapper(None, ctdw.uuid, ctdw.parent_uuid, False)
             )
         )
 

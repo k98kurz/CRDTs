@@ -1,12 +1,12 @@
 # Grow-only Set
 
-The Grow-only Set (GSet) is a CRDT that encodes a set of items
-that can only increase in membership over time.
+The Grow-only Set (`GSet`) is a CRDT that encodes a set of items that can only
+increase in membership over time.
 
 ## Mathematics
 
-The state of the GSet is composed of the following:
-- `members: set[SerializableType]` - the members of the GSet
+The state of the `GSet` is composed of the following:
+- `members: set[SerializableType]` - the members of the `GSet`
 - `clock: ClockProtocol` - the clock used for synchronization
 - `update_history: dict[SerializableType, StateUpdateProtocol]` - a map
 containing the state update for each member
@@ -17,7 +17,7 @@ operation available is `add`. As it is a set, order of items is not maintained.
 
 ## Usage
 
-To use the GSet, import it from the crdts library.
+To use the `GSet`, import it from the crdts library.
 
 ```python
 from crdts import GSet

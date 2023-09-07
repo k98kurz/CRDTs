@@ -1,15 +1,15 @@
 # Last-Writer-Wins Map
 
-The Last-Writer-Wins Map (LWWMap) is a CRDT that maintains a map of serializable
-keys to LWWRegisters that maintain serializable values.
+The Last-Writer-Wins Map (`LWWMap`) is a CRDT that maintains a map of
+serializable keys to `LWWRegister`s that maintain serializable values.
 
-The LWWMap is a composition of the Observed-Removed Set (ORSet) and LWWRegisters.
-The ORSet tracks which map keys have been added and removed. Each key has an
-assigned LWWRegister for tracking the associated value.
+The `LWWMap` is a composition of the Observed-Removed Set (`ORSet`) and
+`LWWRegister`s. The `ORSet` tracks which map keys have been added and removed.
+Each key has an assigned `LWWRegister` for tracking the associated value.
 
 ## Usage
 
-To use the LWWMap, import it from the crdts library as well as at least one
+To use the `LWWMap`, import it from the crdts library as well as at least one
 class implementing the `DataWrapperProtocol` interface. For example:
 
 ```python

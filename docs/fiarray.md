@@ -1,22 +1,22 @@
 # Fractionally-Indexed Array
 
-The fractionally-indexed array (FIA) is a list CRDT that allows updates to be
-issued that insert or remove items. Items can also be moved simply by putting
+The fractionally-indexed array (`FIArray`) is a list CRDT that allows updates to
+be issued that insert or remove items. Items can also be moved simply by putting
 the item at the new location, overwriting the index associated with the item.
 
-The FIA uses the LWWMap as its underlying CRDT and adds the fractional index
-logic on top.
+The `FIArray` uses the LWWMap as its underlying CRDT and adds the fractional
+index logic on top.
 
 ## Mathematics
 
-The state of the FIArray is composed of the following:
-- `positions: LWWMap` - the LWWMap mapping items to indices
+The state of the `FIArray` is composed of the following:
+- `positions: LWWMap` - the `LWWMap` mapping items to indices
 - `clock: ClockProtocol` - the clock used for synchronization
 - `cache_full: list[FIAItemWrapper]` - the ordered list of wrapped items
 - `cache: list[SerializableType]` - the ordered list of unwrapped items
 
-The conflict-free merge semantics are coded in the LWWMap and its underlying
-classes. The FIArray class has the following unique mathematical properties:
+The conflict-free merge semantics are coded in the `LWWMap` and its underlying
+classes. The `FIArray` class has the following unique mathematical properties:
 
 - Inserting at the beginning is done by averaging between 0 and the first item
 (or 1 if the list is empty).
@@ -25,7 +25,7 @@ the list is empty).
 - Inserting between two items is done by averaging their indices.
 - To avoid the small chance that two items will be inserted at the same location
 by different nodes asynchronously, a small random offset is added.
-- Deleting removes the item from the underlying LWWMap.
+- Deleting removes the item from the underlying `LWWMap`.
 - Performance optimization for large lists is accomplished with a cache system
 and the `bisect` algorithm for quickly finding the correct insertion point.
 
@@ -33,11 +33,10 @@ To avoid resorting the entire list on each read, a cache system is included.
 
 ## Usage
 
-To use the FIArray in your code, import it from the crdts library as well as a
-class implementing the `DataWrapperProtocol` interface. For example:
+To use the FIArray in your code, import it from the crdts library.
 
 ```python
-from crdts import FIArray, StrWrapper
+from crdts import FIArray
 
 fia = FIArray()
 ```

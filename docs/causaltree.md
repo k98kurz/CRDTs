@@ -1,12 +1,12 @@
 # Causal Tree
 
-The Causal Tree (CausalTree) is a CRDT that maintains an ordered list of items.
+The Causal Tree (`CausalTree`) is a CRDT that maintains an ordered list of items.
 Items can be added to the beginning of the list or after a specific item already
 in the list. Items can also be moved and deleted, leaving behind tombstones.
 
 ## Mathematics
 
-The Causal Tree uses the LWWMap to encode a directed graph. Each item is
+The Causal Tree uses the `LWWMap` to encode a directed graph. Each item is
 assigned a UUID, and links are created by referencing the UUID of a parent
 item. It is possible to create cycles in this graph, which will remove all items
 in the cycle from the views returned by `read` and `read_full`, but they will be
@@ -18,7 +18,7 @@ and its UUID stays in the graph.
 
 ## Usage
 
-To use the CausalTree, import it from the crdts library.
+To use the `CausalTree`, import it from the crdts library.
 
 ```python
 from crdts import CausalTree

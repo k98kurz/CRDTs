@@ -1,16 +1,16 @@
 # Replicated Growable Array
 
-The Replicated Growable Array (RGArray) is a CRDT that tracks a simple list.
+The Replicated Growable Array (`RGArray`) is a CRDT that tracks a simple list.
 Items can be added or removed from the list.
 
 ## Mathematics
 
-The RGArray uses an ORSet under the hood for tracking additions and removals.
+The `RGArray` uses an ORSet under the hood for tracking additions and removals.
 When an item is appended, it is wrapped in a `RGAItemWrapper` which includes the
 timestamp and writer id. This `RGAItemWrapper` is then observed by the ORSet.
 Deletions work by putting a `RGAItemWrapper` into the removed set of the ORSet.
 
-The RGArray does not allow moving/reindexing items.
+The `RGArray` does not allow moving/reindexing items.
 
 Note that it is technically possible to undelete items from the list at their
 original index, but this is not currently implemented -- such an operation would
@@ -22,7 +22,7 @@ comparing the serialized item values.
 
 ## Usage
 
-To use the RGArray, import it from the crdts library.
+To use the `RGArray`, import it from the crdts library.
 
 ```python
 from crdts import RGArray

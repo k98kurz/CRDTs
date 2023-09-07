@@ -1,23 +1,23 @@
 # Multi-Value Register
 
-The Multi-Value Register (MVRegister) is a CRDT that tracks a single named
+The Multi-Value Register (`MVRegister`) is a CRDT that tracks a single named
 register. Each subsequent write to the register overwrites the value stored in
 it, and concurrent writes are preserved, hence the name.
 
 ## Mathematics
 
-The mutable state of the MVRegister is composed of the following:
+The mutable state of the `MVRegister` is composed of the following:
 - `value: DataWrapperProtocol` - the current value at the local replica
 - `clock: ClockProtocol` - the clock used for synchronization
 - `last_update: Any` - the timestamp of the last update
 
-The mathematics of the MVRegister are simple: given N concurrent updates, all N
-values will be preserved, and their order in the MVRegister will be determined
-by their serialized form.
+The mathematics of the `MVRegister` are simple: given N concurrent updates, all
+N values will be preserved, and their order in the `MVRegister` will be
+determined by their serialized form.
 
 ## Usage
 
-To use the MVRegister, import it from the crdts library.
+To use the `MVRegister`, import it from the crdts library.
 
 ```python
 from crdts import MVRegister

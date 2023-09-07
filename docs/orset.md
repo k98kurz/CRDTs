@@ -1,16 +1,16 @@
 # Observed-Removed Set
 
-The Observed-Removed Set (ORSet) is a CRDT that tracks a set with dynamic
+The Observed-Removed Set (`ORSet`) is a CRDT that tracks a set with dynamic
 membership.
 
 ## Mathematics
 
-The ORSet maintains two sets, the observed set and the removed set, and the
+The `ORSet` maintains two sets, the observed set and the removed set, and the
 state of the CRDT is the observed set less the removed set.
 
 ## Usage
 
-To use the ORSet, import it from the crdts library.
+To use the `ORSet`, import it from the crdts library.
 
 ```python
 from crdts import ORSet

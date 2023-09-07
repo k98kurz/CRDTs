@@ -1,15 +1,15 @@
 # Multi-Value Map
 
-The Multi-Value Map (MVMap) is a CRDT that maintains a map of serializable
+The Multi-Value Map (`MVMap`) is a CRDT that maintains a map of serializable
 keys to MVRegisters that maintain serializable values.
 
-The MVMap is a composition of the Observed-Removed Set (ORSet) and MVRegisters.
-The ORSet tracks which map keys have been added and removed. Each key has an
-assigned MVRegister for tracking the associated value(s).
+The `MVMap` is a composition of the Observed-Removed Set (`ORSet`) and
+`MVRegister`s. The `ORSet` tracks which map keys have been added and removed.
+Each key has an assigned `MVRegister` for tracking the associated value(s).
 
 ## Usage
 
-To use the MVMap, import it from the crdts library as well as at least one
+To use the `MVMap`, import it from the crdts library as well as at least one
 class implementing the `DataWrapperProtocol` interface. For example:
 
 ```python

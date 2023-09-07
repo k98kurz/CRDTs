@@ -1,27 +1,27 @@
 # Last-Writer-Wins Register
 
-The Last-Writer-Wins Register (LWWRegister) is a CRDT that tracks a single named
-register. Each subsequent write to the register overwrites the value stored in
-it, and concurrent writes are handled by a tie-breaker process using the writer
-id integer and then value itself if necessary.
+The Last-Writer-Wins Register (`LWWRegister`) is a CRDT that tracks a single
+named register. Each subsequent write to the register overwrites the value
+stored in it, and concurrent writes are handled by a tie-breaker process using
+the writer id integer and then value itself if necessary.
 
 ## Mathematics
 
-The mutable state of the LWWRegister is composed of the following:
+The mutable state of the `LWWRegister` is composed of the following:
 - `value: DataWrapperProtocol` - the current value at the local replica
 - `clock: ClockProtocol` - the clock used for synchronization
 - `last_update: Any` - the timestamp of the last update
 - `last_writer: int` - the ID of the source of the most recent write/overwrite
 of the `value`
 
-The mathematics of the LWWRegister are simple: given two concurrent updates, the
-resultant `value` will be determined by the update with the highest writer ID;
-given two concurrent updates with identical writer ID, the resultant `value`
+The mathematics of the `LWWRegister` are simple: given two concurrent updates,
+the resultant `value` will be determined by the update with the highest writer
+ID; given two concurrent updates with identical writer ID, the resultant `value`
 will be determined by which value has the higher byte value when serialized.
 
 ## Usage
 
-To use the LWWRegister, import it from the crdts library.
+To use the `LWWRegister`, import it from the crdts library.
 
 ```python
 from crdts import LWWRegister

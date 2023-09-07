@@ -1,12 +1,12 @@
 # Counter
 
-The Counter is a CRDT that tracks a positive integer that only increases. Note
+The `Counter` is a CRDT that tracks a positive integer that only increases. Note
 that this is a fairly limited CRDT useful primarily for composition into more
 useful CRDTs, e.g. a multi-replica counter.
 
 ## Usage
 
-To use the Counter, import it from the crdts library and instantiate.
+To use the `Counter`, import it from the crdts library and instantiate.
 
 ```python
 from crdts import Counter

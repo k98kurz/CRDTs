@@ -1,14 +1,15 @@
 # Positive-Negative Counter
 
-The Positive-Negative Counter (PNCounter) is a CRDT that tracks an integer that
-can be increased and decreased. It does this by effectively tracking 2 Counters
-and subtracting one from the other. Like the Counter, this is fairly limited and
-useful primarily for composition into more useful CRDTs -- it does not track
-enough state to add concurrent increases as they create identical delta states.
+The Positive-Negative Counter (`PNCounter`) is a CRDT that tracks an integer
+that can be increased and decreased. It does this by effectively tracking 2
+Counters and subtracting one from the other. Like the Counter, this is fairly
+limited and useful primarily for composition into more useful CRDTs -- it does
+not track enough state to add concurrent increases as they create identical
+delta states.
 
 ## Usage
 
-To use the PNCounter, import it from the crdts library and instantiate.
+To use the `PNCounter`, import it from the crdts library and instantiate.
 
 ```python
 from crdts import PNCounter
