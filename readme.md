@@ -53,7 +53,13 @@ Each implementation must include a full test suite to be considered complete.
 - [x] MVMap
 - [x] FIArray
 - [x] CausalTree
-- [ ] Decent documentation
+- [x] Decent documentation
+- [ ] New CRDT: CounterSet
+- [ ] New CRDT: Graph
+- [ ] ListProtocol: RGArray, FIArray, CausalTree
+- [ ] Refactor: change writer_id from int to SerializableType
+- [ ] New CRDT: Document
+- [ ] Hooks/event listeners
 
 ## Setup and Usage
 
@@ -108,6 +114,73 @@ for serializing and deserializing complex structures to and from bytes. Any
 custom class implementing the `PackableProtocol` interface will be compatible
 with these functions and must be injected into `deserialize_part`, e.g.
 `deserialize_part(data, inject={'MyPackableClass': MyPackableClass})`.
+
+#### Synchronization
+
+Note that the `checksums` and `history` methods for every CRDT support timestamp
+constraints `from_ts` and `until_ts`. This allows for nodes to synchronize
+without having to ship all updates across the network, which is a primary
+advantage of δ-CRDTs. How to best implement synchronization to utilize this
+feature is left to the library consumer, but I would start with something like
+the following:
+
+```python
+def make_ts_buckets(max_ts: int, max_bucket_size: int = 16) -> list[tuple[int, int]]:
+    """Divides checksums and updates into buckets of form (from_ts, until_ts)
+        based upon the max_ts and max_bucket_size.
+    """
+    if max_ts < max_bucket_size:
+        return [(0, max_ts)]
+    n_buckets = math.ceil(math.log2(1 + max_ts/max_bucket_size))
+    bucket_size = math.ceil(max_ts / n_buckets)
+    buckets = []
+    for i in range(n_buckets):
+        buckets.append((i*bucket_size, (i+1)*bucket_size))
+    return buckets
+
+def make_synchronization_dict(crdt: CRDTProtocol) -> dict[tuple[int, int], tuple[Any]]:
+    buckets = make_ts_buckets(crdt.clock.read())
+    return {
+        b: crdt.checksums(from_ts=b[0], until_ts=b[1])
+        for b in buckets
+    }
+
+def check_synchronization_dict(crdt: CRDTProtocol,
+        sync: dict[tuple[int, int]], tuple[Any]) -> list[tuple[int, int]]:
+    """Checks a CRDT against a synchronization dict. If the checksums differ for
+        any timestamp bucket, include that timestamp bucket in the return list.
+        The state updates for those buckets can then be requested from the
+        remote replica.
+    """
+    different_buckets = []
+    for bucket, chksms in sync:
+        if crdt.checksums(from_ts=bucket[0], until_ts=bucket[1]) != chksms:
+            different_buckets.append(bucket)
+    return different_buckets
+
+def make_synchronization_history(crdt: CRDTProtocol,
+        different_buckets: list[tuple[int, int]]) -> list[StateUpdate]:
+    """Returns all the StateUpdates requested for the given buckets."""
+    history = []
+    for b in different_buckets:
+        history.extend(crdt.history(from_ts=b[0], until_ts=b[1]))
+    return history
+```
+
+The above divides timestamps into dynamically-sized buckets no larger than the
+supplied `max_bucket_size` parameter and is meant to demonstrate the concept of
+synchronization via δ-states. The number of buckets will scale linearly with the
+age of the CRDT and the `max_bucket_size` parameter. It could be adapted to
+scale the number of buckets logarithmically with the age/state size of the CRDT
+by calculating the `max_bucket_size` parameter rather than hard-coding it.
+For example, `bucket_sizer = lambda ts: math.ceil(ts/math.log2(ts+1))` which
+would be called with `bucket_sizer(crdt.clock.read())`; this will result in a
+number of buckets equal to the log base 2 of the max timestamp:
+- ts=16, bucket_count=4
+- ts=32, bucket_count=5
+- ts=64, bucket_count=6
+- ...
+- ts=1024, bucket_count=10
 
 ## Interfaces and Classes
 
@@ -177,7 +250,7 @@ python test_pncounter.py
 python test_rgarray.py
 ```
 
-The 232 tests demonstrate the intended (and actual) behavior of the classes, as
+The 233 tests demonstrate the intended (and actual) behavior of the classes, as
 well as some contrived examples of how they are used. Perusing the tests will be
 informative to anyone seeking to use this package.
 
