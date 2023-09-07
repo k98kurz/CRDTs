@@ -490,7 +490,7 @@ Unpack the data bytes string into an instance.
 
 Return the eventually consistent data view.
 
-##### `update(state_update: StateUpdateProtocol) -> LWWMap:`
+##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> LWWMap:`
 
 Apply an update and return self (monad pattern).
 
@@ -543,7 +543,7 @@ Return the full, eventually consistent list of items with tombstones and
 complete DataWrapperProtocols rather than the underlying values. Use this for
 preparing deletion updates -- only a DataWrapperProtocol can be used for delete.
 
-##### `read_excluded() -> list[CTDataWrapper]:`
+##### `read_excluded(/, *, inject: dict = {}) -> list[CTDataWrapper]:`
 
 Returns a list of CTDataWrapper items that are excluded from the views returned
 by read() and read_full() due to circular references (i.e. where an item is its
@@ -562,7 +562,7 @@ Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent
 nodes.
 
-##### `put(item: SerializableType, writer: int, uuid: bytes, parent_uuid: bytes = b'', /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put(item: SerializableType, writer: int, uuid: bytes, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
 
 Creates, applies, and returns a update_class (StateUpdate by default) that puts
 the item after the parent.
@@ -572,28 +572,29 @@ the item after the parent.
 Creates, applies, and returns an update_class that puts the item after the
 parent item.
 
-##### `put_first(item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `put_first(item: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> tuple[StateUpdateProtocol]:`
 
-Creates, applies, and returns an update_class (StateUpdate by default) that puts
-the item as the first item. Note that if another item was already put first,
-this might be put after the chain of descendants due to tie breaking on uuid.
+Creates, applies, and returns at least one update_class (StateUpdate by default)
+that puts the item as the first item. Any ties for first place will be resolved
+by making the new item the parent of those other first items, and those
+update_class instances will also be created, applied, and returned.
 
-##### `move_item(item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `move_item(item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
-moves the item with the given uuid to behind the new parent.
+moves the item to after the new parent.
 
-##### `delete(ctdw: CTDataWrapper, writer: int, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+##### `delete(ctdw: CTDataWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 deletes the item specified by ctdw.
 
-##### `calculate_cache() -> None:`
+##### `calculate_cache(/, *, inject: dict = {}) -> None:`
 
 Reads the items from the underlying LWWMap, orders them, then sets the cache
 list.
 
-##### `update_cache(item: CTDataWrapper) -> None:`
+##### `update_cache(item: CTDataWrapper, /, *, inject: dict = {}) -> None:`
 
 Updates the cache by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
@@ -732,14 +733,6 @@ Unpack value from bytes.
 - visible: bool
 
 #### Methods
-
-##### `children() -> set[CTDataWrapper]:`
-
-##### `add_child(child: CTDataWrapper):`
-
-##### `parent() -> CTDataWrapper | None:`
-
-##### `set_parent(parent: CTDataWrapper):`
 
 ##### `pack() -> bytes:`
 
