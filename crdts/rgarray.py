@@ -9,7 +9,11 @@ from .datawrappers import (
     RGAItemWrapper,
 )
 from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import (
+    ClockProtocol,
+    StateUpdateProtocol,
+    SerializableType,
+)
 from .orset import ORSet
 from .serialization import serialize_part
 from .stateupdate import StateUpdate
@@ -17,8 +21,6 @@ from bisect import bisect
 from types import NoneType
 from typing import Any
 
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class RGArray:
     """Implements the Replicated Growable Array CRDT. This uses the ORSet

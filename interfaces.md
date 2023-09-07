@@ -2,7 +2,7 @@
 
 ## Classes
 
-### `Decimal`
+### `NoneType`
 
 ### `PackableProtocol(Protocol)`
 
@@ -178,4 +178,7 @@ Initialize the instance.
 
 ##### `_proto_hook():`
 
+## Values
+
+- SerializableType: UnionType
 

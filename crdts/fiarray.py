@@ -8,7 +8,11 @@ from .datawrappers import (
     FIAItemWrapper
 )
 from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import (
+    ClockProtocol,
+    StateUpdateProtocol,
+    SerializableType,
+)
 from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
@@ -19,8 +23,6 @@ from types import NoneType
 from typing import Any
 from uuid import uuid4
 
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class FIArray:
     """Implements a fractionally-indexed array CRDT."""

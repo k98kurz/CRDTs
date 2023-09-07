@@ -15,7 +15,8 @@ from crdts.interfaces import (
     StateUpdateProtocol,
     ClockProtocol,
     CRDTProtocol,
-    DataWrapperProtocol
+    DataWrapperProtocol,
+    SerializableType,
 )
 from crdts.datawrappers import (
     BytesWrapper,
@@ -24,7 +25,7 @@ from crdts.datawrappers import (
     IntWrapper,
     NoneWrapper,
     RGAItemWrapper,
-    StrWrapper
+    StrWrapper,
 )
 from crdts.serialization import (
     serialize_part,

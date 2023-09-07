@@ -2,8 +2,8 @@ from __future__ import annotations
 from .errors import tressa
 from .interfaces import (
     ClockProtocol,
-    DataWrapperProtocol,
     StateUpdateProtocol,
+    SerializableType,
 )
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
@@ -13,8 +13,6 @@ from dataclasses import dataclass, field
 from types import NoneType
 from typing import Any
 
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 @dataclass
 class GSet:

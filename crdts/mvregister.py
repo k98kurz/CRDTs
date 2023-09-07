@@ -9,7 +9,12 @@ from .datawrappers import (
     StrWrapper,
 )
 from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import (
+    ClockProtocol,
+    DataWrapperProtocol,
+    StateUpdateProtocol,
+    SerializableType,
+)
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate

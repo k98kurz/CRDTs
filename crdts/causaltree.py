@@ -8,7 +8,11 @@ from .datawrappers import (
     NoneWrapper,
 )
 from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import (
+    ClockProtocol,
+    StateUpdateProtocol,
+    SerializableType,
+)
 from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
@@ -17,8 +21,6 @@ from types import NoneType
 from typing import Any
 from uuid import uuid4
 
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class CausalTree:
     """Implements a Causal Tree CRDT."""
@@ -69,7 +71,7 @@ class CausalTree:
         """Return the full, eventually consistent list of items with
             tombstones and complete DataWrapperProtocols rather than the
             underlying values. Use this for preparing deletion updates --
-            only a DataWrapperProtocol can be used for delete.
+            only a CTDataWrapper can be used for delete.
         """
         if self.cache is None:
             self.calculate_cache(inject=inject)
@@ -164,7 +166,7 @@ class CausalTree:
 
         return self.put(item, writer, uuid, parent_uuid, update_class=update_class)
 
-    def put_first(self, item: DataWrapperProtocol, writer: int, /, *,
+    def put_first(self, item: SerializableType, writer: int, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns at least one update_class
