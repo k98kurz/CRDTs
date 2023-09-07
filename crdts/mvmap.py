@@ -189,13 +189,10 @@ class MVMap:
 
         for name in self.registers:
             ts = self.registers[name].last_update
-            if from_ts is not None and until_ts is not None:
-                if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
-                    continue
-            elif from_ts is not None:
+            if from_ts is not None:
                 if self.clock.is_later(from_ts, ts):
                     continue
-            elif until_ts is not None:
+            if until_ts is not None:
                 if self.clock.is_later(ts, until_ts):
                     continue
 

@@ -132,13 +132,10 @@ class ORSet:
         total_observed_crc32 = 0
         total_removed_crc32 = 0
         for member, ts in self.observed_metadata.items():
-            if from_ts is not None and until_ts is not None:
-                if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
-                    continue
-            elif from_ts is not None:
+            if from_ts is not None:
                 if self.clock.is_later(from_ts, ts):
                     continue
-            elif until_ts is not None:
+            if until_ts is not None:
                 if self.clock.is_later(ts, until_ts):
                     continue
 
@@ -151,13 +148,10 @@ class ORSet:
                 total_observed_crc32 += crc32(bytes(str(member), 'utf-8'))
 
         for member, ts in self.removed_metadata.items():
-            if from_ts is not None and until_ts is not None:
-                if self.clock.is_later(from_ts, ts) or self.clock.is_later(ts, until_ts):
-                    continue
-            elif from_ts is not None:
+            if from_ts is not None:
                 if self.clock.is_later(from_ts, ts):
                     continue
-            elif until_ts is not None:
+            if until_ts is not None:
                 if self.clock.is_later(ts, until_ts):
                     continue
 
