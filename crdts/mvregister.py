@@ -58,7 +58,7 @@ class MVRegister:
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 26, 'data must be at least 26 bytes')
         name, clock, last_update, values = deserialize_part(
-            data, inject={'StateUpdate': StateUpdate, **inject}
+            data, inject={**globals(), **inject}
         )
         return cls(name, values, clock, last_update)
 

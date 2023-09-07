@@ -37,7 +37,7 @@ from crdts import ScalarClock
 
 clock_uuid = b'12345 should be unique' # probably shared from another node
 name = 'some name'
-name = LWWRegister(name=name, clock=ScalarClock(uuid=clock_uuid))
+lwwr = LWWRegister(name=name, clock=ScalarClock(uuid=clock_uuid))
 ```
 
 Each instance instantiated with default values will have a clock with a UUID
