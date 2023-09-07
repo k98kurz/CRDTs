@@ -12,8 +12,8 @@ logic on top.
 The state of the FIArray is composed of the following:
 - `positions: LWWMap` - the LWWMap mapping items to indices
 - `clock: ClockProtocol` - the clock used for synchronization
-- `cache_full: list[DataWrapperProtocol]` - the ordered list of items
-- `cache: list[Any]` - the ordered list of unwrapped items
+- `cache_full: list[FIAItemWrapper]` - the ordered list of wrapped items
+- `cache: list[SerializableType]` - the ordered list of unwrapped items
 
 The conflict-free merge semantics are coded in the LWWMap and its underlying
 classes. The FIArray class has the following unique mathematical properties:
@@ -116,299 +116,114 @@ print(fia_node1.read())
 
 ### Methods
 
-#### `__init__`
+#### `pack() -> bytes:`
 
-```python
-    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
-```
+Pack the data and metadata into a bytes string.
 
-This method initializes an instance. For example:
+#### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> FIArray:`
 
-```python
-fia1 = FIArray()
-fia2 = FIArray(positions=LWWMap(), clock=SomeClockImplementation(uuid=b'some uuid'))
-fia3 = FIArray(clock=SomeClockImplementation(uuid=b'some uuid'))
-```
+Unpack the data bytes string into an instance.
 
-#### `read`
+#### `read(/, *, inject: dict = {}) -> tuple[Any]:`
 
-```python
-    def read(self) -> tuple[Any]:
-```
+Return the eventually consistent data view. Cannot be used for preparing
+deletion updates.
 
-Return the eventually consistent data view. Note that values returned from this
-cannot be used for preparing deletion updates; use the result of `read_full`
-instead. For example:
+#### `read_full(/, *, inject: dict = {}) -> tuple[FIAItemWrapper]:`
 
-```python
-for item in fia.read():
-    print(f'{type(item)=}, repr={item}')
-```
+Return the full, eventually consistent list of items without tombstones but with
+complete FIAItemWrappers rather than the underlying SerializableType values. Use
+the resulting FIAItemWrapper(s) for calling delete and move_item. (The
+FIAItemWrapper containing a value put into the list will be index 3 of the
+StateUpdate returned by a put method.)
 
-#### `read_full`
+#### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> FIArray:`
 
-```python
-    def read_full(self) -> tuple[DataWrapperProtocol]:
-```
+Apply an update and return self (monad pattern).
 
-Returns the full, eventually consistent list of items without tombstones but
-with complete DataWrapperProtocols rather than the underlying values. Use this
-for preparing deletion updates -- only a DataWrapperProtocol can be used for
-`delete`. For example:
-
-```python
-for item in fia.read_full():
-    print(f'{item.__class__.__name__}.value={item.value}')
-```
-
-#### `update`
-
-```python
-    def update(self, state_update: StateUpdateProtocol) -> FIArray:
-```
-
-Applies an update and returns self (in monad pattern). For example:
-
-```python
-state_update = fia1.put_first(StrWrapper('first'), 1)
-fia2.update(state_update)
-```
-
-#### `checksums`
-
-```python
-    def checksums(self) -> tuple[int]:
-```
+#### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
 
 Returns checksums for the underlying data to detect desynchronization due to
-network partition. For example:
+network partition.
 
-```python
-if fia.checksums() != received_checksums:
-    # out of sync with peer
-    ...
-else:
-    # in sync with peer
-    ...
-```
-
-#### `history`
-
-```python
-    def history(self) -> tuple[StateUpdate]:
-```
+#### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent
-nodes. For example:
+nodes.
 
-```python
-send_history(fia.history())
+#### `@classmethod index_between(first: Decimal, second: Decimal) -> Decimal:`
 
-for state_update in receive_history():
-    fia.update(state_update)
-```
+Return an index between first and second with a random offset.
 
-#### `@classmethod index_offset`
+#### `put(item: SerializableType, writer: int, index: Decimal, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-    @classmethod
-    def index_offset(cls, index: Decimal) -> Decimal:
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item at the index. The FIAItemWrapper will be at index 3 of the data
+attribute of the returned update_class instance.
 
-Adds a small random offset. For example:
+#### `put_between(item: SerializableType, writer: int, first: FIAItemWrapper, second: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-offset = FIArray.index_offset(Decimal('0.1'))
-assert 0.11 <= offset <= 0.19
-offset = FIArray.index_offset(Decimal('0.05'))
-assert 0.051 <= offset <= 0.059
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item at an index between first and second. The FIAItemWrapper will be at
+index 3 of the data attribute of the returned update_class instance.
 
-#### `@classmethod index_between`
+#### `put_before(item: SerializableType, writer: int, other: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-    @classmethod
-    def index_between(cls, first: Decimal, second: Decimal) -> Decimal:
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item before the other item. The FIAItemWrapper will be at index 3 of the
+data attribute of the returned update_class instance.
 
-Return an index between first and second with a random offset. For example:
+#### `put_after(item: SerializableType, writer: int, other: FIAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-offset = FIArray.index_between(Decimal(0), Decimal(1))
-assert 0.51 <= offset <= 0.59
-offset = FIArray.index_between(Decimal(0), Decimal('0.5'))
-assert 0.251 <= offset <= 0.259
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item after the other item. The FIAItemWrapper will be at index 3 of the data
+attribute of the returned update_class instance.
 
-#### `@staticmethod least_significant_digit`
+#### `put_first(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-    @staticmethod
-    def least_significant_digit(number: Decimal) -> tuple[int, int]:
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item at an index between 0 and the first item. The FIAItemWrapper will be at
+index 3 of the data attribute of the returned update_class instance.
 
-Returns the least significant digit and its place as an exponent of 10, e.g.
-0.201 -> (1, -3). For example:
+#### `put_last(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-lsd = FIArray.least_significant_digit(Decimal('0.123'))
-assert lsd == (3, -3)
-lsd = FIArray.least_significant_digit(Decimal('0.4321'))
-assert lsd == (1, -4)
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item at an index between the last item and 1. The FIAItemWrapper will be at
+index 3 of the data attribute of the returned update_class instance.
 
-#### `put`
+#### `move_item(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate, before: FIAItemWrapper = None, after: FIAItemWrapper = None, new_index: Decimal = None) -> StateUpdateProtocol:`
 
-```python
-    def put(self, item: DataWrapperProtocol, writer: int,
-        index: Decimal) -> StateUpdate:
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item at the new index, or directly before the before, or directly after the
+after, or halfway between before and after. The FIAItemWrapper will be at index
+3 of the data attribute of the returned update_class instance.
 
-Creates, applies, and returns a StateUpdate that puts the item at the index. For
-example:
+#### `normalize(writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
 
-```python
-state_update = fia_node_99.put(StrWrapper('example'), 99, Decimal('0.12345'))
-assert fia_node_99.read() == fia_node_99.update(state_update).read()
-```
+Evenly distribute the item indices. Returns tuple of update_class (StateUpdate
+by default) that encode the index updates.
 
-#### `put_between`
+#### `delete(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-```python
-    def put_between(self, item: DataWrapperProtocol, writer: int,
-        first: DataWrapperProtocol, second: DataWrapperProtocol) -> StateUpdate:
-```
+Creates, applies, and returns an update_class (StateUpdate by default) that
+deletes the item. Index 3 of the data attribute of the returned update_class
+instance will be the NoneWrapper tombstone.
 
-Creates, applies, and returns a StateUpdate that puts the item at an index
-between first and second. For example:
-
-```python
-fia = FIArray()
-fia.put(StrWrapper('first'), 1, Decimal('0.1'))
-fia.put(StrWrapper('third'), 1, Decimal('0.9'))
-fia.put_between(StrWrapper('second'), 1, StrWrapper('first'), StrWrapper('third'))
-assert fia.read() == ('first', 'second', 'third')
-```
-
-#### `put_before`
-
-```python
-    def put_before(self, item: DataWrapperProtocol, writer: int,
-        other: DataWrapperProtocol) -> StateUpdate:
-```
-
-Creates, applies, and returns a StateUpdate that puts the item before the other
-item. For example:
-
-```python
-fia = FIArray()
-fia.put(StrWrapper('item1'), 1, Decimal('0.5'))
-fia.put_before(StrWrapper('item2'), 1, StrWrapper('item1'))
-assert fia.read() == ('item2', 'item1')
-```
-
-#### `put_after`
-
-```python
-    def put_after(self, item: DataWrapperProtocol, writer: int,
-        other: DataWrapperProtocol) -> StateUpdate:
-```
-Creates, applies, and returns a StateUpdate that puts the item after the other
-item. For example:
-
-```python
-fia = FIArray()
-fia.put(StrWrapper('item1'), 1, Decimal('0.5'))
-fia.put_after(StrWrapper('item2'), 1, StrWrapper('item1'))
-assert fia.read() == ('item1', 'item2')
-```
-
-#### `put_first`
-
-```python
-    def put_first(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-```
-
-Creates, applies, and returns a StateUpdate that puts the item at an index
-between 0 and the first item. For example:
-
-```python
-fia = FIArray()
-fia.put_first(StrWrapper('item3'), 1)
-fia.put_first(StrWrapper('item2'), 1)
-fia.put_first(StrWrapper('item1'), 1)
-assert fia.read() == ('item1', 'item2', 'item3')
-```
-
-#### `put_last`
-
-```python
-    def put_last(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-```
-
-Creates, applies, and returns a StateUpdate that puts the item at an index
-between the last item and 1. For example:
-
-```python
-fia = FIArray()
-fia.put_last(StrWrapper('item1'), 1)
-fia.put_last(StrWrapper('item2'), 1)
-fia.put_last(StrWrapper('item3'), 1)
-assert fia.read() == ('item1', 'item2', 'item3')
-```
-
-#### `delete`
-
-```python
-    def delete(self, item: DataWrapperProtocol, writer: int) -> StateUpdate:
-```
-
-Creates, applies, and returns a StateUpdate that deletes the item. For example:
-
-```python
-fia = FIArray()
-fia.put_first(StrWrapper('item1'), 1)
-fia.put_first(StrWrapper('item2'), 1)
-fia.delete(StrWrapper('item1'), 1)
-assert fia.read() == ('item2',)
-```
-
-#### `pack`
-
-```python
-    def pack(self) -> bytes:
-```
-
-Serializes an instance to bytes for storage or transmission.
-
-#### `@classmethod unpack`
-
-```python
-    @classmethod
-    def unpack(cls, data: bytes) -> FIArray:
-```
-
-Deserializes an instance from bytes.
-
-#### `calculate_cache`
-
-```python
-    def calculate_cache(self) -> None:
-```
+#### `calculate_cache(inject: dict = {}) -> None:`
 
 Reads the items from the underlying LWWMap, orders them, then sets the
-cache_full list. Resets the cache. Used internally for performance optimization.
+cache_full list. Resets the cache.
 
-#### `update_cache`
+#### `update_cache(uuid: BytesWrapper, item: FIAItemWrapper | NoneWrapper, visible: bool, /, *, inject: dict = {}) -> None:`
 
-```python
-    def update_cache(self, item: DataWrapperProtocol, visible: bool) -> None:
-```
-
-Updates the cache by finding the correct insertion index for the given item,
+Updates cache_full by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
-Resets the cache. Used internally for performance optimization.
+Resets cache.
+
+#### `__init__(positions: LWWMap = None, clock: ClockProtocol = None) -> None:`
+
+Initialize an FIArray from an LWWMap of item positions and a shared clock.
 
 ### Notes
 

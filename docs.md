@@ -377,6 +377,11 @@ the item at the new index, or directly before the before, or directly after the
 after, or halfway between before and after. The FIAItemWrapper will be at index
 3 of the data attribute of the returned update_class instance.
 
+##### `normalize(writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+
+Evenly distribute the item indices. Returns tuple of update_class (StateUpdate
+by default) that encode the index updates.
+
 ##### `delete(item: FIAItemWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
