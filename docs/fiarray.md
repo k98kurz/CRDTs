@@ -56,6 +56,40 @@ clock_uuid = b'12345 should be unique'
 fia = FIArray(clock=ScalarClock(uuid=clock_uuuid))
 ```
 
+### Usage Example
+
+Below is an example of how to use this CRDT.
+
+```python
+from crdts import ScalarClock, FIArray, StrWrapper, BytesWrapper
+
+fia_node1 = FIArray()
+fia_node2 = FIArray(clock=ScalarClock(uuid=fia_node1.clock.uuid))
+
+def synchronize():
+    if fia_node1.checksums() != fia_node2.checksums():
+        for state_update in fia_node1.history():
+            fia_node2.update(state_update)
+        for state_update in fia_node2.history():
+            fia_node1.update(state_update)
+
+fia_node1.put_first(StrWrapper('first'), 1)
+fia_node1.put_last(StrWrapper('last'), 1)
+synchronize()
+
+fia_node2.delete(StrWrapper('last'), 2)
+fia_node2.put_after(StrWrapper('new last'), 2, StrWrapper('first'))
+synchronize()
+
+fia_node1.put_last(StrWrapper('actual new last'), 1)
+fia_node2.put_before(StrWrapper('before "new last"'), 2, fia_node2.read_full()[-1])
+synchronize()
+
+assert fia_node1.read_full() == fia_node2.read_full()
+
+print(fia_node1.read())
+```
+
 ### Methods
 
 #### `__init__`
@@ -351,40 +385,6 @@ cache_full list. Resets the cache. Used internally for performance optimization.
 Updates the cache by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
 Resets the cache. Used internally for performance optimization.
-
-### Usage Example
-
-Below is an example of how to use this CRDT.
-
-```python
-from crdts import ScalarClock, FIArray, StrWrapper, BytesWrapper
-
-fia_node1 = FIArray()
-fia_node2 = FIArray(clock=ScalarClock(uuid=fia_node1.clock.uuid))
-
-def synchronize():
-    if fia_node1.checksums() != fia_node2.checksums():
-        for state_update in fia_node1.history():
-            fia_node2.update(state_update)
-        for state_update in fia_node2.history():
-            fia_node1.update(state_update)
-
-fia_node1.put_first(StrWrapper('first'), 1)
-fia_node1.put_last(StrWrapper('last'), 1)
-synchronize()
-
-fia_node2.delete(StrWrapper('last'), 2)
-fia_node2.put_after(StrWrapper('new last'), 2, StrWrapper('first'))
-synchronize()
-
-fia_node1.put_last(StrWrapper('actual new last'), 1)
-fia_node2.put_before(StrWrapper('before "new last"'), 2, fia_node2.read_full()[-1])
-synchronize()
-
-assert fia_node1.read_full() == fia_node2.read_full()
-
-print(fia_node1.read())
-```
 
 ### Notes
 

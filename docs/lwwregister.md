@@ -48,6 +48,26 @@ name = LWWRegister(name=name, clock=ScalarClock(uuid=clock_uuid))
 Each instance instantiated with default values will have a clock with a UUID
 (UUID4). This can then be shared across a network of nodes.
 
+### Usage Example
+
+Below is an example of how to use this CRDT.
+
+```python
+from crdts import ScalarClock, LWWRegister, StrWrapper, IntWrapper
+
+lwwr = LWWRegister(name=StrWrapper('some name'))
+lwwr.write(StrWrapper('some value'))
+
+view = lwwr.read() # should be StrWrapper("some value")
+
+# updates to send to a replica
+updates = lwwr.history()
+
+# merge updates received from a replica
+for update in updates:
+    lwwr.update(update)
+```
+
 ### Methods
 
 Below is documentation for the methods generated automatically by autodox.
@@ -85,23 +105,3 @@ updates from divergent nodes.
 
 Writes the new value to the register and returns an update_class (StateUpdate by
 default). Requires a writer int for tie breaking.
-
-### Usage Example
-
-Below is an example of how to use this CRDT.
-
-```python
-from crdts import ScalarClock, LWWRegister, StrWrapper, IntWrapper
-
-lwwr = LWWRegister(name=StrWrapper('some name'))
-lwwr.write(StrWrapper('some value'))
-
-view = lwwr.read() # should be StrWrapper("some value")
-
-# updates to send to a replica
-updates = lwwr.history()
-
-# merge updates received from a replica
-for update in updates:
-    lwwr.update(update)
-```

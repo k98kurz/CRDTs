@@ -43,6 +43,28 @@ gset = GSet(clock=ScalarClock(uuid=clock_uuid))
 Each instance instantiated with default values will have a clock with a UUID
 (UUID4). This can then be shared across a network of nodes.
 
+### Usage Example
+
+Below is an example of how to use this CRDT.
+
+```python
+from crdts import ScalarClock, GSet, StrWrapper, IntWrapper
+
+gset = GSet()
+gset.add(StrWrapper("string 1"))
+gset.add(StrWrapper("string 2"))
+gset.add(StrWrapper("string 1"))
+
+view = gset.read() # should be set([StrWrapper("string 1"), StrWrapper("string 2")])
+
+# Updates to send to a replica
+updates = gset.history()
+
+# merge updates received from a replica
+for update in updates:
+    gset.update(update)
+```
+
 ### Methods
 
 Below is documentation for the methods generated automatically by autodox.
@@ -79,25 +101,3 @@ outside of these temporal constraints will be included.
 #### `add(member: DataWrapperProtocol, update_class: type[StateUpdateProtocol]) -> StateUpdateProtocol:`
 
 Create, apply, and return a StateUpdate adding member to the set.
-
-### Usage Example
-
-Below is an example of how to use this CRDT.
-
-```python
-from crdts import ScalarClock, GSet, StrWrapper, IntWrapper
-
-gset = GSet()
-gset.add(StrWrapper("string 1"))
-gset.add(StrWrapper("string 2"))
-gset.add(StrWrapper("string 1"))
-
-view = gset.read() # should be set([StrWrapper("string 1"), StrWrapper("string 2")])
-
-# Updates to send to a replica
-updates = gset.history()
-
-# merge updates received from a replica
-for update in updates:
-    gset.update(update)
-```

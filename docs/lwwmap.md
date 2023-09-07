@@ -33,6 +33,38 @@ lwwmap = LWWMap(clock=ScalarClock(uuid=clock_uuid))
 Each instance instantiated with default values will have a clock with a UUID
 (UUID4). This can then be shared across a network of nodes.
 
+### Usage Example
+
+Below is an example of how to use this CRDT.
+
+```python
+from crdts import LWWMap, StrWrapper, IntWrapper
+
+writer_id = 1
+lwwmap = LWWMap()
+lwwmap.set(StrWrapper('key1'), StrWrapper('value'), writer_id)
+lwwmap.set(StrWrapper('key2'), IntWrapper(420), writer_id)
+
+# create a replica
+writer_id = 2
+lwwmap2 = LWWMap()
+lwwmap2.clock.uuid = lwwmap.clock.uuid
+
+# make a concurrent update
+lwwmap2.set(IntWrapper(69), StrWrapper('nice'), writer_id)
+lwwmap2.unset(StrWrapper('key1'), writer_id)
+
+# synchronize
+for update in lwwmap.history():
+    lwwmap2.update(update)
+
+for update in lwwmap2.history():
+    lwwmap.update(update)
+
+# prove they have the same state
+assert lwwmap.read() == lwwmap2.read()
+```
+
 ### Methods
 
 Below is documentation for the methods generated automatically by autodox.
@@ -77,33 +109,3 @@ Removes the key name from the dict. Returns a StateUpdate.
 
 Initialize an LWWMap from an ORSet of names, a list of LWWRegisters, and a
 shared clock.
-
-### Usage Example
-
-Below is an example of how to use this CRDT.
-
-```python
-from crdts import LWWMap, StrWrapper, IntWrapper
-
-writer_id = 1
-lwwmap = LWWMap()
-lwwmap.set(StrWrapper('key1'), StrWrapper('value'), writer_id)
-lwwmap.set(StrWrapper('key2'), IntWrapper(420), writer_id)
-
-# create a replica
-lwwmap2 = LWWMap()
-lwwmap2.clock.uuid = lwwmap.clock.uuid
-
-# make a concurrent update
-lwwmap2.set(IntWrapper(69), StrWrapper('nice'), writer_id)
-
-# synchronize
-for update in lwwmap.history():
-    lwwmap2.update(update)
-
-for update in lwwmap2.history():
-    lwwmap.update(update)
-
-# prove they have the same state
-assert lwwmap.read() == lwwmap2.read()
-```

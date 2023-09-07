@@ -29,6 +29,32 @@ pnc = PNCounter(clock=ScalarClock(uuid=clock_uuid))
 Each instance instantiated with default values will have a clock with a UUID
 (UUID4). This can then be shared across a network of nodes.
 
+### Usage Example
+
+Below is an example of how to use this CRDT.
+
+```python
+from crdts import PNCounter
+
+# instantiate and update
+pnc1 = PNCounter()
+pnc1.increase()
+pnc1.increase()
+pnc1.decrease()
+pnc1.increase()
+
+# simulate a replica
+pnc2 = PNCounter()
+pnc2.clock.uuid = pnc1.clock.uuid
+
+# synchronize
+for update in pnc1.history():
+    pnc2.update(update)
+
+# prove they have the same state
+assert pnc1.read() == pnc2.read()
+```
+
 ### Methods
 
 Below is documentation for the methods generated automatically by autodox.
@@ -75,29 +101,3 @@ Decrease the counter by the given amount (default 1). Returns the update_class
 #### `__repr__():`
 
 #### `__eq__():`
-
-### Usage Example
-
-Below is an example of how to use this CRDT.
-
-```python
-from crdts import PNCounter
-
-# instantiate and update
-pnc1 = PNCounter()
-pnc1.increase()
-pnc1.increase()
-pnc1.decrease()
-pnc1.increase()
-
-# simulate a replica
-pnc2 = PNCounter()
-pnc2.clock.uuid = pnc1.clock.uuid
-
-# synchronize
-for update in pnc1.history():
-    pnc2.update(update)
-
-# prove they have the same state
-assert pnc1.read() == pnc2.read()
-```
