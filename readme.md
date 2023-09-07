@@ -67,7 +67,9 @@ Requires python 3+.
 
 ### Setup
 
-To install, clone/unpack the repo.
+```
+pip install crdts
+```
 
 ### Usage
 
@@ -251,7 +253,7 @@ python test_pncounter.py
 python test_rgarray.py
 ```
 
-The 233 tests demonstrate the intended (and actual) behavior of the classes, as
+The 234 tests demonstrate the intended (and actual) behavior of the classes, as
 well as some contrived examples of how they are used. Perusing the tests will be
 informative to anyone seeking to use this package.
 
