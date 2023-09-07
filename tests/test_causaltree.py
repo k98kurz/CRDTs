@@ -490,12 +490,13 @@ class TestCausalTree(unittest.TestCase):
         second = causaltree.read_full()[1]
 
         # replicate
+        writer_id2 = 2
         ct2 = classes.CausalTree.unpack(causaltree.pack())
 
         # make concurrent updates
         divergence_ts = causaltree.clock.read()-1
         causaltree.put_after('third', writer_id, second.uuid)
-        ct2.put_after('alternate third', writer_id, second.uuid)
+        ct2.put_after('alternate third', writer_id2, second.uuid)
 
         # synchronize
         history1 = causaltree.history(from_ts=divergence_ts)
