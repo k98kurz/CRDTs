@@ -85,17 +85,17 @@ documentation for each class in this library can be found in the
 using [autodox](https://pypi.org/project/autodox/).
 
 Documentation explaining how each CRDT works can be found here:
-- [GSet](https://github.com/k98kurz/CRDTs/blob/docs/gset.md)
-- [ORSet](https://github.com/k98kurz/CRDTs/blob/docs/orset.md)
-- [Counter](https://github.com/k98kurz/CRDTs/blob/docs/counter.md)
-- [PNCounter](https://github.com/k98kurz/CRDTs/blob/docs/pncounter.md)
-- [RGArray](https://github.com/k98kurz/CRDTs/blob/docs/rgarray.md)
-- [LWWRegister](https://github.com/k98kurz/CRDTs/blob/docs/lwwregister.md)
-- [LWWMap](https://github.com/k98kurz/CRDTs/blob/docs/lwwmap.md)
-- [MVRegister](https://github.com/k98kurz/CRDTs/blob/docs/mvregister.md)
-- [MVMap](https://github.com/k98kurz/CRDTs/blob/docs/mvmap.md)
-- [FIArray](https://github.com/k98kurz/CRDTs/blob/docs/fiarray.md)
-- [CausalTree](https://github.com/k98kurz/CRDTs/blob/docs/causaltree.md)
+- [GSet](https://github.com/k98kurz/CRDTs/blob/master/docs/gset.md)
+- [ORSet](https://github.com/k98kurz/CRDTs/blob/master/docs/orset.md)
+- [Counter](https://github.com/k98kurz/CRDTs/blob/master/docs/counter.md)
+- [PNCounter](https://github.com/k98kurz/CRDTs/blob/master/docs/pncounter.md)
+- [RGArray](https://github.com/k98kurz/CRDTs/blob/master/docs/rgarray.md)
+- [LWWRegister](https://github.com/k98kurz/CRDTs/blob/master/docs/lwwregister.md)
+- [LWWMap](https://github.com/k98kurz/CRDTs/blob/master/docs/lwwmap.md)
+- [MVRegister](https://github.com/k98kurz/CRDTs/blob/master/docs/mvregister.md)
+- [MVMap](https://github.com/k98kurz/CRDTs/blob/master/docs/mvmap.md)
+- [FIArray](https://github.com/k98kurz/CRDTs/blob/master/docs/fiarray.md)
+- [CausalTree](https://github.com/k98kurz/CRDTs/blob/master/docs/causaltree.md)
 
 Each documentation file includes examples of how the CRDT can be used.
 
@@ -107,7 +107,7 @@ implementation of `DataWrapperProtocol`, the relevant class must be provided to
 any calls to `unpack` when anything containing the custom class is deserialized,
 e.g. `LWWMap.unpack(data, inject={'MyDataWrapper': MyDataWrapper})`. The
 interfaces are autodox documented in
-[interfaces.md](https://github.com/k98kurz/CRDTs/blob/interfaces.md).
+[interfaces.md](https://github.com/k98kurz/CRDTs/blob/master/interfaces.md).
 
 Additionally, the functions `serialize_part` and `deserialize_part` can be used
 for serializing and deserializing complex structures to and from bytes. Any
