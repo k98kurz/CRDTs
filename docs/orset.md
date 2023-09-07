@@ -103,7 +103,9 @@ updates from divergent nodes.
 
 #### `observe(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Adds the given member to the observed set.
+Creates, applies, and returns an update_class (StateUpdate by default) that adds
+the given member to the observed set. The member will be in the data attribute
+at index 1.
 
 #### `remove(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
