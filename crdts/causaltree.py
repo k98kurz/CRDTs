@@ -168,9 +168,11 @@ class CausalTree:
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns at least one update_class
-            (StateUpdate by default) that put the item as the first item.
-            Any ties for first place will be resolved by making the new
-            item the parent of those other first items.
+            (StateUpdate by default) that puts the item as the first
+            item. Any ties for first place will be resolved by making
+            the new item the parent of those other first items, and
+            those update_class instances will also be created, applied,
+            and returned.
         """
         updates: list[StateUpdateProtocol] = []
         updates.append(self.put(item, writer, uuid4().bytes, b'',
