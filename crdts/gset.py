@@ -10,7 +10,6 @@ from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
-from types import NoneType
 from typing import Any
 
 
@@ -38,7 +37,7 @@ class GSet:
         tressa(len(data) > 8, 'data must be more than 8 bytes')
         clock, members, update_history = deserialize_part(
             data,
-            inject={**inject, 'StateUpdate': StateUpdate}
+            inject={**globals(), **inject}
         )
         return cls(members, clock, {k:v for k,v in update_history})
 
