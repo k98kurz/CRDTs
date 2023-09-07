@@ -216,7 +216,9 @@ updates from divergent nodes.
 
 ##### `observe(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Adds the given member to the observed set.
+Creates, applies, and returns an update_class (StateUpdate by default) that adds
+the given member to the observed set. The member will be in the data attribute
+at index 1.
 
 ##### `remove(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
@@ -444,7 +446,7 @@ updates from divergent nodes.
 ##### `append(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
-appends the item.
+appends the item. The RGAItemWrapper will be in the data attribute at index 1.
 
 ##### `delete(item: RGAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
@@ -925,17 +927,21 @@ Data type must be comparable.
 
 #### Annotations
 
-- value: DataWrapperProtocol
-- ts: DataWrapperProtocol
+- value: SerializableType
+- ts: SerializableType
 - writer: int
 
 #### Methods
 
 ##### `pack() -> bytes:`
 
+Pack instance to bytes.
+
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> RGAItemWrapper:`
 
-##### `__init__(value: DataWrapperProtocol, ts: DataWrapperProtocol, writer: int) -> None:`
+##### `__init__(value: SerializableType, ts: SerializableType, writer: int) -> None:`
+
+##### `__repr__() -> str:`
 
 ### `StrWrapper`
 
