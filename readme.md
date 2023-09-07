@@ -186,9 +186,8 @@ number of buckets equal to the log base 2 of the max timestamp:
 
 ## Interfaces and Classes
 
-Below are the interfaces and classes, along with attributes and methods. Note
-that any type that includes itself in a return signature indicates a jquery-
-style monad pattern.
+Below are listed the interfaces and classes. Detailed documentaiton can be found
+at the links in the Usage section above.
 
 ### Interfaces
 
