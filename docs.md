@@ -551,7 +551,7 @@ Returns a concise history of StateUpdateProtocols that will converge to the
 underlying data. Useful for resynchronization by replaying updates from
 divergent nodes.
 
-##### `extend(name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `set(name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Extends the dict with name: value. Returns an update_class (StateUpdate by
 default) that should be propagated to all nodes.
