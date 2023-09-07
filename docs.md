@@ -594,7 +594,7 @@ deletion updates.
 
 Return the full, eventually consistent list of items with tombstones and
 complete DataWrapperProtocols rather than the underlying values. Use this for
-preparing deletion updates -- only a DataWrapperProtocol can be used for delete.
+preparing deletion updates -- only a CTDataWrapper can be used for delete.
 
 ##### `read_excluded(/, *, inject: dict = {}) -> list[CTDataWrapper]:`
 
@@ -625,7 +625,7 @@ the item after the parent.
 Creates, applies, and returns an update_class that puts the item after the
 parent item.
 
-##### `put_first(item: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `put_first(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
 
 Creates, applies, and returns at least one update_class (StateUpdate by default)
 that puts the item as the first item. Any ties for first place will be resolved
