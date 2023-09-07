@@ -9,6 +9,8 @@ from crdts.classes import (
     RGArray,
     LWWRegister,
     LWWMap,
+    MVRegister,
+    MVMap,
     CausalTree,
 )
 from crdts.interfaces import (

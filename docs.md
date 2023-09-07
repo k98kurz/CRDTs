@@ -567,6 +567,104 @@ Removes the key name from the dict. Returns a StateUpdate.
 Initialize an LWWMap from an ORSet of names, a list of LWWRegisters, and a
 shared clock.
 
+### `MVRegister`
+
+#### Annotations
+
+- name: DataWrapperProtocol
+- values: list[DataWrapperProtocol]
+- clock: ClockProtocol
+- last_update: Any
+
+#### Methods
+
+##### `pack() -> bytes:`
+
+Pack the data and metadata into a bytes string.
+
+##### `@classmethod unpack(data: bytes, inject: dict = {}) -> MVRegister:`
+
+Unpack the data bytes string into an instance.
+
+##### `read(inject: dict = {}) -> tuple[SerializableType]:`
+
+Return the eventually consistent data view.
+
+##### `@classmethod compare_values(value1: SerializableType, value2: SerializableType) -> bool:`
+
+##### `update(state_update: StateUpdateProtocol) -> MVRegister:`
+
+Apply an update and return self (monad pattern).
+
+##### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
+
+Returns any checksums for the underlying data to detect desynchronization due to
+message failure.
+
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+
+Returns a concise history of update_class (StateUpdate by default) that will
+converge to the underlying data. Useful for resynchronization by replaying
+updates from divergent nodes.
+
+##### `write(value: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Writes the new value to the register and returns an update_class (StateUpdate by
+default).
+
+##### `__init__(name: DataWrapperProtocol, values: list[DataWrapperProtocol] = [], clock: ClockProtocol = None, last_update: Any = None) -> None:`
+
+### `MVMap`
+
+#### Annotations
+
+- names: ORSet
+- registers: dict[DataWrapperProtocol, MVRegister]
+- clock: ClockProtocol
+
+#### Methods
+
+##### `pack() -> bytes:`
+
+Pack the data and metadata into a bytes string.
+
+##### `@classmethod unpack(data: bytes, inject: dict = {}) -> MVMap:`
+
+Unpack the data bytes string into an instance.
+
+##### `read() -> dict:`
+
+Return the eventually consistent data view.
+
+##### `update(state_update: StateUpdateProtocol) -> MVMap:`
+
+Apply an update and return self (monad pattern).
+
+##### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
+
+Returns any checksums for the underlying data to detect desynchronization due to
+message failure.
+
+##### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+
+Returns a concise history of StateUpdateProtocols that will converge to the
+underlying data. Useful for resynchronization by replaying updates from
+divergent nodes.
+
+##### `set(name: DataWrapperProtocol, value: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Extends the dict with name: value. Returns an update_class (StateUpdate by
+default) that should be propagated to all nodes.
+
+##### `unset(name: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Removes the key name from the dict. Returns a StateUpdate.
+
+##### `__init__(names: ORSet = None, registers: dict = None, clock: ClockProtocol = None) -> None:`
+
+Initialize an MVMap from an ORSet of names, a list of MVRegisters, and a shared
+clock.
+
 ### `CausalTree`
 
 #### Annotations
@@ -998,4 +1096,5 @@ recursively calling itself as necessary.
 - __file__: str
 - __cached__: str
 - __builtins__: dict
+- SerializableType: UnionType
 
