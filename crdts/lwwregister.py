@@ -69,7 +69,7 @@ class LWWRegister:
             last_writer=last_writer,
         )
 
-    def read(self, inject: dict = {}) -> DataWrapperProtocol:
+    def read(self, /, *, inject: dict = {}) -> DataWrapperProtocol:
         """Return the eventually consistent data view."""
         return deserialize_part(
             serialize_part(self.value), inject={**globals(), **inject}
@@ -80,7 +80,8 @@ class LWWRegister:
                        value2: DataWrapperProtocol) -> bool:
         return value1.pack() > value2.pack()
 
-    def update(self, state_update: StateUpdateProtocol) -> LWWRegister:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> LWWRegister:
         """Apply an update and return self (monad pattern)."""
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
@@ -143,7 +144,8 @@ class LWWRegister:
         ),)
 
     def write(self, value: DataWrapperProtocol, writer: int, /, *,
-              update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+              update_class: type[StateUpdateProtocol] = StateUpdate,
+              inject: dict = {}) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default). Requires a writer int
             for tie breaking.
@@ -157,6 +159,6 @@ class LWWRegister:
             ts=self.clock.read(),
             data=(writer, value)
         )
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update

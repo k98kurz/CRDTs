@@ -99,7 +99,9 @@ class will have to be passed to any CRDT method that produces `StateUpdate`s by
 default by using the `update_class=` named parameter. For a custom
 implementation of `DataWrapperProtocol`, the relevant class must be provided to
 any calls to `unpack` when anything containing the custom class is deserialized,
-e.g. `LWWMap.unpack(data, inject={'MyDataWrapper': MyDataWrapper})`.
+e.g. `LWWMap.unpack(data, inject={'MyDataWrapper': MyDataWrapper})`. The
+interfaces are autodox documented in
+[interfaces.md](https://github.com/k98kurz/CRDTs/blob/interfaces.md).
 
 Additionally, the functions `serialize_part` and `deserialize_part` can be used
 for serializing and deserializing complex structures to and from bytes. Any
@@ -116,42 +118,9 @@ style monad pattern.
 ### Interfaces
 
 - ClockProtocol(Protocol)
-    - `uuid: bytes`
-    - `default_ts: Any`
-    - `read(self, /, *, inject: dict = {}) -> Any`
-    - `update(self, data: Any = None) -> Any`
-    - `@staticmethod is_later(ts1: Any, ts2: Any) -> bool`
-    - `@staticmethod are_concurrent(ts1: Any, ts2: Any) -> bool`
-    - `@staticmethod compare(ts1: Any, ts2: Any) -> int`
-    - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes, /, *, inject: dict = {}) -> ClockProtocol`
-    - `@classmethod wrap_ts(cls, ts: Any, /, *, inject: dict = {}) -> DataWrapperProtocol`
 - CRDTProtocol(Protocol)
-    - `clock: ClockProtocol`
-    - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes, /, *, inject: dict = {}) -> CRDTProtocol`
-    - `read(self, /, *, inject: dict = {}) -> Any`
-    - `update(self, state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> CRDTProtocol`
-    - `checksums(self, from_ts: Any = None, until_ts: Any = None) -> tuple[Any]`
-    - `history(self, from_ts: Any, until_ts: Any = None, update_class: type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]`
 - DataWrapperProtocol(Protocol)
-    - `value: Any`
-    - `__hash__(self) -> int`
-    - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes) -> DataWrapperProtocol`
-    - `__eq__(self, other) -> bool`
-    - `__ne__(self) -> bool`
-    - `__gt__(self) -> bool`
-    - `__ge__(self) -> bool`
-    - `__lt__(self) -> bool`
-    - `__le__(self) -> bool`
 - StateUpdateProtocol(Protocol)
-    - `clock_uuid: bytes`
-    - `ts: Any`
-    - `data: Hashable`
-    - `__init__(clock_uuid: bytes, ts: Any, data: Hashable) -> None`
-    - `pack(self) -> bytes`
-    - `@classmethod unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdateProtocol`
 
 ### Type Alias
 
@@ -162,105 +131,23 @@ to the following: `DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType`.
 - NoneWrapper(DataWrapperProtocol)
 - StateUpdate(StateUpdateProtocol)
 - ScalarClock(ClockProtocol)
-    - `counter: int`
 - StrWrapper(DataWrapperProtocol)
-    - `value: str`
 - BytesWrapper(StrWrapper)
-    - `value: bytes`
 - CTDataWrapper(DataWrapperProtocol)
-    - `value: SerializableType`
-    - `uuid: bytes`
-    - `parent_uuid: bytes`
-    - `visible: bool`
 - DecimalWrapper(StrWrapper)
-    - `value: Decimal`
 - IntWrapper(DecimalWrapper)
-    - `value: int`
 - RGAItemWrapper(StrWrapper)
-  - `value: DataWrapperProtocol`
-  - `ts: DataWrapperProtocol`
-  - `writer: int`
 - NoneWrapper(DataWrapperProtocol)
 - GSet(CRDTProtocol)
-    - `members: set[SerializableType]`
-    - `clock: ClockProtocol`
-    - `update_history: dict[SerializableType, StateUpdateProtocol]`
-    - `add(self, member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - Counter(CRDTProtocol)
-    - `counter: int`
-    - `clock: ClockProtocol`
-    - `increase(self, amount: int = 1, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol) -> StateUpdate`
 - ORSet(CRDTProtocol)
-    - `observed: set[SerializableType]`
-    - `observed_metadata: dict[SerializableType, StateUpdateProtocol]`
-    - `removed: set[SerializableType]`
-    - `removed_metadata: dict[SerializableType, StateUpdateProtocol]`
-    - `clock: ClockProtocol`
-    - `cache: Optional[tuple]`
-    - `observe(self, member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `remove(self, member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - PNCounter(CRDTProtocol)
-    - `positive: int`
-    - `negative: int`
-    - `clock: ClockProtocol`
-    - `increase(self, amount: int = 1) -> StateUpdate`
-    - `decrease(self, amount: int = 1) -> StateUpdate`
 - RGArray (CRDTProtocol)
-    - `items: ORSet`
-    - `clock: ClockProtocol`
-    - `cache_full: list[RGAItemWrapper]`
-    - `cache: tuple[Any]`
-    - `__init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None`
-    - `read(self) -> tuple[Any]`
-    - `read_full(self) -> tuple[RGAItemWrapper]`
-    - `append(self, item: DataWrapperProtocol, writer: int) -> StateUpdate`
-    - `delete(self, item: RGAItemWrapper) -> StateUpdate`
-    - `calculate_cache(self) -> None`
-    - `update_cache(self, item: RGAItemWrapper, visible: bool) -> None`
 - LWWRegister(CRDTProtocol)
-    - `name: DataWrapperProtocol`
-    - `value: DataWrapperProtocol`
-    - `clock: ClockProtocol`
-    - `last_update: int`
-    - `last_writer: int`
-    - `__init__(self, name: DataWrapperProtocol, value: DataWrapperProtocol = None, clock: ClockProtocol = None, last_update: Any = None, last_writer: int = 0) -> None`
-    - `@classmethod compare_values(cls, value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool`
-    - `write(self, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - LWWMap(CRDTProtocol)
-    - `names: ORSet`
-    - `registers: dict[DataWrapperProtocol, LWWRegister]`
-    - `clock: ClockProtocol`
-    - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `unset(self, name: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - MVRegister(CRDTProtocol)
-    - `name: DataWrapperProtocol`
-    - `values: list[DataWrapperProtocol]`
-    - `clock: ClockProtocol`
-    - `@classmethod compare_values(cls, value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool`
-    - `write(self, value: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - MVMap(CRDTProtocol)
-    - `names: ORSet`
-    - `registers: dict[DataWrapperProtocol, MVRegister]`
-    - `clock: ClockProtocol`
-    - `extend(self, name: DataWrapperProtocol, value: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `unset(self, name: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
 - FIArray(CRDTProtocol)
-    - `positions: LWWMap`
-    - `clock: ClockProtocol`
-    - `cache_full: list[DataWrapperProtocol]`
-    - `cache: list[Any]`
-    - `__init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None`
-    - `@classmethod index_between(cls, first: Decimal, second: Decimal) -> Decimal`
-    - `read_full(self) -> tuple[DataWrapperProtocol]`
-    - `put(self, item: DataWrapperProtocol, writer: int, index: Decimal, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
-    - `put_between(self, item: DataWrapperProtocol, writer: int, first: DataWrapperProtocol, second: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `put_before(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `put_after(self, item: DataWrapperProtocol, writer: int, other: DataWrapperProtocol, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `put_first(self, item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `put_last(self, item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `delete(self, item: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol`
-    - `calculate_cache(self) -> None`
-    - `update_cache(self, item: DataWrapperProtocol, visible: bool) -> None`
 
 ## Tests
 

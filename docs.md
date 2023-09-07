@@ -23,6 +23,12 @@ Deserialize a StateUpdate. Assumes that all types within update.data and
 update.ts are either built-in types or PackableProtocols accessible from this
 scope.
 
+##### `__repr__() -> str:`
+
+##### `__init__(clock_uuid: bytes, ts: Any, data: Hashable):`
+
+##### `__eq__():`
+
 ### `ScalarClock`
 
 #### Annotations
@@ -65,6 +71,12 @@ Unpacks a clock from bytes.
 ##### `@classmethod wrap_ts(ts: int) -> IntWrapper:`
 
 Wrap a timestamp in an IntWrapper.
+
+##### `__init__(counter: int = 1, uuid: bytes = <factory>, default_ts: int = 0):`
+
+##### `__repr__():`
+
+##### `__eq__():`
 
 ### `GSet`
 
@@ -109,6 +121,12 @@ outside of these temporal constraints will be included.
 
 Create, apply, and return a StateUpdate adding member to the set.
 
+##### `__init__(members: set[SerializableType] = <factory>, clock: ClockProtocol = <factory>, update_history: dict[SerializableType, StateUpdateProtocol] = <factory>):`
+
+##### `__repr__():`
+
+##### `__eq__():`
+
 ### `Counter`
 
 #### Annotations
@@ -149,6 +167,12 @@ updates from divergent nodes.
 
 Increase the counter by the given amount (default 1). Returns the update_class
 (StateUpdate by default) that should be propagated to the network.
+
+##### `__init__(counter: int = 0, clock: ClockProtocol = <factory>):`
+
+##### `__repr__():`
+
+##### `__eq__():`
 
 ### `ORSet`
 
@@ -198,6 +222,12 @@ Adds the given member to the observed set.
 
 Adds the given member to the removed set.
 
+##### `__init__(observed: set[SerializableType] = <factory>, observed_metadata: dict[SerializableType, StateUpdateProtocol] = <factory>, removed: set[SerializableType] = <factory>, removed_metadata: dict[SerializableType, StateUpdateProtocol] = <factory>, clock: ClockProtocol = <factory>, cache: Optional[tuple] = None):`
+
+##### `__repr__():`
+
+##### `__eq__():`
+
 ### `PNCounter`
 
 #### Annotations
@@ -244,6 +274,12 @@ Increase the counter by the given amount (default 1). Returns the update_class
 
 Decrease the counter by the given amount (default 1). Returns the update_class
 (StateUpdate by default) that should be propagated to the network.
+
+##### `__init__(positive: int = 0, negative: int = 0, clock: ClockProtocol = <factory>):`
+
+##### `__repr__():`
+
+##### `__eq__():`
 
 ### `FIArray`
 
@@ -356,6 +392,10 @@ Updates cache_full by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
 Resets cache.
 
+##### `__init__(positions: LWWMap = None, clock: ClockProtocol = None) -> None:`
+
+Initialize an FIArray from an LWWMap of item positions and a shared clock.
+
 ### `RGArray`
 
 #### Annotations
@@ -375,18 +415,18 @@ Pack the data and metadata into a bytes string.
 
 Unpack the data bytes string into an instance.
 
-##### `read() -> tuple[SerializableType]:`
+##### `read(/, *, inject: dict = {}) -> tuple[SerializableType]:`
 
 Return the eventually consistent data view. Cannot be used for preparing
 deletion updates.
 
-##### `read_full() -> tuple[RGAItemWrapper]:`
+##### `read_full(/, *, inject: dict = {}) -> tuple[RGAItemWrapper]:`
 
 Return the full, eventually consistent list of items without tombstones but with
 complete RGAItemWrappers rather than the underlying values. Use this for
 preparing deletion updates -- only a RGAItemWrapper can be used for delete.
 
-##### `update(state_update: StateUpdateProtocol) -> RGArray:`
+##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> RGArray:`
 
 Apply an update and return self (monad pattern).
 
@@ -401,12 +441,12 @@ Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying all
 updates from divergent nodes.
 
-##### `append(item: SerializableType, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `append(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 appends the item.
 
-##### `delete(item: RGAItemWrapper, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `delete(item: RGAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
 deletes the specified item.
@@ -421,6 +461,10 @@ list. Resets the cache.
 Updates the cache by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
 Resets the cache.
+
+##### `__init__(items: ORSet = None, clock: ClockProtocol = None) -> None:`
+
+Initialize an RGA from an ORSet of items and a shared clock.
 
 ### `LWWRegister`
 
@@ -442,13 +486,13 @@ Pack the data and metadata into a bytes string.
 
 Unpack the data bytes string into an instance.
 
-##### `read(inject: dict = {}) -> DataWrapperProtocol:`
+##### `read(/, *, inject: dict = {}) -> DataWrapperProtocol:`
 
 Return the eventually consistent data view.
 
 ##### `@classmethod compare_values(value1: DataWrapperProtocol, value2: DataWrapperProtocol) -> bool:`
 
-##### `update(state_update: StateUpdateProtocol) -> LWWRegister:`
+##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> LWWRegister:`
 
 Apply an update and return self (monad pattern).
 
@@ -463,10 +507,12 @@ Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-##### `write(value: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `write(value: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Writes the new value to the register and returns an update_class (StateUpdate by
 default). Requires a writer int for tie breaking.
+
+##### `__init__(name: DataWrapperProtocol, value: DataWrapperProtocol = None, clock: ClockProtocol = None, last_update: Any = None, last_writer: int = 0) -> None:`
 
 ### `LWWMap`
 
@@ -513,6 +559,11 @@ default) that should be propagated to all nodes.
 ##### `unset(name: DataWrapperProtocol, writer: int, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Removes the key name from the dict. Returns a StateUpdate.
+
+##### `__init__(names: ORSet = None, registers: dict = None, clock: ClockProtocol = None) -> None:`
+
+Initialize an LWWMap from an ORSet of names, a list of LWWRegisters, and a
+shared clock.
 
 ### `CausalTree`
 
@@ -600,6 +651,10 @@ Updates the cache by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
 Resets the cache.
 
+##### `__init__(positions: LWWMap = None, clock: ClockProtocol = None) -> None:`
+
+Initialize a CausalTree from an LWWMap of item positions and a shared clock.
+
 ### `StateUpdateProtocol(Protocol)`
 
 #### Annotations
@@ -618,32 +673,38 @@ Pack the instance into bytes.
 
 Unpack an instance from bytes.
 
+##### `__init__(clock_uuid: bytes, ts: Any, data: Hashable) -> None:`
+
+Initialize the instance.
+
+##### `_proto_hook():`
+
 ### `ClockProtocol(Protocol)`
 
 #### Annotations
 
 - uuid: bytes
-- default_ts: TimestampType
+- default_ts: Any
 
 #### Methods
 
-##### `read(/, *, inject: dict = {}) -> TimestampType:`
+##### `read(/, *, inject: dict = {}) -> Any:`
 
 Return the current timestamp.
 
-##### `update(data: TimestampType = None) -> TimestampType:`
+##### `update(data: Any = None) -> Any:`
 
 Update the clock and return the current time stamp.
 
-##### `@staticmethod is_later(ts1: TimestampType, ts2: TimestampType) -> bool:`
+##### `@staticmethod is_later(ts1: Any, ts2: Any) -> bool:`
 
 Return True iff ts1 > ts2.
 
-##### `@staticmethod are_concurrent(ts1: TimestampType, ts2: TimestampType) -> bool:`
+##### `@staticmethod are_concurrent(ts1: Any, ts2: Any) -> bool:`
 
 Return True if not ts1 > ts2 and not ts2 > ts1.
 
-##### `@staticmethod compare(ts1: TimestampType, ts2: TimestampType) -> int:`
+##### `@staticmethod compare(ts1: Any, ts2: Any) -> int:`
 
 Return 1 if ts1 is later than ts2; -1 if ts2 is later than ts1; and 0 if they
 are concurrent/incomparable.
@@ -656,9 +717,13 @@ Pack the clock into bytes.
 
 Unpack a clock from bytes.
 
-##### `@classmethod wrap_ts(ts: TimestampType, /, *, inject: dict = {}) -> DataWrapperProtocol:`
+##### `@classmethod wrap_ts(ts: Any, /, *, inject: dict = {}) -> DataWrapperProtocol:`
 
 Wrap a timestamp in a data wrapper.
+
+##### `_proto_hook():`
+
+##### `_no_init_or_replace_init():`
 
 ### `CRDTProtocol(Protocol)`
 
@@ -689,11 +754,15 @@ Apply an update and return self (monad pattern).
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-##### `history(update_class: type[StateUpdateProtocol], /, *, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: type[StateUpdateProtocol] = None, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent
 nodes.
+
+##### `_proto_hook():`
+
+##### `_no_init_or_replace_init():`
 
 ### `DataWrapperProtocol(Protocol)`
 
@@ -711,6 +780,38 @@ Package value into bytes.
 
 Unpack value from bytes.
 
+##### `__hash__() -> int:`
+
+Data type must be hashable.
+
+##### `__eq__() -> bool:`
+
+Data type must be comparable.
+
+##### `__ne__() -> bool:`
+
+Data type must be comparable.
+
+##### `__gt__() -> bool:`
+
+Data type must be comparable.
+
+##### `__ge__() -> bool:`
+
+Data type must be comparable.
+
+##### `__lt__() -> bool:`
+
+Data type must be comparable.
+
+##### `__le__() -> bool:`
+
+Data type must be comparable.
+
+##### `_proto_hook():`
+
+##### `_no_init_or_replace_init():`
+
 ### `BytesWrapper(StrWrapper)`
 
 #### Annotations
@@ -722,6 +823,10 @@ Unpack value from bytes.
 ##### `pack() -> bytes:`
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> BytesWrapper:`
+
+##### `__init__(value: bytes) -> None:`
+
+##### `__repr__() -> str:`
 
 ### `CTDataWrapper`
 
@@ -738,6 +843,26 @@ Unpack value from bytes.
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> CTDataWrapper:`
 
+##### `__init__(value: SerializableType, uuid: bytes, parent_uuid: bytes, visible: bool = True) -> None:`
+
+##### `__to_tuple__() -> tuple:`
+
+##### `__repr__() -> str:`
+
+##### `__hash__() -> int:`
+
+##### `__eq__(other: CTDataWrapper) -> bool:`
+
+##### `__ne__(other: CTDataWrapper) -> bool:`
+
+##### `__gt__(other: CTDataWrapper) -> bool:`
+
+##### `__ge__(other: CTDataWrapper) -> bool:`
+
+##### `__lt__(other: CTDataWrapper) -> bool:`
+
+##### `__le__(other: CTDataWrapper) -> bool:`
+
 ### `DecimalWrapper(StrWrapper)`
 
 #### Annotations
@@ -749,6 +874,8 @@ Unpack value from bytes.
 ##### `pack() -> bytes:`
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> DecimalWrapper:`
+
+##### `__init__(value: Decimal) -> None:`
 
 ### `IntWrapper(DecimalWrapper)`
 
@@ -762,6 +889,8 @@ Unpack value from bytes.
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> IntWrapper:`
 
+##### `__init__(value: int) -> None:`
+
 ### `NoneWrapper`
 
 #### Annotations
@@ -773,6 +902,24 @@ Unpack value from bytes.
 ##### `pack() -> bytes:`
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> NoneWrapper:`
+
+##### `__hash__() -> int:`
+
+##### `__eq__() -> bool:`
+
+##### `__ne__() -> bool:`
+
+##### `__gt__() -> bool:`
+
+##### `__ge__() -> bool:`
+
+##### `__lt__() -> bool:`
+
+##### `__le__() -> bool:`
+
+##### `__init__(value: NoneType = None):`
+
+##### `__repr__():`
 
 ### `RGAItemWrapper(StrWrapper)`
 
@@ -788,6 +935,8 @@ Unpack value from bytes.
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> RGAItemWrapper:`
 
+##### `__init__(value: DataWrapperProtocol, ts: DataWrapperProtocol, writer: int) -> None:`
+
 ### `StrWrapper`
 
 #### Annotations
@@ -799,6 +948,26 @@ Unpack value from bytes.
 ##### `pack() -> bytes:`
 
 ##### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> StrWrapper:`
+
+##### `__to_tuple__() -> tuple:`
+
+##### `__hash__() -> int:`
+
+##### `__eq__(other: DataWrapperProtocol) -> bool:`
+
+##### `__ne__(other: DataWrapperProtocol) -> bool:`
+
+##### `__gt__(other: DataWrapperProtocol) -> bool:`
+
+##### `__ge__(other: DataWrapperProtocol) -> bool:`
+
+##### `__lt__(other: DataWrapperProtocol) -> bool:`
+
+##### `__le__(other: DataWrapperProtocol) -> bool:`
+
+##### `__init__(value: str):`
+
+##### `__repr__():`
 
 ## Functions
 
@@ -812,4 +981,15 @@ recursively calling itself as necessary.
 Deserializes an instance of a PackableProtocol implementation or built-in type,
 recursively calling itself as necessary.
 
+## Values
+
+- __name__: str
+- __doc__: NoneType
+- __package__: str
+- __loader__: SourceFileLoader
+- __spec__: ModuleSpec
+- __path__: list
+- __file__: str
+- __cached__: str
+- __builtins__: dict
 

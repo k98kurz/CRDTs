@@ -46,7 +46,7 @@ class RGArray:
         items = ORSet.unpack(data, inject=inject)
         return cls(items=items, clock=items.clock)
 
-    def read(self) -> tuple[SerializableType]:
+    def read(self, /, *, inject: dict = {}) -> tuple[SerializableType]:
         """Return the eventually consistent data view. Cannot be used for
             preparing deletion updates.
         """
@@ -58,7 +58,7 @@ class RGArray:
 
         return self.cache
 
-    def read_full(self) -> tuple[RGAItemWrapper]:
+    def read_full(self, /, *, inject: dict = {}) -> tuple[RGAItemWrapper]:
         """Return the full, eventually consistent list of items without
             tombstones but with complete RGAItemWrappers rather than the
             underlying values. Use this for preparing deletion updates --
@@ -69,7 +69,8 @@ class RGArray:
 
         return tuple(self.cache_full)
 
-    def update(self, state_update: StateUpdateProtocol) -> RGArray:
+    def update(self, state_update: StateUpdateProtocol, /, *,
+               inject: dict = {}) -> RGArray:
         """Apply an update and return self (monad pattern)."""
         tressa(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
@@ -103,7 +104,8 @@ class RGArray:
         )
 
     def append(self, item: SerializableType, writer: int, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+               update_class: type[StateUpdateProtocol] = StateUpdate,
+               inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item.
         """
@@ -117,12 +119,13 @@ class RGArray:
             update_class=update_class
         )
 
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update
 
     def delete(self, item: RGAItemWrapper, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+               update_class: type[StateUpdateProtocol] = StateUpdate,
+               inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the specified item.
         """
@@ -130,7 +133,7 @@ class RGArray:
 
         state_update = self.items.remove(item, update_class=update_class)
 
-        self.update(state_update)
+        self.update(state_update, inject=inject)
 
         return state_update
 
