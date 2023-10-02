@@ -338,19 +338,17 @@ class TestORSet(unittest.TestCase):
         assert all([type(leaf) is bytes for leaf in history1[0]]), \
             'history must be [[bytes, ], bytes, [StateUpdate,]]'
         assert all([
-            isinstance(update, interfaces.StateUpdateProtocol)
-            for update in history1[2]
-        ]), 'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
 
         history2 = ors2.get_merkle_history()
-        cidmap1 = {
-            k: v
-            for k,v in zip(history1[0], history1[2])
-        }
-        cidmap2 = {
-            k: v
-            for k,v in zip(history2[0], history2[2])
-        }
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
 
         diff1 = ors1.resolve_merkle_histories(history2)
         diff2 = ors2.resolve_merkle_histories(history1)
@@ -361,9 +359,9 @@ class TestORSet(unittest.TestCase):
 
         # synchronize
         for cid in diff1:
-            ors1.update(cidmap2[cid])
+            ors1.update(classes.StateUpdate.unpack(cidmap2[cid]))
         for cid in diff2:
-            ors2.update(cidmap1[cid])
+            ors2.update(classes.StateUpdate.unpack(cidmap1[cid]))
 
         assert ors1.checksums() == ors2.checksums()
 

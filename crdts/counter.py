@@ -72,18 +72,27 @@ class Counter:
         )
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate) -> list[list[bytes], bytes, tuple[StateUpdateProtocol]]:
+                           update_class: type[StateUpdateProtocol] = StateUpdate) -> list[list[bytes], bytes, dict[bytes, bytes]]:
         """Get a Merkle-DAG history for the StateUpdates of the form
             [[sha256(update.pack()) for update in self.history()], root,
             self.history()].
         """
         history = self.history(update_class=update_class)
         leaves = [
-            sha256(update.pack()).digest()
+            update.pack()
             for update in history
         ]
-        root = sha256(b''.join(leaves)).digest()
-        return [leaves, root, history]
+        leaf_ids = [
+            sha256(leaf).digest()
+            for leaf in leaves
+        ]
+        leaf_ids.sort()
+        history = {
+            leaf_id: leaf
+            for leaf_id, leaf in zip(leaf_ids, leaves)
+        }
+        root = sha256(b''.join(leaf_ids)).digest()
+        return [leaf_ids, root, history]
 
     def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
         """Accept a history of form [leaves, root] from another node.

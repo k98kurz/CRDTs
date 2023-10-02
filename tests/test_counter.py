@@ -241,17 +241,21 @@ class TestCounter(unittest.TestCase):
 
         history1 = counter1.get_merkle_history()
         assert type(history1) in (list, tuple), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
         assert len(history1) == 3, \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
         assert all([type(leaf) is bytes for leaf in history1[0]]), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
         assert all([
-            isinstance(update, interfaces.StateUpdateProtocol)
-            for update in history1[2]
-        ]), 'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
 
         history2 = counter2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
         diff1 = counter1.resolve_merkle_histories(history2)
         diff2 = counter2.resolve_merkle_histories(history1)
         assert type(diff1) in (list, tuple)
