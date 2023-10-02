@@ -8,7 +8,7 @@ from .datawrappers import (
     RGAItemWrapper,
     StrWrapper,
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     DataWrapperProtocol,
@@ -19,6 +19,7 @@ from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
+from hashlib import sha256
 from typing import Any
 
 
@@ -125,7 +126,7 @@ class LWWRegister:
         return (
             self.last_update,
             self.last_writer,
-            crc32(self.value.pack()),
+            crc32(serialize_part(self.value)),
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
@@ -145,6 +146,49 @@ class LWWRegister:
             ts=self.last_update,
             data=(self.last_writer, self.value)
         ),)
+
+    def get_merkle_history(self, /, *,
+                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+        """Get a Merklized history for the StateUpdates of the form
+            [[content_id for update in self.history()], root, {
+            content_id: packed for update in self.history()}] where
+            packed is the result of update.pack() and content_id is the
+            sha256 of the packed update.
+        """
+        history = self.history(update_class=update_class)
+        leaves = [
+            update.pack()
+            for update in history
+        ]
+        leaf_ids = [
+            sha256(leaf).digest()
+            for leaf in leaves
+        ]
+        leaf_ids.sort()
+        history = {
+            leaf_id: leaf
+            for leaf_id, leaf in zip(leaf_ids, leaves)
+        }
+        root = sha256(b''.join(leaf_ids)).digest()
+        return [leaf_ids, root, history]
+
+    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
+        """Accept a history of form [leaves, root] from another node.
+            Return the leaves that need to be resolved and merged for
+            synchronization.
+        """
+        tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
+        vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
+        tert(all([type(leaf) is bytes for leaf in history[0]]),
+             'history must be [[bytes, ], bytes]')
+        local_history = self.get_merkle_history()
+        if local_history[1] == history[1]:
+            return []
+        return [
+            leaf for leaf in history[0]
+            if leaf not in local_history[0]
+        ]
 
     def write(self, value: SerializableType, writer: int, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate,

@@ -212,10 +212,13 @@ class ORSet:
         return tuple(updates)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate) -> list[list[bytes], bytes, dict[bytes, bytes]]:
-        """Get a Merkle-DAG history for the StateUpdates of the form
-            [[sha256(update.pack()) for update in self.history()], root,
-            self.history()].
+                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+        """Get a Merklized history for the StateUpdates of the form
+            [[content_id for update in self.history()], root, {
+            content_id: packed for update in self.history()}] where
+            packed is the result of update.pack() and content_id is the
+            sha256 of the packed update.
         """
         history = self.history(update_class=update_class)
         leaves = [

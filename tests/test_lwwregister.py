@@ -260,6 +260,50 @@ class TestLWWRegister(unittest.TestCase):
         # from_ts in past, until_ts in future: history should return update
         assert len(lwwr.history(from_ts=0, until_ts=99)) == 1
 
+    def test_LWWRegister_merkle_history_e2e(self):
+        lwwr1 = classes.LWWRegister('test')
+        lwwr2 = classes.LWWRegister('test', clock=classes.ScalarClock(0, lwwr1.clock.uuid))
+        lwwr2.update(lwwr1.write('hello world', 1))
+        lwwr2.update(lwwr1.write(b'hello world', 1))
+        lwwr1.write('hello world', 1)
+        lwwr1.write('not the lipsum', 1)
+        lwwr2.write(b'yellow submarine', 2)
+
+        history1 = lwwr1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = lwwr2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = lwwr1.resolve_merkle_histories(history2)
+        diff2 = lwwr2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 1, [d.hex() for d in diff1]
+        assert len(diff2) == 1, [d.hex() for d in diff2]
+
+        # synchronize
+        for cid in diff1:
+            lwwr1.update(classes.StateUpdate.unpack(cidmap2[cid]))
+        for cid in diff2:
+            lwwr2.update(classes.StateUpdate.unpack(cidmap1[cid]))
+
+        assert lwwr1.checksums() == lwwr2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()
