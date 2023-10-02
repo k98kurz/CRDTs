@@ -254,7 +254,7 @@ class TestMVRegister(unittest.TestCase):
         mvregister.write(datawrappers.StrWrapper('second'))
         packed = mvregister.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.MVRegister.unpack(packed, inject=self.inject)
         assert 'not found' in str(e.exception)
 

@@ -258,7 +258,7 @@ class TestORSet(unittest.TestCase):
         ors.observe('test')
         packed = ors.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.ORSet.unpack(packed, inject=self.inject)
         assert 'StrClock not found' in str(e.exception)
 

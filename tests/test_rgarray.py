@@ -286,7 +286,7 @@ class TestRGArray(unittest.TestCase):
         rga.append(datawrappers.StrWrapper('second'), 1)
         packed = rga.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.RGArray.unpack(packed, inject=self.inject)
         assert 'StrClock not found' in str(e.exception)
 

@@ -137,16 +137,16 @@ class TestDataWrappers(unittest.TestCase):
         assert isinstance(rgatw.ts, interfaces.DataWrapperProtocol)
         assert type(rgatw.writer) is int
 
-    def test_RGAItemWrapper_raises_UsagePreconditionError_for_bad_value(self):
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+    def test_RGAItemWrapper_raises_UsageError_for_bad_value(self):
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.RGAItemWrapper({}, b'321', 3)
         assert str(e.exception) == 'value must be SerializableType'
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.RGAItemWrapper(b'123', {}, 3)
         assert str(e.exception) == 'ts must be SerializableType'
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.RGAItemWrapper(
                 datawrappers.BytesWrapper(b'123'),
                 datawrappers.BytesWrapper(b'321'),
@@ -203,20 +203,20 @@ class TestDataWrappers(unittest.TestCase):
         assert type(ctw.uuid) is bytes
         assert type(ctw.parent_uuid) is bytes
 
-    def test_CTDataWrapper_raises_UsagePreconditionError_for_bad_value(self):
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+    def test_CTDataWrapper_raises_UsageError_for_bad_value(self):
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.CTDataWrapper([], b'str', b'132')
         assert 'value must be' in str(e.exception)
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), '321', b'123')
         assert str(e.exception) == 'uuid must be bytes'
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), b'123', 123)
         assert str(e.exception) == 'parent_uuid must be bytes'
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'1'), b'1', b'1', 'f')
         assert str(e.exception) == 'visible must be bool'
 

@@ -255,7 +255,7 @@ class TestLWWMap(unittest.TestCase):
         )
         packed = lwwm.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.LWWMap.unpack(packed, inject=self.inject)
         assert str(e.exception) == 'cannot find StrClock'
 

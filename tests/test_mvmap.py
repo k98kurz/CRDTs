@@ -252,7 +252,7 @@ class TestMVMap(unittest.TestCase):
         )
         packed = mvm.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.MVMap.unpack(packed, inject=self.inject)
         assert str(e.exception) == 'cannot find StrClock'
 

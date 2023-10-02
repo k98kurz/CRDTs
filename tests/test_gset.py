@@ -105,7 +105,7 @@ class TestGSet(unittest.TestCase):
 
     def test_GSet_add_errors_on_incorrect_type(self):
         gset = classes.GSet()
-        with self.assertRaises(errors.UsagePreconditionError):
+        with self.assertRaises(errors.UsageError):
             gset.add(gset)
 
     def test_GSet_add_returns_state_update(self):
@@ -214,7 +214,7 @@ class TestGSet(unittest.TestCase):
         gset.add(datawrappers.StrWrapper('test'))
         packed = gset.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.GSet.unpack(packed, inject=self.inject)
         assert 'not found' in str(e.exception)
 
@@ -232,7 +232,7 @@ class TestGSet(unittest.TestCase):
 
         packed = gset.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.GSet.unpack(packed, inject=self.inject)
         assert 'CustomStateUpdate not found' in str(e.exception)
 

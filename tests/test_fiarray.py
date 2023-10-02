@@ -437,7 +437,7 @@ class TestFIArray(unittest.TestCase):
         fia.put_last(datawrappers.StrWrapper('last'), 1)
         packed = fia.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.FIArray.unpack(packed, inject=self.inject)
         assert str(e.exception) == 'cannot find StrClock'
 

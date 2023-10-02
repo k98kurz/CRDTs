@@ -193,7 +193,7 @@ class TestCounter(unittest.TestCase):
         ctr.increase()
         packed = ctr.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.Counter.unpack(packed, inject=self.inject)
         assert 'not found' in str(e.exception)
 

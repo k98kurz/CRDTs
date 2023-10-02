@@ -226,7 +226,7 @@ class TestLWWRegister(unittest.TestCase):
         lwwr.write(datawrappers.StrWrapper('second'), 1)
         packed = lwwr.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.LWWRegister.unpack(packed)
         assert 'StrClock not found' in str(e.exception)
 

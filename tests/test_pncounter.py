@@ -188,7 +188,7 @@ class TestPNCounter(unittest.TestCase):
         pnc.increase()
         packed = pnc.pack()
 
-        with self.assertRaises(errors.UsagePreconditionError) as e:
+        with self.assertRaises(errors.UsageError) as e:
             unpacked = classes.PNCounter.unpack(packed)
         assert 'StrClock not found' in str(e.exception)
 
