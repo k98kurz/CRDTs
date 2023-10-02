@@ -321,6 +321,52 @@ class TestORSet(unittest.TestCase):
             orset2.update(update)
         assert orset1.checksums() != orset2.checksums()
 
+    def test_ORSet_merkle_history_e2e(self):
+        ors1 = classes.ORSet()
+        ors2 = classes.ORSet(clock=classes.ScalarClock(0, ors1.clock.uuid))
+        ors2.update(ors1.observe('hello world'))
+        ors2.update(ors1.observe(b'hello world'))
+        ors1.remove('hello world')
+        ors1.observe('not the lipsum')
+        ors2.observe(b'yellow submarine')
+
+        history1 = ors1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            isinstance(update, interfaces.StateUpdateProtocol)
+            for update in history1[2]
+        ]), 'history must be [[bytes, ], bytes, [StateUpdate,]]'
+
+        history2 = ors2.get_merkle_history()
+        cidmap1 = {
+            k: v
+            for k,v in zip(history1[0], history1[2])
+        }
+        cidmap2 = {
+            k: v
+            for k,v in zip(history2[0], history2[2])
+        }
+
+        diff1 = ors1.resolve_merkle_histories(history2)
+        diff2 = ors2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 2, [d.hex() for d in diff1]
+        assert len(diff2) == 2, [d.hex() for d in diff2]
+
+        # synchronize
+        for cid in diff1:
+            ors1.update(cidmap2[cid])
+        for cid in diff2:
+            ors2.update(cidmap1[cid])
+
+        assert ors1.checksums() == ors2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()

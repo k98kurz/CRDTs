@@ -1,10 +1,11 @@
 from __future__ import annotations
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from dataclasses import dataclass, field
+from hashlib import sha256
 from typing import Any
 
 
@@ -69,6 +70,37 @@ class Counter:
             ts=self.clock.read()-1,
             data=self.counter),
         )
+
+    def get_merkle_history(self, /, *,
+                           update_class: type[StateUpdateProtocol] = StateUpdate) -> list[list[bytes], bytes, tuple[StateUpdateProtocol]]:
+        """Get a Merkle-DAG history for the StateUpdates of the form
+            [[sha256(update.pack()) for update in self.history()], root,
+            self.history()].
+        """
+        history = self.history(update_class=update_class)
+        leaves = [
+            sha256(update.pack()).digest()
+            for update in history
+        ]
+        root = sha256(b''.join(leaves)).digest()
+        return [leaves, root, history]
+
+    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
+        """Accept a history of form [leaves, root] from another node.
+            Return the leaves that need to be resolved and merged for
+            synchronization.
+        """
+        tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
+        vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
+        tert(all([type(leaf) is bytes for leaf in history[0]]),
+             'history must be [[bytes, ], bytes]')
+        local_history = self.get_merkle_history()
+        if local_history[1] == history[1]:
+            return []
+        return [
+            leaf for leaf in history[0]
+            if leaf not in local_history[0]
+        ]
 
     def increase(self, amount: int = 1, /, *,
                  update_class: type[StateUpdateProtocol] = StateUpdate,

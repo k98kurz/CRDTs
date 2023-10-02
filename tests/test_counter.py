@@ -232,6 +232,35 @@ class TestCounter(unittest.TestCase):
         # from_ts in past, until_ts in future: history should return update
         assert len(counter.history(from_ts=0, until_ts=99)) > 0
 
+    def test_Counter_merkle_history_e2e(self):
+        counter1 = classes.Counter()
+        counter2 = classes.Counter(0, classes.ScalarClock(0, counter1.clock.uuid))
+        counter1.increase()
+        counter1.increase()
+        counter2.increase()
+
+        history1 = counter1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            isinstance(update, interfaces.StateUpdateProtocol)
+            for update in history1[2]
+        ]), 'history must be [[bytes, ], bytes, [StateUpdate,]]'
+
+        history2 = counter2.get_merkle_history()
+        diff1 = counter1.resolve_merkle_histories(history2)
+        diff2 = counter2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 1
+        assert len(diff2) == 1
+        assert diff1[0] == history2[0][0]
+        assert diff2[0] == history1[0][0]
+
 
 if __name__ == '__main__':
     unittest.main()
