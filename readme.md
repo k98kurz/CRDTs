@@ -54,6 +54,7 @@ Each implementation must include a full test suite to be considered complete.
 - [x] FIArray
 - [x] CausalTree
 - [x] Decent documentation
+- [ ] Merkle-DAG feature: [delta-state content IDs] <- state root hash
 - [ ] New CRDT: CounterSet
 - [ ] New CRDT: Graph
 - [ ] ListProtocol: RGArray, FIArray, CausalTree
