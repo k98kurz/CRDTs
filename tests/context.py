@@ -7,6 +7,5 @@ from crdts import (
     classes,
     datawrappers,
     interfaces,
-    serialization,
     errors
 )

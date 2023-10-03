@@ -29,7 +29,3 @@ from crdts.datawrappers import (
     RGAItemWrapper,
     StrWrapper,
 )
-from crdts.serialization import (
-    serialize_part,
-    deserialize_part,
-)

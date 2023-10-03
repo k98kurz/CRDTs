@@ -1,5 +1,5 @@
 from __future__ import annotations
-from context import interfaces, datawrappers, errors, serialization
+from context import interfaces, datawrappers, errors
 from decimal import Decimal
 import packify
 import struct
