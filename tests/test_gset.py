@@ -287,5 +287,49 @@ class TestGSet(unittest.TestCase):
             gset2.update(update)
         assert gset1.checksums() != gset2.checksums()
 
+    def test_GSet_merkle_history_e2e(self):
+        gset1 = classes.GSet()
+        gset2 = classes.GSet(clock=classes.ScalarClock(0, gset1.clock.uuid))
+        gset2.update(gset1.add('hello world'))
+        gset2.update(gset1.add(b'hello world'))
+        gset1.add('not the lipsum')
+        gset2.add(b'yellow submarine')
+
+        history1 = gset1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = gset2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = gset1.resolve_merkle_histories(history2)
+        diff2 = gset2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 1, [d.hex() for d in diff1]
+        assert len(diff2) == 1, [d.hex() for d in diff2]
+
+        # synchronize
+        for cid in diff1:
+            gset1.update(classes.StateUpdate.unpack(cidmap2[cid]))
+        for cid in diff2:
+            gset2.update(classes.StateUpdate.unpack(cidmap1[cid]))
+
+        assert gset1.checksums() == gset2.checksums()
+
+
 if __name__ == '__main__':
     unittest.main()

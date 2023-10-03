@@ -219,6 +219,39 @@ class TestPNCounter(unittest.TestCase):
         # from_ts in past, until_ts in future: history should return update
         assert len(pnc.history(from_ts=0, until_ts=99)) > 0
 
+    def test_PNCounter_merkle_history_e2e(self):
+        pnc1 = classes.PNCounter()
+        pnc2 = classes.PNCounter(clock=classes.ScalarClock(0, pnc1.clock.uuid))
+        pnc1.increase()
+        pnc1.increase()
+        pnc2.decrease()
+
+        history1 = pnc1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = pnc2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        diff1 = pnc1.resolve_merkle_histories(history2)
+        diff2 = pnc2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 1
+        assert len(diff2) == 1
+        assert diff1[0] == history2[0][0]
+        assert diff2[0] == history1[0][0]
+
 
 if __name__ == '__main__':
     unittest.main()

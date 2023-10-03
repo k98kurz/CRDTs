@@ -322,6 +322,62 @@ class TestMVMap(unittest.TestCase):
             mvmap2.update(update)
         assert mvmap1.checksums() != mvmap2.checksums()
 
+    def test_MVMap_merkle_history_e2e(self):
+        mvm1 = classes.MVMap()
+        mvm2 = classes.MVMap(clock=classes.ScalarClock(0, mvm1.clock.uuid))
+        mvm2.update(mvm1.set(
+            datawrappers.StrWrapper('hello world'),
+            datawrappers.IntWrapper(1),
+        ))
+        mvm2.update(mvm1.set(
+            datawrappers.BytesWrapper(b'hello world'),
+            datawrappers.IntWrapper(2),
+        ))
+        mvm1.unset(datawrappers.StrWrapper('hello world'))
+        mvm1.set(
+            datawrappers.StrWrapper('not the lipsum'),
+            datawrappers.IntWrapper(420),
+        )
+        mvm2.set(
+            datawrappers.StrWrapper('not the lipsum'),
+            datawrappers.BytesWrapper(b'yellow submarine'),
+        )
+
+        history1 = mvm1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = mvm2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = mvm1.resolve_merkle_histories(history2)
+        diff2 = mvm2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 2, [d.hex() for d in diff1]
+        assert len(diff2) == 2, [d.hex() for d in diff2]
+
+        # synchronize
+        for cid in diff1:
+            mvm1.update(classes.StateUpdate.unpack(cidmap2[cid], inject=self.inject))
+        for cid in diff2:
+            mvm2.update(classes.StateUpdate.unpack(cidmap1[cid], inject=self.inject))
+
+        assert mvm1.checksums() == mvm2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()

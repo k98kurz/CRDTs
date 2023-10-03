@@ -517,6 +517,63 @@ class TestFIArray(unittest.TestCase):
         for i in range(len(indices)):
             assert indices[i] == index_space*Decimal(i)
 
+    def test_FIArray_merkle_history_e2e(self):
+        fia1 = classes.FIArray()
+        fia2 = classes.FIArray(clock=classes.ScalarClock(0, fia1.clock.uuid))
+        fia2.update(fia1.put_first('hello world', 1))
+        fia2.update(fia1.put_last(b'hello world', 1))
+        fia1.delete(fia1.read_full()[0], 1)
+        fia1.put_last('not the lipsum', 1)
+        fia2.put_last(b'yellow submarine', 2)
+
+        history1 = fia1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = fia2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = fia1.resolve_merkle_histories(history2)
+        diff2 = fia2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 2, [d.hex() for d in diff1]
+        assert len(diff2) == 2, [d.hex() for d in diff2]
+
+        # print('')
+        # print(fia1.read_full())
+        # print(fia2.read_full())
+        # print('')
+
+        # synchronize
+        for cid in diff1:
+            update = classes.StateUpdate.unpack(cidmap2[cid], inject=self.inject)
+            # print(update)
+            fia1.update(update)
+        # print('')
+        for cid in diff2:
+            update = classes.StateUpdate.unpack(cidmap1[cid], inject=self.inject)
+            # print(update)
+            fia2.update(update)
+
+        # print('')
+        # print(fia1.read_full())
+        # print(fia2.read_full())
+        assert fia1.checksums() == fia2.checksums(), f"\n{fia1.read_full()}\n{fia2.read_full()}"
+
 
 if __name__ == '__main__':
     unittest.main()

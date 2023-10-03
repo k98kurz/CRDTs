@@ -345,6 +345,63 @@ class TestRGArray(unittest.TestCase):
             rga2.update(update)
         assert rga1.checksums() != rga2.checksums()
 
+    def test_RGArray_merkle_history_e2e(self):
+        rga1 = classes.RGArray()
+        rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
+        rga2.update(rga1.append('hello world', 1))
+        rga2.update(rga1.append(b'hello world', 1))
+        rga1.delete(rga1.read_full()[0])
+        rga1.append('not the lipsum', 1)
+        rga2.append(b'yellow submarine', 2)
+
+        history1 = rga1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = rga2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = rga1.resolve_merkle_histories(history2)
+        diff2 = rga2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 2, [d.hex() for d in diff1]
+        assert len(diff2) == 2, [d.hex() for d in diff2]
+
+        # print('')
+        # print(rga1.read_full())
+        # print(rga2.read_full())
+        # print('')
+
+        # synchronize
+        for cid in diff1:
+            update = classes.StateUpdate.unpack(cidmap2[cid], inject=self.inject)
+            # print(update)
+            rga1.update(update)
+        # print('')
+        for cid in diff2:
+            update = classes.StateUpdate.unpack(cidmap1[cid], inject=self.inject)
+            # print(update)
+            rga2.update(update)
+
+        # print('')
+        # print(rga1.read_full())
+        # print(rga2.read_full())
+        assert rga1.checksums() == rga2.checksums(), f"\n{rga1.read_full()}\n{rga2.read_full()}"
+
 
 if __name__ == '__main__':
     unittest.main()

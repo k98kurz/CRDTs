@@ -216,6 +216,14 @@ class TestCausalTree(unittest.TestCase):
         assert view2 == ('first',)
         assert view3 == ('first', 'second')
 
+    def test_CausalTree_delete_removes_item(self):
+        causaltree = classes.CausalTree()
+        causaltree.put_first(b'first', 1)
+        assert b'first' in causaltree.read()
+        first = causaltree.read_full()[0]
+        causaltree.delete(first, 1)
+        assert b'first' not in causaltree.read(), causaltree.read_full()
+
     def test_CausalTree_move_item_changes_view_and_results_in_correct_ordering(self):
         causaltree = classes.CausalTree()
 
@@ -511,6 +519,81 @@ class TestCausalTree(unittest.TestCase):
         view1, view1f = causaltree.read(), causaltree.read_full()
         view2, view2f = ct2.read(), ct2.read_full()
         assert view1 == view2, f"\n{view1}\n=\n{view2}\n\n{view1f}\n=\n{view2f}"
+
+    def test_CausalTree_merkle_history_e2e(self):
+        ct1 = classes.CausalTree()
+        ct2 = classes.CausalTree(clock=classes.ScalarClock(0, ct1.clock.uuid))
+        for update in ct1.put_first('hello world', 1):
+            ct2.update(update)
+        ct2.update(ct1.put_after(
+            b'hello world',
+            1,
+            ct1.read_full()[-1].uuid,
+        ))
+        first = ct1.read_full()[0]
+        ct1.delete(first, 1)
+        ct1.put_after(
+            'not the lipsum',
+            1,
+            ct1.read_full()[-1].uuid,
+        )
+        ct2.put_after(
+            b'yellow submarine',
+            2,
+            ct2.read_full()[-1].uuid,
+        )
+
+        history1 = ct1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = ct2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = ct1.resolve_merkle_histories(history2)
+        diff2 = ct2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 2, [d.hex() for d in diff1]
+        assert len(diff2) == 2, [d.hex() for d in diff2]
+
+        # print('')
+        # print(ct1.read_full())
+        # print(ct2.read_full())
+        # print('')
+
+        # synchronize
+        for cid in diff1:
+            update = classes.StateUpdate.unpack(cidmap2[cid], inject=self.inject)
+            # print(update)
+            ct1.update(update)
+        # print('')
+        for cid in diff2:
+            update = classes.StateUpdate.unpack(cidmap1[cid], inject=self.inject)
+            # print(update)
+            ct2.update(update)
+
+        # print('')
+        # print(ct1.read_full())
+        # print(ct2.read_full())
+        chk1 = ct1.checksums()
+        chk2 = ct2.checksums()
+        chk1 = ct1.checksums()
+        chk2 = ct2.checksums()
+        assert chk1 == chk2, f"\n{ct1.positions.read()}\n{ct2.positions.read()}"
 
     def debug_info(self, ct1: classes.CausalTree, ct2: classes.CausalTree, history) -> str:
         result = f'expected {ct1.read()} but encountered {ct2.read()}\n\n'

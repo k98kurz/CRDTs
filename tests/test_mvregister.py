@@ -290,6 +290,49 @@ class TestMVRegister(unittest.TestCase):
         # from_ts in past, until_ts in future: history should return update
         assert len(mvregister.history(from_ts=0, until_ts=99)) == 1
 
+    def test_MVRegister_merkle_history_e2e(self):
+        mvr1 = classes.MVRegister('test')
+        mvr2 = classes.MVRegister('test', clock=classes.ScalarClock(0, mvr1.clock.uuid))
+        mvr2.update(mvr1.write('hello world'))
+        mvr2.update(mvr1.write(b'hello world'))
+        mvr1.write('hello world')
+        mvr2.write(b'yellow submarine')
+
+        history1 = mvr1.get_merkle_history()
+        assert type(history1) in (list, tuple), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert len(history1) == 3, \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+        assert all([
+            type(leaf_id) is type(leaf) is bytes
+            for leaf_id, leaf in history1[2].items()
+        ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
+        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+
+        history2 = mvr2.get_merkle_history()
+        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
+            'history[2] dict must have all keys in history[0] list'
+        cidmap1 = history1[2]
+        cidmap2 = history2[2]
+
+        diff1 = mvr1.resolve_merkle_histories(history2)
+        diff2 = mvr2.resolve_merkle_histories(history1)
+        assert type(diff1) in (list, tuple)
+        assert all([type(d) is bytes for d in diff1])
+        assert len(diff1) == 1, [d.hex() for d in diff1]
+        assert len(diff2) == 1, [d.hex() for d in diff2]
+
+        # synchronize
+        for cid in diff1:
+            mvr1.update(classes.StateUpdate.unpack(cidmap2[cid]))
+        for cid in diff2:
+            mvr2.update(classes.StateUpdate.unpack(cidmap1[cid]))
+
+        assert mvr1.checksums() == mvr2.checksums()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,7 +7,7 @@ from .datawrappers import (
     CTDataWrapper,
     NoneWrapper,
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -17,6 +17,7 @@ from .lwwmap import LWWMap
 from .scalarclock import ScalarClock
 from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
+from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
@@ -130,6 +131,49 @@ class CausalTree:
             update_class=update_class
         )
 
+    def get_merkle_history(self, /, *,
+                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+        """Get a Merklized history for the StateUpdates of the form
+            [[content_id for update in self.history()], root, {
+            content_id: packed for update in self.history()}] where
+            packed is the result of update.pack() and content_id is the
+            sha256 of the packed update.
+        """
+        history = self.history(update_class=update_class)
+        leaves = [
+            update.pack()
+            for update in history
+        ]
+        leaf_ids = [
+            sha256(leaf).digest()
+            for leaf in leaves
+        ]
+        leaf_ids.sort()
+        history = {
+            leaf_id: leaf
+            for leaf_id, leaf in zip(leaf_ids, leaves)
+        }
+        root = sha256(b''.join(leaf_ids)).digest()
+        return [leaf_ids, root, history]
+
+    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
+        """Accept a history of form [leaves, root] from another node.
+            Return the leaves that need to be resolved and merged for
+            synchronization.
+        """
+        tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
+        vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
+        tert(all([type(leaf) is bytes for leaf in history[0]]),
+             'history must be [[bytes, ], bytes]')
+        local_history = self.get_merkle_history()
+        if local_history[1] == history[1]:
+            return []
+        return [
+            leaf for leaf in history[0]
+            if leaf not in local_history[0]
+        ]
+
     def put(self, item: SerializableType, writer: int, uuid: bytes,
             parent_uuid: bytes = b'', /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate,
@@ -220,13 +264,15 @@ class CausalTree:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item specified by ctdw.
         """
-        tressa(ctdw.value in self.positions.registers)
+        tert(isinstance(ctdw, CTDataWrapper), 'ctdw must be instance of CTDataWrapper')
+        tressa(BytesWrapper(ctdw.uuid) in self.positions.registers,
+               'BytesWrapper(ctdw.uuid) must be in self.positions.registers')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
             data=(
-                'r',
+                'o',
                 BytesWrapper(ctdw.uuid),
                 writer,
                 CTDataWrapper(None, ctdw.uuid, ctdw.parent_uuid, False)
