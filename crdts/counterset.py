@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .errors import tressa
 from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .merkle import get_merkle_history, resolve_merkle_histories
 from .orset import ORSet
 from .pncounter import PNCounter
 from .scalarclock import ScalarClock
@@ -55,6 +56,24 @@ class CounterSet:
 
     def history(self) -> tuple[StateUpdateProtocol]:
         ...
+
+    def get_merkle_history(self, /, *,
+                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
+        """Get a Merklized history for the StateUpdates of the form
+            [root, [content_id for update in self.history()], {
+            content_id: packed for update in self.history()}] where
+            packed is the result of update.pack() and content_id is the
+            sha256 of the packed update.
+        """
+        return get_merkle_history(self, update_class=update_class)
+
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+        """Accept a history of form [root, leaves] from another node.
+            Return the leaves that need to be resolved and merged for
+            synchronization.
+        """
+        return resolve_merkle_histories(self, history=history)
 
     def increase(self, amount: int = 1, counter_id: bytes = b'', /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate,

@@ -7,14 +7,14 @@ from .datawrappers import (
     CTDataWrapper,
     NoneWrapper,
 )
-from .errors import tressa, tert, vert
+from .errors import tressa
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .lwwregister import LWWRegister
+from .merkle import get_merkle_history, resolve_merkle_histories
 from .orset import ORSet
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
-from hashlib import sha256
 from packify import SerializableType, pack, unpack
 from typing import Any, Hashable
 
@@ -205,39 +205,14 @@ class LWWMap:
             packed is the result of update.pack() and content_id is the
             sha256 of the packed update.
         """
-        history = self.history(update_class=update_class)
-        leaves = [
-            update.pack()
-            for update in history
-        ]
-        leaf_ids = [
-            sha256(leaf).digest()
-            for leaf in leaves
-        ]
-        history = {
-            leaf_id: leaf
-            for leaf_id, leaf in zip(leaf_ids, leaves)
-        }
-        leaf_ids.sort()
-        root = sha256(b''.join(leaf_ids)).digest()
-        return [root, leaf_ids, history]
+        return get_merkle_history(self, update_class=update_class)
 
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization.
         """
-        tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
-        vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
-        tert(all([type(leaf) is bytes for leaf in history[1]]),
-             'history must be [[bytes, ], bytes]')
-        local_history = self.get_merkle_history()
-        if local_history[0] == history[0]:
-            return []
-        return [
-            leaf for leaf in history[1]
-            if leaf not in local_history[1]
-        ]
+        return resolve_merkle_histories(self, history=history)
 
     def set(self, name: Hashable, value: SerializableType,
                 writer: int, /, *,
