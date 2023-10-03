@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
+import packify
 import unittest
 
 
@@ -255,9 +256,9 @@ class TestLWWMap(unittest.TestCase):
         )
         packed = lwwm.pack()
 
-        with self.assertRaises(errors.UsageError) as e:
+        with self.assertRaises(packify.UsageError) as e:
             unpacked = classes.LWWMap.unpack(packed, inject=self.inject)
-        assert str(e.exception) == 'cannot find StrClock'
+        assert 'StrClock' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.LWWMap.unpack(
@@ -331,44 +332,44 @@ class TestLWWMap(unittest.TestCase):
         lwwm1 = classes.LWWMap()
         lwwm2 = classes.LWWMap(clock=classes.ScalarClock(0, lwwm1.clock.uuid))
         lwwm2.update(lwwm1.set(
-            datawrappers.StrWrapper('hello world'),
-            datawrappers.IntWrapper(1),
+            'hello world',
+            1,
             1,
         ))
         lwwm2.update(lwwm1.set(
-            datawrappers.BytesWrapper(b'hello world'),
-            datawrappers.IntWrapper(2),
+            b'hello world',
+            2,
             1,
         ))
-        lwwm1.unset(datawrappers.StrWrapper('hello world'), 1)
+        lwwm1.unset('hello world', 1)
         lwwm1.set(
-            datawrappers.StrWrapper('not the lipsum'),
-            datawrappers.IntWrapper(420),
+            'not the lipsum',
+            420,
             1,
         )
         lwwm2.set(
-            datawrappers.StrWrapper('not the lipsum'),
-            datawrappers.BytesWrapper(b'yellow submarine'),
+            'not the lipsum',
+            b'yellow submarine',
             2,
         )
 
         history1 = lwwm1.get_merkle_history()
         assert type(history1) in (list, tuple), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [bytes, [bytes, ], dict]'
         assert len(history1) == 3, \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
-        assert all([type(leaf) is bytes for leaf in history1[0]]), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [bytes, [bytes, ], dict]'
+        assert all([type(leaf) is bytes for leaf in history1[1]]), \
+            'history must be [bytes, [bytes, ], dict]'
         assert all([
             type(leaf_id) is type(leaf) is bytes
             for leaf_id, leaf in history1[2].items()
         ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
-        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history1[2] for leaf_id in history1[1]]), \
+            'history[2] dict must have all keys in history[1] list'
 
         history2 = lwwm2.get_merkle_history()
-        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history2[2] for leaf_id in history2[1]]), \
+            'history[2] dict must have all keys in history[1] list'
         cidmap1 = history1[2]
         cidmap2 = history2[2]
 
@@ -381,11 +382,14 @@ class TestLWWMap(unittest.TestCase):
 
         # synchronize
         for cid in diff1:
-            lwwm1.update(classes.StateUpdate.unpack(cidmap2[cid], inject=self.inject))
+            update = cidmap2[cid]
+            lwwm1.update(classes.StateUpdate.unpack(update, inject=self.inject))
         for cid in diff2:
-            lwwm2.update(classes.StateUpdate.unpack(cidmap1[cid], inject=self.inject))
+            update = cidmap1[cid]
+            lwwm2.update(classes.StateUpdate.unpack(update, inject=self.inject))
 
         assert lwwm1.checksums() == lwwm2.checksums()
+        assert lwwm1.get_merkle_history() == lwwm2.get_merkle_history()
 
 
 if __name__ == '__main__':

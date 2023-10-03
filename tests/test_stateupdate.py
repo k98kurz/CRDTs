@@ -30,7 +30,7 @@ class TestStateUpdate(unittest.TestCase):
         # print(f'{update.pack().hex()=}')
 
     def test_StateUpdate_unpack_returns_StateUpdate(self):
-        data = bytes.fromhex('000000080000000900000009000000046231323300000005690000007b000000056900000141')
+        data = bytes.fromhex('6c0000001a620000000331323369000000040000007b690000000400000141')
         update = classes.StateUpdate.unpack(data)
         assert isinstance(update, classes.StateUpdate)
 

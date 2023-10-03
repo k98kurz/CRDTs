@@ -103,17 +103,17 @@ class CRDTProtocol(Protocol):
         ...
 
     def get_merkle_history(self, /, *, update_class: type[StateUpdateProtocol]
-                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+                           ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
-            [[content_id for update in self.history()], root, {
+            [root, [content_id for update in self.history()], {
             content_id: packed for update in self.history()}] where
             packed is the result of update.pack() and content_id is the
             sha256 of the packed update.
         """
         ...
 
-    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
-        """Accept a history of form [leaves, root] from another node.
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+        """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization.
         """

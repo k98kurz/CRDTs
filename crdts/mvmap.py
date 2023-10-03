@@ -15,9 +15,8 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from hashlib import sha256
+from packify import pack, unpack
 from typing import Any
-import json
-import struct
 
 
 class MVMap:
@@ -60,78 +59,17 @@ class MVMap:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        names = self.names.pack()
-        registers = {}
-
-        for name in self.names.read():
-            name_class = name.__class__.__name__
-            key = name_class + '_' + name.pack().hex()
-            value_class = self.registers[name].__class__.__name__
-            registers[key] = value_class + '_' + self.registers[name].pack().hex()
-
-        registers = json.dumps(registers, separators=(',', ':'), sort_keys=True)
-        registers = bytes(registers, 'utf-8')
-
-        clock_size = len(clock)
-        names_size = len(names)
-        registers_size = len(registers)
-
-        return struct.pack(
-            f'!III{clock_size}s{names_size}s{registers_size}s',
-            clock_size,
-            names_size,
-            registers_size,
-            clock,
-            names,
-            registers
-        )
+        return pack([
+            self.clock,
+            self.names,
+            self.registers
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> MVMap:
         """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 13, 'data must be at least 13 bytes')
         dependencies = {**globals(), **inject}
-
-        # parse sizes
-        clock_size, names_size, registers_size, _ = struct.unpack(
-            f'!III{len(data)-12}s',
-            data
-        )
-
-        # parse the rest of the data
-        _, _, _, clock, names, registers_raw = struct.unpack(
-            f'!III{clock_size}s{names_size}s{registers_size}s',
-            data
-        )
-
-        # parse the clock and names
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-        names = ORSet.unpack(names, inject=dependencies)
-
-        # parse the registers
-        registers_raw = json.loads(str(registers_raw, 'utf-8'))
-        registers = {}
-
-        for key in registers_raw:
-            # resolve key to name
-            name_class, name = key.split('_')
-            name = dependencies[name_class].unpack(bytes.fromhex(name))
-
-            # resolve value
-            value_class, value = registers_raw[key].split('_')
-            value = dependencies[value_class].unpack(bytes.fromhex(value), inject)
-
-            # add to registers
-            registers[name] = value
-
+        clock, names, registers = unpack(data, inject=dependencies)
         return cls(names, registers, clock)
 
     def read(self) -> dict:
@@ -202,8 +140,8 @@ class MVMap:
                 if self.clock.is_later(ts, until_ts):
                     continue
 
-            packed = self.registers[name].name.pack()
-            packed += b''.join([v.pack() for v in self.registers[name].values])
+            packed = pack(self.registers[name].name)
+            packed += pack([v for v in self.registers[name].values])
             total_register_crc32 += crc32(packed)
             total_last_update += self.registers[name].last_update
 
@@ -255,9 +193,9 @@ class MVMap:
 
     def get_merkle_history(self, /, *,
                            update_class: type[StateUpdateProtocol] = StateUpdate
-                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+                           ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
-            [[content_id for update in self.history()], root, {
+            [root, [content_id for update in self.history()], {
             content_id: packed for update in self.history()}] where
             packed is the result of update.pack() and content_id is the
             sha256 of the packed update.
@@ -271,29 +209,29 @@ class MVMap:
             sha256(leaf).digest()
             for leaf in leaves
         ]
-        leaf_ids.sort()
         history = {
             leaf_id: leaf
             for leaf_id, leaf in zip(leaf_ids, leaves)
         }
+        leaf_ids.sort()
         root = sha256(b''.join(leaf_ids)).digest()
-        return [leaf_ids, root, history]
+        return [root, leaf_ids, history]
 
-    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
-        """Accept a history of form [leaves, root] from another node.
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+        """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization.
         """
         tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
         vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
-        tert(all([type(leaf) is bytes for leaf in history[0]]),
+        tert(all([type(leaf) is bytes for leaf in history[1]]),
              'history must be [[bytes, ], bytes]')
         local_history = self.get_merkle_history()
-        if local_history[1] == history[1]:
+        if local_history[0] == history[0]:
             return []
         return [
-            leaf for leaf in history[0]
-            if leaf not in local_history[0]
+            leaf for leaf in history[1]
+            if leaf not in local_history[1]
         ]
 
     def set(self, name: DataWrapperProtocol, value: DataWrapperProtocol, /,

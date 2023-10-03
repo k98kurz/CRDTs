@@ -15,10 +15,10 @@ from .mvmap import MVMap, MVRegister
 from .pncounter import PNCounter
 from .rgarray import RGArray, RGAItemWrapper
 from .scalarclock import ScalarClock
-from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from dataclasses import dataclass, field
 from enum import Enum
+from packify import pack, unpack
 from types import NoneType
 from typing import Any
 from uuid import uuid4
@@ -46,7 +46,7 @@ class Identifier:
     previous: Identifier = field(default=None)
 
     def pack(self) -> bytes:
-        return serialize_part([
+        return pack([
             self.type_id,
             self.uuid,
             self.previous
@@ -54,7 +54,7 @@ class Identifier:
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> Identifier:
-        type_id, uuid, previous = deserialize_part(
+        type_id, uuid, previous = unpack(
             data, inject={**globals(), **inject}
         )
         return cls(type_id=type_id, uuid=uuid, previous=previous)

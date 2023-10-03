@@ -5,12 +5,10 @@ from .orset import ORSet
 from .pncounter import PNCounter
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
-from types import NoneType
-from typing import Any
+from packify import SerializableType, pack, unpack
 from uuid import uuid4
 
 
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 class CounterSet:
     clock: ClockProtocol

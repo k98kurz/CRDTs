@@ -8,16 +8,15 @@ from .datawrappers import (
     NoneWrapper,
 )
 from .errors import tressa, tert, vert
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import ClockProtocol, StateUpdateProtocol
 from .lwwregister import LWWRegister
 from .orset import ORSet
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from hashlib import sha256
-from typing import Any
-import json
-import struct
+from packify import SerializableType, pack, unpack
+from typing import Any, Hashable
 
 
 class LWWMap:
@@ -25,7 +24,7 @@ class LWWMap:
         https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crdt/-l-w-w-map/index.html
     """
     names: ORSet
-    registers: dict[DataWrapperProtocol, LWWRegister]
+    registers: dict[SerializableType, LWWRegister]
     clock: ClockProtocol
 
     def __init__(self, names: ORSet = None, registers: dict = None,
@@ -59,79 +58,15 @@ class LWWMap:
         self.clock = clock
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
-        clock = bytes(bytes(self.clock.__class__.__name__, 'utf-8').hex(), 'utf-8')
-        clock += b'_' + self.clock.pack()
-        names = self.names.pack()
-        registers = {}
-
-        for name in self.names.read():
-            name_class = name.__class__.__name__
-            key = name_class + '_' + name.pack().hex()
-            value_class = self.registers[name].__class__.__name__
-            registers[key] = value_class + '_' + self.registers[name].pack().hex()
-
-        registers = json.dumps(registers, separators=(',', ':'), sort_keys=True)
-        registers = bytes(registers, 'utf-8')
-
-        clock_size = len(clock)
-        names_size = len(names)
-        registers_size = len(registers)
-
-        return struct.pack(
-            f'!III{clock_size}s{names_size}s{registers_size}s',
-            clock_size,
-            names_size,
-            registers_size,
-            clock,
-            names,
-            registers
-        )
+        return pack([
+            self.clock,
+            self.names,
+            self.registers,
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> LWWMap:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 13, 'data must be at least 13 bytes')
-        dependencies = {**globals(), **inject}
-
-        # parse sizes
-        clock_size, names_size, registers_size, _ = struct.unpack(
-            f'!III{len(data)-12}s',
-            data
-        )
-
-        # parse the rest of the data
-        _, _, _, clock, names, registers_raw = struct.unpack(
-            f'!III{clock_size}s{names_size}s{registers_size}s',
-            data
-        )
-
-        # parse the clock and names
-        clock_class, _, clock = clock.partition(b'_')
-        clock_class = str(bytes.fromhex(str(clock_class, 'utf-8')), 'utf-8')
-        tressa(clock_class in dependencies, f'cannot find {clock_class}')
-        tressa(hasattr(dependencies[clock_class], 'unpack'),
-            f'{clock_class} missing unpack method')
-        clock = dependencies[clock_class].unpack(clock)
-        names = ORSet.unpack(names, inject=dependencies)
-
-        # parse the registers
-        registers_raw = json.loads(str(registers_raw, 'utf-8'))
-        registers = {}
-
-        for key in registers_raw:
-            # resolve key to name
-            name_class, name = key.split('_')
-            name = dependencies[name_class].unpack(bytes.fromhex(name))
-
-            # resolve value
-            value_class, value = registers_raw[key].split('_')
-            value = dependencies[value_class].unpack(bytes.fromhex(value), inject)
-
-            # add to registers
-            registers[name] = value
-
+        clock, names, registers = unpack(data, inject={**globals(), **inject})
         return cls(names, registers, clock)
 
     def read(self, inject: dict = {}) -> dict:
@@ -151,25 +86,28 @@ class LWWMap:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tressa(type(state_update.data) is tuple,
-            'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)')
+            'state_update.data must be tuple of (str, Hashable, int, SerializableType)')
         tressa(len(state_update.data) == 4,
-            'state_update.data must be tuple of (str, DataWrapperProtocol, int, DataWrapperProtocol)')
+            'state_update.data must be tuple of (str, Hashable, int, SerializableType)')
 
         op, name, writer, value = state_update.data
         tressa(type(op) is str and op in ('o', 'r'),
-            'state_update.data[0] must be str op one of (\'o\', \'r\')')
-        tressa(isinstance(name, DataWrapperProtocol),
-            'state_update.data[1] must be DataWrapperProtocol name')
+            "state_update.data[0] must be str op one of ('o', 'r')")
+        tressa(isinstance(name, Hashable),
+            'state_update.data[1] must be Hashable name')
+        tressa(isinstance(name, SerializableType),
+            'state_update.data[1] must be SerializableType name')
         tressa(type(writer) is int,
             'state_update.data[2] must be int writer id')
-        tressa(isinstance(value, DataWrapperProtocol),
-            'state_update.data[3] must be DataWrapperProtocol value')
+        tressa(isinstance(value, SerializableType),
+            'state_update.data[3] must be SerializableType value')
 
         ts = state_update.ts
+        update_class = state_update.__class__
 
         if op == 'o':
             # try to add to the names ORSet
-            self.names.update(StateUpdate(self.clock.uuid, ts, ('o', name)))
+            self.names.update(update_class(self.clock.uuid, ts, ('o', name)))
 
             # if register missing and name added successfully, create register
             if name not in self.registers and name in self.names.read():
@@ -177,14 +115,14 @@ class LWWMap:
 
         if op == 'r':
             # try to remove from the names ORSet
-            self.names.update(StateUpdate(self.clock.uuid, ts, ('r', name)))
+            self.names.update(update_class(self.clock.uuid, ts, ('r', name)))
 
             if name not in self.names.read() and name in self.registers:
                 del self.registers[name]
 
         # if the register exists, update it
         if name in self.registers:
-            self.registers[name].update(StateUpdate(self.clock.uuid, ts, (writer, value)))
+            self.registers[name].update(update_class(self.clock.uuid, ts, (writer, value)))
 
         return self
 
@@ -206,7 +144,7 @@ class LWWMap:
                 if self.clock.is_later(ts, until_ts):
                     continue
             total_register_crc32 += crc32(
-                self.registers[name].name.pack() + self.registers[name].value.pack()
+                pack(self.registers[name].name) + pack(self.registers[name].value)
             )
             total_last_update += self.registers[name].last_update
             total_last_writer += self.registers[name].last_writer
@@ -224,7 +162,7 @@ class LWWMap:
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.
         """
-        registers_history: dict[DataWrapperProtocol, tuple[StateUpdateProtocol]] = {}
+        registers_history: dict[SerializableType, tuple[StateUpdateProtocol]] = {}
         orset_history = self.names.history(
             from_ts=from_ts,
             until_ts=until_ts,
@@ -260,9 +198,9 @@ class LWWMap:
 
     def get_merkle_history(self, /, *,
                            update_class: type[StateUpdateProtocol] = StateUpdate
-                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+                           ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
-            [[content_id for update in self.history()], root, {
+            [root, [content_id for update in self.history()], {
             content_id: packed for update in self.history()}] where
             packed is the result of update.pack() and content_id is the
             sha256 of the packed update.
@@ -276,42 +214,44 @@ class LWWMap:
             sha256(leaf).digest()
             for leaf in leaves
         ]
-        leaf_ids.sort()
         history = {
             leaf_id: leaf
             for leaf_id, leaf in zip(leaf_ids, leaves)
         }
+        leaf_ids.sort()
         root = sha256(b''.join(leaf_ids)).digest()
-        return [leaf_ids, root, history]
+        return [root, leaf_ids, history]
 
-    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
-        """Accept a history of form [leaves, root] from another node.
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+        """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization.
         """
         tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
         vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
-        tert(all([type(leaf) is bytes for leaf in history[0]]),
+        tert(all([type(leaf) is bytes for leaf in history[1]]),
              'history must be [[bytes, ], bytes]')
         local_history = self.get_merkle_history()
-        if local_history[1] == history[1]:
+        if local_history[0] == history[0]:
             return []
         return [
-            leaf for leaf in history[0]
-            if leaf not in local_history[0]
+            leaf for leaf in history[1]
+            if leaf not in local_history[1]
         ]
 
-    def set(self, name: DataWrapperProtocol, value: DataWrapperProtocol,
+    def set(self, name: Hashable, value: SerializableType,
                 writer: int, /, *,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
             nodes.
         """
-        tressa(isinstance(name, DataWrapperProtocol),
-            'name must be a DataWrapperProtocol')
-        tressa(isinstance(value, DataWrapperProtocol) or value is None,
-            'value must be a DataWrapperProtocol or None')
+        tressa(isinstance(name, Hashable),
+            'name must be a Hashable')
+        tressa(isinstance(name, SerializableType),
+            'name must be a SerializableType')
+        tressa(isinstance(value, SerializableType) or value is None,
+            'value must be a SerializableType or None')
         tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
@@ -323,17 +263,19 @@ class LWWMap:
 
         return state_update
 
-    def unset(self, name: DataWrapperProtocol, writer: int, /, *,
+    def unset(self, name: Hashable, writer: int, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
-        tressa(isinstance(name, DataWrapperProtocol),
-            'name must be a DataWrapperProtocol')
+        tressa(isinstance(name, Hashable),
+            'name must be a Hashable')
+        tressa(isinstance(name, SerializableType),
+            'name must be a SerializableType')
         tressa(type(writer) is int, 'writer must be an int')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
-            data=('r', name, writer, NoneWrapper())
+            data=('r', name, writer, None)
         )
         self.update(state_update)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from context import interfaces, datawrappers, errors, serialization
 from decimal import Decimal
+import packify
 import struct
 import unittest
 
@@ -139,14 +140,6 @@ class TestDataWrappers(unittest.TestCase):
 
     def test_RGAItemWrapper_raises_UsageError_for_bad_value(self):
         with self.assertRaises(errors.UsageError) as e:
-            datawrappers.RGAItemWrapper({}, b'321', 3)
-        assert str(e.exception) == 'value must be SerializableType'
-
-        with self.assertRaises(errors.UsageError) as e:
-            datawrappers.RGAItemWrapper(b'123', {}, 3)
-        assert str(e.exception) == 'ts must be SerializableType'
-
-        with self.assertRaises(errors.UsageError) as e:
             datawrappers.RGAItemWrapper(
                 datawrappers.BytesWrapper(b'123'),
                 datawrappers.BytesWrapper(b'321'),
@@ -166,7 +159,7 @@ class TestDataWrappers(unittest.TestCase):
     def test_RGAItemWrapper_unpack_returns_instance(Self):
         bts = b'123'
         ts = 1
-        data = serialization.serialize_part([
+        data = packify.pack([
             bts,
             ts,
             1
@@ -205,10 +198,6 @@ class TestDataWrappers(unittest.TestCase):
 
     def test_CTDataWrapper_raises_UsageError_for_bad_value(self):
         with self.assertRaises(errors.UsageError) as e:
-            datawrappers.CTDataWrapper([], b'str', b'132')
-        assert 'value must be' in str(e.exception)
-
-        with self.assertRaises(errors.UsageError) as e:
             datawrappers.CTDataWrapper(datawrappers.BytesWrapper(b'123'), '321', b'123')
         assert str(e.exception) == 'uuid must be bytes'
 
@@ -233,7 +222,7 @@ class TestDataWrappers(unittest.TestCase):
         value = datawrappers.BytesWrapper(b'123')
         uuid = b'321'
         parent = b'123'
-        data = serialization.serialize_part([
+        data = packify.pack([
             value,
             uuid,
             parent,

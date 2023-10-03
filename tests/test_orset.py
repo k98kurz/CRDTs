@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from itertools import permutations
 from context import classes, interfaces, datawrappers, errors
+import packify
 import unittest
 
 
@@ -102,9 +103,9 @@ class TestORSet(unittest.TestCase):
         assert orset.read() == set()
         orset.observe(1)
         orset.observe(2)
-        assert orset.read() == set(['1', '2'])
+        assert orset.read() == set([1, 2])
         orset.remove(1)
-        assert orset.read() == set(['2'])
+        assert orset.read() == set([2])
 
     def test_ORSet_observe_and_remove_return_state_update(self):
         orset = classes.ORSet()
@@ -130,16 +131,16 @@ class TestORSet(unittest.TestCase):
         orset.observe(1)
         view2 = orset.read()
         assert len(view2) == 1
-        assert [*view2][0] == '1'
+        assert [*view2][0] == 1
         orset.observe(2)
         view3 = orset.read()
         assert len(view3) == 2
-        assert '1' in view3
-        assert '2' in view3
+        assert 1 in view3
+        assert 2 in view3
         orset.remove(1)
         view4 = orset.read()
         assert len(view4) == 1
-        assert '2' in view4
+        assert 2 in view4
 
     def test_ORSet_observe_and_remove_change_view(self):
         orset = classes.ORSet()
@@ -258,9 +259,9 @@ class TestORSet(unittest.TestCase):
         ors.observe('test')
         packed = ors.pack()
 
-        with self.assertRaises(errors.UsageError) as e:
+        with self.assertRaises(packify.UsageError) as e:
             unpacked = classes.ORSet.unpack(packed, inject=self.inject)
-        assert 'StrClock not found' in str(e.exception)
+        assert 'StrClock' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.ORSet.unpack(packed, inject={**self.inject, 'StrClock': StrClock})
@@ -332,21 +333,21 @@ class TestORSet(unittest.TestCase):
 
         history1 = ors1.get_merkle_history()
         assert type(history1) in (list, tuple), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [bytes, [bytes, ], dict]'
         assert len(history1) == 3, \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
-        assert all([type(leaf) is bytes for leaf in history1[0]]), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [bytes, [bytes, ], dict]'
+        assert all([type(leaf) is bytes for leaf in history1[1]]), \
+            'history must be [bytes, [bytes, ], dict]'
         assert all([
             type(leaf_id) is type(leaf) is bytes
             for leaf_id, leaf in history1[2].items()
         ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
-        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history1[2] for leaf_id in history1[1]]), \
+            'history[2] dict must have all keys in history[1] list'
 
         history2 = ors2.get_merkle_history()
-        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history2[2] for leaf_id in history2[1]]), \
+            'history[2] dict must have all keys in history[1] list'
         cidmap1 = history1[2]
         cidmap2 = history2[2]
 
@@ -359,10 +360,13 @@ class TestORSet(unittest.TestCase):
 
         # synchronize
         for cid in diff1:
-            ors1.update(classes.StateUpdate.unpack(cidmap2[cid]))
+            update = classes.StateUpdate.unpack(cidmap2[cid])
+            ors1.update(update)
         for cid in diff2:
-            ors2.update(classes.StateUpdate.unpack(cidmap1[cid]))
+            update = classes.StateUpdate.unpack(cidmap1[cid])
+            ors2.update(update)
 
+        assert ors1.get_merkle_history() == ors2.get_merkle_history()
         assert ors1.checksums() == ors2.checksums()
 
 

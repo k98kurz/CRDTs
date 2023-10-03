@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, is_dataclass
 from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors
+import packify
 import unittest
 
 
@@ -193,9 +194,9 @@ class TestCounter(unittest.TestCase):
         ctr.increase()
         packed = ctr.pack()
 
-        with self.assertRaises(errors.UsageError) as e:
+        with self.assertRaises(packify.UsageError) as e:
             unpacked = classes.Counter.unpack(packed, inject=self.inject)
-        assert 'not found' in str(e.exception)
+        assert 'StrClock' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.Counter.unpack(
@@ -244,26 +245,26 @@ class TestCounter(unittest.TestCase):
             'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
         assert len(history1) == 3, \
             'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
-        assert all([type(leaf) is bytes for leaf in history1[0]]), \
+        assert all([type(leaf) is bytes for leaf in history1[1]]), \
             'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
         assert all([
             type(leaf_id) is type(leaf) is bytes
             for leaf_id, leaf in history1[2].items()
         ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
-        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history1[2] for leaf_id in history1[1]]), \
+            'history[2] dict must have all keys in history[1] list'
 
         history2 = counter2.get_merkle_history()
-        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history2[2] for leaf_id in history2[1]]), \
+            'history[2] dict must have all keys in history[1] list'
         diff1 = counter1.resolve_merkle_histories(history2)
         diff2 = counter2.resolve_merkle_histories(history1)
         assert type(diff1) in (list, tuple)
         assert all([type(d) is bytes for d in diff1])
         assert len(diff1) == 1
         assert len(diff2) == 1
-        assert diff1[0] == history2[0][0]
-        assert diff2[0] == history1[0][0]
+        assert diff1[0] == history2[1][0]
+        assert diff2[0] == history1[1][0]
 
 
 if __name__ == '__main__':

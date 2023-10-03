@@ -3,14 +3,13 @@ from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
-    SerializableType,
 )
 from .scalarclock import ScalarClock
-from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from hashlib import sha256
+from packify import SerializableType, pack, unpack
 from typing import Any
 
 
@@ -23,7 +22,7 @@ class GSet:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        return serialize_part([
+        return pack([
             self.clock,
             self.members,
             [
@@ -36,7 +35,7 @@ class GSet:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 8, 'data must be more than 8 bytes')
-        clock, members, update_history = deserialize_part(
+        clock, members, update_history = unpack(
             data,
             inject={**globals(), **inject}
         )
@@ -80,7 +79,7 @@ class GSet:
                 if self.clock.is_later(state_update.ts, until_ts):
                     continue
             updates.append(member)
-            total_crc32 += crc32(serialize_part(member))
+            total_crc32 += crc32(pack(member))
 
         return (
             self.clock.read() if until_ts is None else until_ts,
@@ -112,9 +111,9 @@ class GSet:
 
     def get_merkle_history(self, /, *,
                            update_class: type[StateUpdateProtocol] = StateUpdate
-                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+                           ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
-            [[content_id for update in self.history()], root, {
+            [root, [content_id for update in self.history()], {
             content_id: packed for update in self.history()}] where
             packed is the result of update.pack() and content_id is the
             sha256 of the packed update.
@@ -128,36 +127,36 @@ class GSet:
             sha256(leaf).digest()
             for leaf in leaves
         ]
-        leaf_ids.sort()
         history = {
             leaf_id: leaf
             for leaf_id, leaf in zip(leaf_ids, leaves)
         }
+        leaf_ids.sort()
         root = sha256(b''.join(leaf_ids)).digest()
-        return [leaf_ids, root, history]
+        return [root, leaf_ids, history]
 
-    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
-        """Accept a history of form [leaves, root] from another node.
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+        """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization.
         """
         tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
         vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
-        tert(all([type(leaf) is bytes for leaf in history[0]]),
+        tert(all([type(leaf) is bytes for leaf in history[1]]),
              'history must be [[bytes, ], bytes]')
         local_history = self.get_merkle_history()
-        if local_history[1] == history[1]:
+        if local_history[0] == history[0]:
             return []
         return [
-            leaf for leaf in history[0]
-            if leaf not in local_history[0]
+            leaf for leaf in history[1]
+            if leaf not in local_history[1]
         ]
 
     def add(self, member: SerializableType, /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
-        tressa(isinstance(member, SerializableType),
-            'member must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+        tert(isinstance(member, SerializableType),
+            f'member must be {SerializableType}')
 
         ts = self.clock.read()
         state_update = update_class(clock_uuid=self.clock.uuid, ts=ts, data=member)

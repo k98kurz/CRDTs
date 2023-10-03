@@ -19,6 +19,9 @@ classifiers = [
   "Topic :: Other/Nonlisted Topic",
   "Topic :: Scientific/Engineering :: Mathematics",
 ]
+dependencies = [
+  "packify >= 0.2.2",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/k98kurz/CRDTs"

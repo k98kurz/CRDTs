@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors
+import packify
 import unittest
 
 
@@ -254,9 +255,9 @@ class TestMVRegister(unittest.TestCase):
         mvregister.write(datawrappers.StrWrapper('second'))
         packed = mvregister.pack()
 
-        with self.assertRaises(errors.UsageError) as e:
+        with self.assertRaises(packify.UsageError) as e:
             unpacked = classes.MVRegister.unpack(packed, inject=self.inject)
-        assert 'not found' in str(e.exception)
+        assert 'StrClock' in str(e.exception)
 
         # inject and repeat
         unpacked = classes.MVRegister.unpack(
@@ -300,21 +301,21 @@ class TestMVRegister(unittest.TestCase):
 
         history1 = mvr1.get_merkle_history()
         assert type(history1) in (list, tuple), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [bytes, [bytes, ], dict]'
         assert len(history1) == 3, \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
-        assert all([type(leaf) is bytes for leaf in history1[0]]), \
-            'history must be [[bytes, ], bytes, [StateUpdate,]]'
+            'history must be [bytes, [bytes, ], dict]'
+        assert all([type(leaf) is bytes for leaf in history1[1]]), \
+            'history must be [bytes, [bytes, ], dict]'
         assert all([
             type(leaf_id) is type(leaf) is bytes
             for leaf_id, leaf in history1[2].items()
         ]), 'history must be [[bytes, ], bytes, dict[bytes, bytes]]'
-        assert all([leaf_id in history1[2] for leaf_id in history1[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history1[2] for leaf_id in history1[1]]), \
+            'history[2] dict must have all keys in history[1] list'
 
         history2 = mvr2.get_merkle_history()
-        assert all([leaf_id in history2[2] for leaf_id in history2[0]]), \
-            'history[2] dict must have all keys in history[0] list'
+        assert all([leaf_id in history2[2] for leaf_id in history2[1]]), \
+            'history[2] dict must have all keys in history[1] list'
         cidmap1 = history1[2]
         cidmap2 = history2[2]
 

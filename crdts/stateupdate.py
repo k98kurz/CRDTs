@@ -1,9 +1,8 @@
 from __future__ import annotations
-from .errors import tressa
-from .serialization import deserialize_part, serialize_part
+from .errors import tert, vert
 from dataclasses import dataclass
+from packify import unpack, pack
 from typing import Any, Hashable
-import struct
 
 
 @dataclass
@@ -17,20 +16,11 @@ class StateUpdate:
             update.data and update.ts are either built-in types or
             PackableProtocols accessible from this scope.
         """
-        # serialize timestamp
-        uuid = serialize_part(self.clock_uuid)
-        ts = serialize_part(self.ts)
-        data = serialize_part(self.data)
-
-        return struct.pack(
-            f'!III{len(uuid)}s{len(ts)}s{len(data)}s',
-            len(uuid),
-            len(ts),
-            len(data),
-            uuid,
-            ts,
-            data
-        )
+        return pack([
+            self.clock_uuid,
+            self.ts,
+            self.data,
+        ])
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdate:
@@ -38,16 +28,9 @@ class StateUpdate:
             update.data and update.ts are either built-in types or
             PackableProtocols accessible from this scope.
         """
-        tressa(type(data) in (bytes, bytearray), 'data must be bytes or bytearray')
-        tressa(len(data) >= 12, 'data must be at least 12 long')
-
-        uuid_len, ts_len, data_len, _ = struct.unpack(f'!III{len(data)-12}s', data)
-        _, _, _, uuid, ts, data = struct.unpack(f'III{uuid_len}s{ts_len}s{data_len}s', data)
-
-        uuid = deserialize_part(uuid, inject=inject)
-        ts = deserialize_part(ts, inject=inject)
-        data = deserialize_part(data, inject=inject)
-
+        tert(type(data) in (bytes, bytearray), 'data must be bytes or bytearray')
+        vert(len(data) >= 12, 'data must be at least 12 long')
+        uuid, ts, data = unpack(data, inject=inject)
         return cls(clock_uuid=uuid, ts=ts, data=data)
 
     def __repr__(self) -> str:

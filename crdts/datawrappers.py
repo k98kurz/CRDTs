@@ -3,13 +3,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from .errors import tressa
 from .interfaces import DataWrapperProtocol
-from .serialization import serialize_part, deserialize_part
+from packify import SerializableType, pack, unpack
 from types import NoneType
 from typing import Any
 import struct
 
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
 
 @dataclass
 class StrWrapper:
@@ -74,7 +72,7 @@ class CTDataWrapper:
     def __init__(self, value: SerializableType, uuid: bytes, parent_uuid: bytes,
                  visible: bool = True) -> None:
         tressa(isinstance(value, SerializableType),
-               'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+               f'value must be {SerializableType}')
         tressa(type(uuid) is bytes, 'uuid must be bytes')
         tressa(type(parent_uuid) is bytes, 'parent_uuid must be bytes')
         tressa(type(visible) is bool, 'visible must be bool')
@@ -113,7 +111,7 @@ class CTDataWrapper:
         return self.__to_tuple__() <= other.__to_tuple__()
 
     def pack(self) -> bytes:
-        return serialize_part([
+        return pack([
             self.value,
             self.uuid,
             self.parent_uuid,
@@ -123,7 +121,7 @@ class CTDataWrapper:
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> CTDataWrapper:
         dependencies = {**globals(), **inject}
-        value, uuid, parent_uuid, visible = deserialize_part(data, inject=dependencies)
+        value, uuid, parent_uuid, visible = unpack(data, inject=dependencies)
         return cls(
             value=value,
             uuid=uuid,
@@ -187,7 +185,7 @@ class FIAItemWrapper:
         return (self.value, self.index, self.uuid) <= (other.value, other.index, other.uuid)
 
     def pack(self) -> bytes:
-        return serialize_part([
+        return pack([
             self.value,
             self.index,
             self.uuid
@@ -195,7 +193,7 @@ class FIAItemWrapper:
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> FIAItemWrapper:
-        value, index, uuid = deserialize_part(data, inject={**globals(), **inject})
+        value, index, uuid = unpack(data, inject={**globals(), **inject})
         return cls(
             value=value,
             index=index,
@@ -235,7 +233,7 @@ class RGAItemWrapper(StrWrapper):
 
     def pack(self) -> bytes:
         """Pack instance to bytes."""
-        return serialize_part([
+        return pack([
             self.value,
             self.ts,
             self.writer
@@ -244,7 +242,7 @@ class RGAItemWrapper(StrWrapper):
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> RGAItemWrapper:
         dependencies = {**globals(), **inject}
-        value, ts, writer = deserialize_part(data, inject=dependencies)
+        value, ts, writer = unpack(data, inject=dependencies)
         return cls(
             value=value,
             ts=ts,

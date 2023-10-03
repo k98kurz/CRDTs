@@ -13,13 +13,12 @@ from .interfaces import (
     ClockProtocol,
     DataWrapperProtocol,
     StateUpdateProtocol,
-    SerializableType,
 )
 from .scalarclock import ScalarClock
-from .serialization import serialize_part, deserialize_part
 from .stateupdate import StateUpdate
 from binascii import crc32
 from hashlib import sha256
+from packify import SerializableType, pack, unpack
 from typing import Any
 
 
@@ -46,7 +45,7 @@ class MVRegister:
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
-        return serialize_part([
+        return pack([
             self.name,
             self.clock,
             self.last_update,
@@ -58,7 +57,7 @@ class MVRegister:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 26, 'data must be at least 26 bytes')
-        name, clock, last_update, values = deserialize_part(
+        name, clock, last_update, values = unpack(
             data, inject={**globals(), **inject}
         )
         return cls(name, values, clock, last_update)
@@ -66,8 +65,8 @@ class MVRegister:
     def read(self, inject: dict = {}) -> tuple[SerializableType]:
         """Return the eventually consistent data view."""
         return tuple([
-            deserialize_part(
-                serialize_part(value), inject={**globals(), **inject}
+            unpack(
+                pack(value), inject={**globals(), **inject}
             )
             for value in self.values
         ])
@@ -75,7 +74,7 @@ class MVRegister:
     @classmethod
     def compare_values(cls, value1: SerializableType,
                        value2: SerializableType) -> bool:
-        return serialize_part(value1) > serialize_part(value2)
+        return pack(value1) > pack(value2)
 
     def update(self, state_update: StateUpdateProtocol) -> MVRegister:
         """Apply an update and return self (monad pattern)."""
@@ -95,7 +94,7 @@ class MVRegister:
             # preserve all concurrent updates
             if state_update.data not in self.values:
                 self.values.append(state_update.data)
-                self.values.sort(key=lambda item: serialize_part(item))
+                self.values.sort(key=lambda item: pack(item))
 
         self.clock.update(state_update.ts)
 
@@ -107,7 +106,7 @@ class MVRegister:
         """
         return (
             self.last_update,
-            sum([crc32(serialize_part(v)) for v in self.values]) % 2**32,
+            sum([crc32(pack(v)) for v in self.values]) % 2**32,
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
@@ -129,9 +128,9 @@ class MVRegister:
 
     def get_merkle_history(self, /, *,
                            update_class: type[StateUpdateProtocol] = StateUpdate
-                           ) -> list[list[bytes], bytes, dict[bytes, bytes]]:
+                           ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
-            [[content_id for update in self.history()], root, {
+            [root, [content_id for update in self.history()], {
             content_id: packed for update in self.history()}] where
             packed is the result of update.pack() and content_id is the
             sha256 of the packed update.
@@ -145,29 +144,29 @@ class MVRegister:
             sha256(leaf).digest()
             for leaf in leaves
         ]
-        leaf_ids.sort()
         history = {
             leaf_id: leaf
             for leaf_id, leaf in zip(leaf_ids, leaves)
         }
+        leaf_ids.sort()
         root = sha256(b''.join(leaf_ids)).digest()
-        return [leaf_ids, root, history]
+        return [root, leaf_ids, history]
 
-    def resolve_merkle_histories(self, history: list[list[bytes], bytes]) -> list[bytes]:
-        """Accept a history of form [leaves, root] from another node.
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+        """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization.
         """
         tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
         vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
-        tert(all([type(leaf) is bytes for leaf in history[0]]),
+        tert(all([type(leaf) is bytes for leaf in history[1]]),
              'history must be [[bytes, ], bytes]')
         local_history = self.get_merkle_history()
-        if local_history[1] == history[1]:
+        if local_history[0] == history[0]:
             return []
         return [
-            leaf for leaf in history[0]
-            if leaf not in local_history[0]
+            leaf for leaf in history[1]
+            if leaf not in local_history[1]
         ]
 
     def write(self, value: SerializableType, /, *,
