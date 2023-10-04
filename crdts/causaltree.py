@@ -165,7 +165,7 @@ class CausalTree:
             ts=self.clock.read(),
             data=(
                 'o',
-                BytesWrapper(uuid),
+                uuid,
                 writer,
                 CTDataWrapper(item, uuid, parent_uuid)
             )
@@ -224,7 +224,7 @@ class CausalTree:
             ts=self.clock.read(),
             data=(
                 'o',
-                BytesWrapper(item.uuid),
+                item.uuid,
                 writer,
                 item.unpack(item.pack(), inject={**globals(), **inject})
             )
@@ -239,15 +239,15 @@ class CausalTree:
             default) that deletes the item specified by ctdw.
         """
         tert(isinstance(ctdw, CTDataWrapper), 'ctdw must be instance of CTDataWrapper')
-        tressa(BytesWrapper(ctdw.uuid) in self.positions.registers,
-               'BytesWrapper(ctdw.uuid) must be in self.positions.registers')
+        tressa(ctdw.uuid in self.positions.registers,
+               'ctdw.uuid must be in self.positions.registers')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
             data=(
                 'o',
-                BytesWrapper(ctdw.uuid),
+                ctdw.uuid,
                 writer,
                 CTDataWrapper(None, ctdw.uuid, ctdw.parent_uuid, False)
             )
@@ -289,7 +289,7 @@ class CausalTree:
 
         positions = self.positions.read(inject=inject)
 
-        if BytesWrapper(item.uuid) not in positions:
+        if item.uuid not in positions:
             return
 
         if self.cache is None:

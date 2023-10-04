@@ -101,7 +101,7 @@ class TestCausalTree(unittest.TestCase):
     def test_CausalTree_read_returns_tuple_of_underlying_items(self):
         causaltree = classes.CausalTree()
         causaltree.positions.set(
-            datawrappers.BytesWrapper(b'first'),
+            b'first',
             datawrappers.CTDataWrapper(
                 'first',
                 b'first',
@@ -401,7 +401,7 @@ class TestCausalTree(unittest.TestCase):
         causaltree = classes.CausalTree()
         causaltree.put_first(datawrappers.StrWrapper('first'), 1)
         first = causaltree.read_full()[0]
-        causaltree.put_after(datawrappers.BytesWrapper(b'second'), 1, first.uuid)
+        causaltree.put_after(b'second', 1, first.uuid)
         second = causaltree.read_full()[1]
         causaltree.put_after(datawrappers.IntWrapper(3), 1, second.uuid)
         causaltree.put_first(datawrappers.DecimalWrapper(Decimal('21.012')), 1)
