@@ -11,7 +11,6 @@ from .datawrappers import (
 from .errors import tressa
 from .interfaces import (
     ClockProtocol,
-    DataWrapperProtocol,
     StateUpdateProtocol,
 )
 from .merkle import get_merkle_history, resolve_merkle_histories
@@ -24,13 +23,13 @@ from typing import Any
 
 class MVRegister:
     """Implements the Multi-Value Register CRDT."""
-    name: DataWrapperProtocol
-    values: list[DataWrapperProtocol]
+    name: SerializableType
+    values: list[SerializableType]
     clock: ClockProtocol
     last_update: Any
 
-    def __init__(self, name: DataWrapperProtocol,
-                 values: list[DataWrapperProtocol] = [],
+    def __init__(self, name: SerializableType,
+                 values: list[SerializableType] = [],
                  clock: ClockProtocol = None,
                  last_update: Any = None) -> None:
         if clock is None:
@@ -83,7 +82,7 @@ class MVRegister:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tressa(isinstance(state_update.data, SerializableType),
-            'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+            f'state_update.data must be {SerializableType}')
 
         # set the value if the update happens after current state
         if self.clock.is_later(state_update.ts, self.last_update):
@@ -150,7 +149,7 @@ class MVRegister:
             update_class (StateUpdate by default).
         """
         tressa(isinstance(value, SerializableType),
-            'value must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+            f'value must be {SerializableType}')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

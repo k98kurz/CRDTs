@@ -51,7 +51,7 @@ class GSet:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tressa(isinstance(state_update.data, SerializableType),
-            'state_update.data must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+            f'state_update.data must be {SerializableType}')
 
         if state_update.data not in self.members:
             self.members.add(state_update.data)

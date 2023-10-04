@@ -68,7 +68,7 @@ class CausalTree:
 
     def read_full(self, /, *, inject: dict = {}) -> tuple[CTDataWrapper]:
         """Return the full, eventually consistent list of items with
-            tombstones and complete DataWrapperProtocols rather than the
+            tombstones and complete CTDataWrappers rather than just the
             underlying values. Use this for preparing deletion updates --
             only a CTDataWrapper can be used for delete.
         """
@@ -101,7 +101,7 @@ class CausalTree:
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
         tressa(isinstance(state_update.data[1], SerializableType),
-            'state_update.data[1] must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+            f'state_update.data[1] must be {SerializableType}')
         tressa(type(state_update.data[2]) is int,
             'state_update.data[2] must be writer int')
         tressa(type(state_update.data[3]) is CTDataWrapper,
@@ -156,7 +156,7 @@ class CausalTree:
             default) that puts the item after the parent.
         """
         tressa(isinstance(item, SerializableType),
-               'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+               f'item must be {SerializableType}')
         tressa(type(uuid) is bytes, "uuid must be bytes")
         tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
         inject = {**globals(), **inject}

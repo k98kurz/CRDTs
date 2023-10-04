@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .orset import ORSet
 from .pncounter import PNCounter

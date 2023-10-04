@@ -96,7 +96,7 @@ class FIArray:
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
         tressa(isinstance(state_update.data[1], SerializableType),
-            'state_update.data[1] must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+            f'state_update.data[1] must be {SerializableType}')
         tressa(type(state_update.data[2]) is int,
             'state_update.data[2] must be writer int')
         tressa(isinstance(state_update.data[3], FIAItemWrapper) or

@@ -140,7 +140,7 @@ class RGArray:
             in the data attribute at index 1.
         """
         tressa(isinstance(item, SerializableType),
-               'item must be DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType')
+               f'item must be {SerializableType}')
         tressa(type(writer) is int, 'writer must be int')
 
         ts = self.clock.read()

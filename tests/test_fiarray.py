@@ -127,7 +127,7 @@ class TestFIArray(unittest.TestCase):
         assert isinstance(view, tuple)
         assert view == ('first', b'second')
 
-    def test_FIArray_read_full_returns_tuple_of_DataWrapperProtocol(self):
+    def test_FIArray_read_full_returns_tuple_of_FIAItemWrapper(self):
         fiarray = classes.FIArray()
         first = datawrappers.FIAItemWrapper(
             value='first',
@@ -155,7 +155,7 @@ class TestFIArray(unittest.TestCase):
         assert len(view) == 2
 
         for item in view:
-            assert isinstance(item, interfaces.DataWrapperProtocol)
+            assert isinstance(item, datawrappers.FIAItemWrapper)
 
         assert view[0].value == 'first'
         assert view[1].value == b'second'

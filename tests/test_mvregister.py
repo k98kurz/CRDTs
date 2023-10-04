@@ -101,15 +101,21 @@ class TestMVRegister(unittest.TestCase):
             interfaces.CRDTProtocol
         )
 
-    def test_MVRegister_read_returns_set_of_DataWrapperProtocol(self):
+    def test_MVRegister_read_returns_set_of_values(self):
         mvregister = classes.MVRegister(
             datawrappers.StrWrapper('test'),
             [datawrappers.StrWrapper('foobar')]
         )
         assert type(mvregister.read()) is tuple
         assert len(mvregister.read()) == 1
-        assert isinstance(mvregister.read()[0], interfaces.DataWrapperProtocol)
+        assert isinstance(mvregister.read()[0], datawrappers.StrWrapper)
         assert mvregister.read()[0].value == 'foobar'
+
+        mvregister = classes.MVRegister('test', ['foobar'])
+        assert type(mvregister.read()) is tuple
+        assert len(mvregister.read()) == 1
+        assert type(mvregister.read()[0]) is str
+        assert mvregister.read()[0] == 'foobar'
 
     def test_MVRegister_write_returns_StateUpdate_and_sets_values(self):
         mvregister = classes.MVRegister(

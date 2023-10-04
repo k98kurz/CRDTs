@@ -7,15 +7,15 @@ from .datawrappers import (
     CTDataWrapper,
     NoneWrapper,
 )
-from .errors import tressa
-from .interfaces import ClockProtocol, DataWrapperProtocol, StateUpdateProtocol
+from .errors import tressa, tert, vert
+from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .mvregister import MVRegister
 from .orset import ORSet
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
-from packify import pack, unpack
+from packify import pack, unpack, SerializableType
 from typing import Any
 
 
@@ -24,7 +24,7 @@ class MVMap:
         https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crdt/-m-v-map/index.html
     """
     names: ORSet
-    registers: dict[DataWrapperProtocol, MVRegister]
+    registers: dict[SerializableType, MVRegister]
     clock: ClockProtocol
 
     def __init__(self, names: ORSet = None, registers: dict = None,
@@ -83,22 +83,22 @@ class MVMap:
 
     def update(self, state_update: StateUpdateProtocol) -> MVMap:
         """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
-            'state_update.data must be tuple of (str, DataWrapperProtocol, DataWrapperProtocol)')
-        tressa(len(state_update.data) == 3,
-            'state_update.data must be tuple of (str, DataWrapperProtocol, DataWrapperProtocol)')
+        tert(type(state_update.data) is tuple,
+            f'state_update.data must be tuple of (str, {SerializableType}, {SerializableType})')
+        vert(len(state_update.data) == 3,
+            f'state_update.data must be tuple of (str, {SerializableType}, {SerializableType})')
 
         op, name, value = state_update.data
         tressa(type(op) is str and op in ('o', 'r'),
             'state_update.data[0] must be str op one of (\'o\', \'r\')')
-        tressa(isinstance(name, DataWrapperProtocol),
-            'state_update.data[1] must be DataWrapperProtocol name')
-        tressa(isinstance(value, DataWrapperProtocol),
-            'state_update.data[3] must be DataWrapperProtocol value')
+        tressa(isinstance(name, SerializableType),
+            f'state_update.data[1] must be {SerializableType} name')
+        tressa(isinstance(value, SerializableType),
+            f'state_update.data[2] must be {SerializableType} value')
 
         ts = state_update.ts
 
@@ -157,7 +157,7 @@ class MVMap:
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.
         """
-        registers_history: dict[DataWrapperProtocol, tuple[StateUpdateProtocol]] = {}
+        registers_history: dict[SerializableType, tuple[StateUpdateProtocol]] = {}
         orset_history = self.names.history(
             from_ts=from_ts,
             until_ts=until_ts,
@@ -209,16 +209,16 @@ class MVMap:
         """
         return resolve_merkle_histories(self, history=history)
 
-    def set(self, name: DataWrapperProtocol, value: DataWrapperProtocol, /,
+    def set(self, name: SerializableType, value: SerializableType, /,
                 *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
             nodes.
         """
-        tressa(isinstance(name, DataWrapperProtocol),
-            'name must be a DataWrapperProtocol')
-        tressa(isinstance(value, DataWrapperProtocol) or value is None,
-            'value must be a DataWrapperProtocol or None')
+        tert(isinstance(name, SerializableType),
+            f'name must be a {SerializableType}')
+        tert(isinstance(value, SerializableType) or value is None,
+            f'value must be a {SerializableType} or None')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
@@ -229,11 +229,11 @@ class MVMap:
 
         return state_update
 
-    def unset(self, name: DataWrapperProtocol, /, *,
+    def unset(self, name: SerializableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
-        tressa(isinstance(name, DataWrapperProtocol),
-            'name must be a DataWrapperProtocol')
+        tert(isinstance(name, SerializableType),
+            f'name must be a {SerializableType}')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

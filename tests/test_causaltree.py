@@ -122,7 +122,7 @@ class TestCausalTree(unittest.TestCase):
         assert isinstance(view, tuple)
         assert view == ('first', b'second')
 
-    def test_CausalTree_read_full_returns_tuple_of_DataWrapperProtocol(self):
+    def test_CausalTree_read_full_returns_tuple_of_CTDataWrapper(self):
         causaltree = classes.CausalTree()
         causaltree.positions.set(
             datawrappers.BytesWrapper(b'first'),

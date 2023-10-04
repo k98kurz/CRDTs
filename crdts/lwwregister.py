@@ -11,7 +11,6 @@ from .datawrappers import (
 from .errors import tressa
 from .interfaces import (
     ClockProtocol,
-    DataWrapperProtocol,
     StateUpdateProtocol,
 )
 from .merkle import get_merkle_history, resolve_merkle_histories

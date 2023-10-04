@@ -85,10 +85,13 @@ class TestLWWRegister(unittest.TestCase):
     def test_LWWRegister_implements_CRDTProtocol(self):
         assert isinstance(classes.LWWRegister(datawrappers.StrWrapper('test')), interfaces.CRDTProtocol)
 
-    def test_LWWRegister_read_returns_DataWrapperProtocol(self):
+    def test_LWWRegister_read_returns_value(self):
         lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper('foobar'))
-        assert isinstance(lwwregister.read(), interfaces.DataWrapperProtocol)
+        assert isinstance(lwwregister.read(), datawrappers.StrWrapper)
         assert lwwregister.read().value == 'foobar'
+        lwwregister = classes.LWWRegister('test', 'foobar')
+        assert type(lwwregister.read()) is str
+        assert lwwregister.read() == 'foobar'
 
     def test_LWWRegister_write_returns_StateUpdate_and_sets_value(self):
         lwwregister = classes.LWWRegister(datawrappers.BytesWrapper(b'test'), datawrappers.BytesWrapper(b'foobar'))
