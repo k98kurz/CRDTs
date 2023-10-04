@@ -54,17 +54,17 @@ Each implementation must include a full test suite to be considered complete.
 - [x] FIArray
 - [x] CausalTree
 - [x] Decent documentation
-- [ ] Merklized feature: [delta-state content IDs] <- state root hash
-- [ ] New CRDT: CounterSet
-- [ ] New CRDT: Graph
+- [x] Merklized feature: [delta-state content IDs] <- state root hash
 - [ ] ListProtocol: RGArray, FIArray, CausalTree
 - [ ] Refactor: change writer_id from int to SerializableType
+- [ ] New CRDT: CounterSet
+- [ ] New CRDT: Graph
 - [ ] New CRDT: Document
 - [ ] Hooks/event listeners
 
 ## Setup and Usage
 
-Requires python 3+.
+Requires python 3.10+.
 
 ### Setup
 
@@ -81,6 +81,12 @@ Each CRDT follows the `CRDTProtocol` and includes the following methods:
 update and returns `self` in monad pattern
 - `pack(self) -> bytes`: serializes entire CRDT to bytes
 - `@classmethod unpack(cls, data: bytes) -> CRDTProtocol`: deserializes a CRDT
+- `checksums(self, /, *, from_ts = None, until_ts = None) -> tuple[Any]`: gets
+checksums for state deltas (updates)
+- `history(self, /, *, from_ts = None, until_ts = None, update_class = None) -> tuple[StateUpdateProtocol]`:
+gets history of state deltas (updates) that converge to the local CRDT state
+- `get_merkle_history(self, ...) -> list[bytes, list[bytes], dict[bytes, bytes]]`
+- `resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]`
 
 Beyond this, each CRDT has its own specific methods unique to the type. Full
 documentation for each class in this library can be found in the
