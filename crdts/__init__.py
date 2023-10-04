@@ -18,7 +18,6 @@ from crdts.interfaces import (
     ClockProtocol,
     CRDTProtocol,
     DataWrapperProtocol,
-    SerializableType,
 )
 from crdts.datawrappers import (
     BytesWrapper,

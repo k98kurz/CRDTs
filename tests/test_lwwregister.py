@@ -87,7 +87,7 @@ class TestLWWRegister(unittest.TestCase):
 
     def test_LWWRegister_read_returns_DataWrapperProtocol(self):
         lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper('foobar'))
-        assert isinstance(lwwregister.read(), classes.DataWrapperProtocol)
+        assert isinstance(lwwregister.read(), interfaces.DataWrapperProtocol)
         assert lwwregister.read().value == 'foobar'
 
     def test_LWWRegister_write_returns_StateUpdate_and_sets_value(self):

@@ -7,7 +7,7 @@ import unittest
 
 class TestScalarClock(unittest.TestCase):
     def test_ScalarClock_implements_ClockProtocol(self):
-        assert isinstance(classes.ScalarClock(), classes.ClockProtocol)
+        assert isinstance(classes.ScalarClock(), interfaces.ClockProtocol)
 
     def test_ScalarClock_instance_has_counter_and_uuid(self):
         clock = classes.ScalarClock()

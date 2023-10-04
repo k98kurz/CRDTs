@@ -1,5 +1,4 @@
 from __future__ import annotations
-from types import NoneType
 from typing import Any, Hashable, Protocol, runtime_checkable
 
 
@@ -184,5 +183,3 @@ class StateUpdateProtocol(Protocol):
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdateProtocol:
         """Unpack an instance from bytes."""
         ...
-
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType

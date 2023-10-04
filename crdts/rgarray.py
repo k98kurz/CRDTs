@@ -12,13 +12,12 @@ from .errors import tressa
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
-    SerializableType,
 )
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .orset import ORSet
 from .stateupdate import StateUpdate
 from bisect import bisect
-from packify import pack
+from packify import SerializableType, pack
 from types import NoneType
 from typing import Any
 

@@ -108,7 +108,7 @@ class TestMVRegister(unittest.TestCase):
         )
         assert type(mvregister.read()) is tuple
         assert len(mvregister.read()) == 1
-        assert isinstance(mvregister.read()[0], classes.DataWrapperProtocol)
+        assert isinstance(mvregister.read()[0], interfaces.DataWrapperProtocol)
         assert mvregister.read()[0].value == 'foobar'
 
     def test_MVRegister_write_returns_StateUpdate_and_sets_values(self):

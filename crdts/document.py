@@ -8,7 +8,6 @@ from .interfaces import (
     ClockProtocol,
     CRDTProtocol,
     StateUpdateProtocol,
-    SerializableType,
 )
 from .lwwmap import LWWMap, LWWRegister, ORSet
 from .merkle import get_merkle_history, resolve_merkle_histories
