@@ -229,22 +229,14 @@ class TestGSet(unittest.TestCase):
         gset = classes.GSet()
         update = gset.add(datawrappers.StrWrapper('test'), update_class=CustomStateUpdate)
         assert type(update) is CustomStateUpdate
-        assert type(gset.history()[0]) is CustomStateUpdate
+        assert type(gset.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
         packed = gset.pack()
 
-        with self.assertRaises(packify.UsageError) as e:
-            unpacked = classes.GSet.unpack(packed, inject=self.inject)
-        assert 'CustomStateUpdate' in str(e.exception)
-
-        # inject and repeat
-        unpacked = classes.GSet.unpack(
-            packed, inject={**self.inject, 'CustomStateUpdate': CustomStateUpdate}
-        )
+        unpacked = classes.GSet.unpack(packed, inject=self.inject)
 
         assert unpacked.clock == gset.clock
         assert unpacked.read() == gset.read()
-        assert type(unpacked.history()[0]) is CustomStateUpdate
 
     def test_GSet_convergence_from_ts(self):
         gset1 = classes.GSet()

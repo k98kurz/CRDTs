@@ -18,16 +18,14 @@ class GSet:
     """Implements the Grow-only Set (GSet) CRDT."""
     members: set[SerializableType] = field(default_factory=set)
     clock: ClockProtocol = field(default_factory=ScalarClock)
-    update_history: dict[SerializableType, StateUpdateProtocol] = field(default_factory=dict)
+    metadata: dict[SerializableType, Any] = field(default_factory=dict)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string."""
         return pack([
             self.clock,
             self.members,
-            [
-                (k, v) for k,v in self.update_history.items()
-            ]
+            self.metadata,
         ])
 
     @classmethod
@@ -35,11 +33,11 @@ class GSet:
         """Unpack the data bytes string into an instance."""
         tressa(type(data) is bytes, 'data must be bytes')
         tressa(len(data) > 8, 'data must be more than 8 bytes')
-        clock, members, update_history = unpack(
+        clock, members, metadata = unpack(
             data,
             inject={**globals(), **inject}
         )
-        return cls(members, clock, {k:v for k,v in update_history})
+        return cls(members, clock, metadata)
 
     def read(self, inject: dict = {}) -> set[SerializableType]:
         """Return the eventually consistent data view."""
@@ -59,7 +57,7 @@ class GSet:
             self.members.add(state_update.data)
 
         self.clock.update(state_update.ts)
-        self.update_history[state_update.data] = state_update
+        self.metadata[state_update.data] = state_update.ts
 
         return self
 
@@ -71,12 +69,12 @@ class GSet:
         """
         total_crc32 = 0
         updates = []
-        for member, state_update in self.update_history.items():
+        for member, ts in self.metadata.items():
             if from_ts is not None:
-                if self.clock.is_later(from_ts, state_update.ts):
+                if self.clock.is_later(from_ts, ts):
                     continue
             if until_ts is not None:
-                if self.clock.is_later(state_update.ts, until_ts):
+                if self.clock.is_later(ts, until_ts):
                     continue
             updates.append(member)
             total_crc32 += crc32(pack(member))
@@ -98,14 +96,14 @@ class GSet:
         updates = []
 
         for member in self.members:
-            state_update = self.update_history[member]
+            ts = self.metadata[member]
             if from_ts is not None:
-                if self.clock.is_later(from_ts, state_update.ts):
+                if self.clock.is_later(from_ts, ts):
                     continue
             if until_ts is not None:
-                if self.clock.is_later(state_update.ts, until_ts):
+                if self.clock.is_later(ts, until_ts):
                     continue
-            updates.append(state_update)
+            updates.append(update_class(clock_uuid=self.clock.uuid, ts=ts, data=member))
 
         return tuple(updates)
 
