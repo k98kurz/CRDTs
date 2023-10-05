@@ -59,8 +59,13 @@ class ClockProtocol(Protocol):
         ...
 
     @classmethod
-    def wrap_ts(cls, ts: Any, /, *, inject: dict = {}) -> DataWrapperProtocol:
-        """Wrap a timestamp in a data wrapper."""
+    def serialize_ts(cls, ts: Any) -> bytes:
+        """Serialize a timestamp to bytes."""
+        ...
+
+    @classmethod
+    def deserialize_ts(cls, ts: bytes, /, *, inject: dict = {}) -> Any:
+        """Deserialize a timestamp from bytes."""
         ...
 
 

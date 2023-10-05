@@ -1,7 +1,7 @@
 from __future__ import annotations
-from .datawrappers import IntWrapper
 from .errors import tressa
 from dataclasses import dataclass, field
+from packify import pack, unpack
 from uuid import uuid4
 import struct
 
@@ -78,9 +78,14 @@ class ScalarClock:
         ))
 
     @classmethod
-    def wrap_ts(cls, ts: int) -> IntWrapper:
-        """Wrap a timestamp in an IntWrapper."""
-        return IntWrapper(ts)
+    def serialize_ts(cls, ts: int) -> bytes:
+        """Serialize a timestamp to bytes."""
+        return pack(ts)
+
+    @classmethod
+    def deserialize_ts(cls, ts: bytes, /, *, inject: dict = {}) -> int:
+        """Deserialize a timestamp from bytes."""
+        return unpack(ts, inject=inject)
 
     def __repr__(self) -> str:
         return f"ScalarClock(counter={self.counter}, uuid={self.uuid.hex()}" + \
