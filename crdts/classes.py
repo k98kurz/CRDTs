@@ -1,5 +1,6 @@
 from .causaltree import CausalTree
 from .counter import Counter
+from .counterset import CounterSet
 from .fiarray import FIArray
 from .gset import GSet
 from .lwwmap import LWWMap
