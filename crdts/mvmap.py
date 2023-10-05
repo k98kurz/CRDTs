@@ -88,17 +88,17 @@ class MVMap:
         vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tert(type(state_update.data) is tuple,
-            f'state_update.data must be tuple of (str, {SerializableType}, {SerializableType})')
+            f'state_update.data must be tuple of (str, SerializableType ({SerializableType}), SerializableType ({SerializableType}))')
         vert(len(state_update.data) == 3,
-            f'state_update.data must be tuple of (str, {SerializableType}, {SerializableType})')
+            f'state_update.data must be tuple of (str, SerializableType ({SerializableType}), SerializableType ({SerializableType}))')
 
         op, name, value = state_update.data
         tressa(type(op) is str and op in ('o', 'r'),
             'state_update.data[0] must be str op one of (\'o\', \'r\')')
         tressa(isinstance(name, SerializableType),
-            f'state_update.data[1] must be {SerializableType} name')
+            f'state_update.data[1] must be SerializableType ({SerializableType}) name')
         tressa(isinstance(value, SerializableType),
-            f'state_update.data[2] must be {SerializableType} value')
+            f'state_update.data[2] must be SerializableType ({SerializableType}) value')
 
         ts = state_update.ts
 
@@ -143,7 +143,7 @@ class MVMap:
             packed = pack(self.registers[name].name)
             packed += pack([v for v in self.registers[name].values])
             total_register_crc32 += crc32(packed)
-            total_last_update += self.registers[name].last_update
+            total_last_update += crc32(pack(self.registers[name].last_update))
 
         return (
             total_last_update % 2**32,
@@ -216,9 +216,9 @@ class MVMap:
             nodes.
         """
         tert(isinstance(name, SerializableType),
-            f'name must be a {SerializableType}')
+            f'name must be a SerializableType ({SerializableType})')
         tert(isinstance(value, SerializableType) or value is None,
-            f'value must be a {SerializableType} or None')
+            f'value must be a SerializableType ({SerializableType}) or None')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
@@ -233,7 +233,7 @@ class MVMap:
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
         tert(isinstance(name, SerializableType),
-            f'name must be a {SerializableType}')
+            f'name must be a SerializableType ({SerializableType})')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

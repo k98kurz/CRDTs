@@ -75,7 +75,7 @@ class ORSet:
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
         tressa(isinstance(state_update.data[1], SerializableType),
-            f'state_update.data[1] must be {SerializableType}')
+            f'state_update.data[1] must be SerializableType ({SerializableType})')
 
         op, member = state_update.data
         ts = state_update.ts
@@ -220,7 +220,7 @@ class ORSet:
             member will be in the data attribute at index 1.
         """
         tressa(isinstance(member, SerializableType),
-               f'member must be {SerializableType}')
+               f'member must be SerializableType ({SerializableType})')
 
         # member = str(member) if type(member) is int else member
         state_update = update_class(

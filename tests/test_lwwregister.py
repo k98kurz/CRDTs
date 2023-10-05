@@ -1,6 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
 import unittest
@@ -26,8 +24,8 @@ class TestLWWRegister(unittest.TestCase):
 
     def test_LWWRegister_history_returns_tuple_of_StateUpdate(self):
         lwwregister = classes.LWWRegister(datawrappers.StrWrapper('test'), datawrappers.StrWrapper('foobar'))
-        lwwregister.write(datawrappers.StrWrapper('sdsd'), 2)
-        lwwregister.write(datawrappers.StrWrapper('barfoo'), 1)
+        lwwregister.write(datawrappers.StrWrapper('sdsd'), b'2')
+        lwwregister.write(datawrappers.StrWrapper('barfoo'), b'1')
         history = lwwregister.history()
 
         assert type(history) is tuple
@@ -39,8 +37,8 @@ class TestLWWRegister(unittest.TestCase):
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
         lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock)
 
-        update1 = lwwregister1.write(datawrappers.StrWrapper('foobar'), 1)
-        update2 = lwwregister2.write(datawrappers.StrWrapper('barfoo'), 2)
+        update1 = lwwregister1.write(datawrappers.StrWrapper('foobar'), b'1')
+        update2 = lwwregister2.write(datawrappers.StrWrapper('barfoo'), b'2')
         lwwregister1.update(update2)
         lwwregister2.update(update1)
 
@@ -52,8 +50,8 @@ class TestLWWRegister(unittest.TestCase):
         clock = classes.ScalarClock.unpack(lwwregister1.clock.pack())
         lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock)
 
-        update1 = lwwregister1.write(datawrappers.StrWrapper('foobar'), 1)
-        update2 = lwwregister2.write(datawrappers.StrWrapper('barfoo'), 1)
+        update1 = lwwregister1.write(datawrappers.StrWrapper('foobar'), [b'1', 2, '3'])
+        update2 = lwwregister2.write(datawrappers.StrWrapper('barfoo'), [b'1', 2, '2'])
         lwwregister1.update(update2)
         lwwregister2.update(update1)
 
@@ -74,8 +72,8 @@ class TestLWWRegister(unittest.TestCase):
 
         assert lwwregister2.checksums() == checksums1
 
-        lwwregister1.write(datawrappers.StrWrapper('thing'), 1)
-        lwwregister2.write(datawrappers.StrWrapper('stuff'), 2)
+        lwwregister1.write(datawrappers.StrWrapper('thing'), b'1')
+        lwwregister2.write(datawrappers.StrWrapper('stuff'), b'2')
 
         assert lwwregister1.checksums() != checksums1
         assert lwwregister2.checksums() != checksums1
@@ -86,7 +84,7 @@ class TestLWWRegister(unittest.TestCase):
         clock1 = classes.ScalarClock.unpack(lwwregister1.clock.pack())
         lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock1)
 
-        update = lwwregister1.write(datawrappers.StrWrapper('foo1'), 1)
+        update = lwwregister1.write(datawrappers.StrWrapper('foo1'), b'1')
         view1 = lwwregister1.read()
         lwwregister1.update(update)
         assert lwwregister1.read() == view1
@@ -95,7 +93,7 @@ class TestLWWRegister(unittest.TestCase):
         lwwregister2.update(update)
         assert lwwregister2.read() == view2
 
-        update = lwwregister2.write(datawrappers.StrWrapper('bar'), 2)
+        update = lwwregister2.write(datawrappers.StrWrapper('bar'), b'2')
         lwwregister1.update(update)
         view1 = lwwregister1.read()
         lwwregister1.update(update)
@@ -110,8 +108,8 @@ class TestLWWRegister(unittest.TestCase):
         clock1 = classes.ScalarClock(uuid=lwwregister1.clock.uuid)
         lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock1)
 
-        update1 = lwwregister1.write(datawrappers.StrWrapper('foo1'), 1)
-        update2 = lwwregister1.write(datawrappers.StrWrapper('foo2'), 1)
+        update1 = lwwregister1.write(datawrappers.StrWrapper('foo1'), b'1')
+        update2 = lwwregister1.write(datawrappers.StrWrapper('foo2'), b'1')
         lwwregister2.update(update2)
         lwwregister2.update(update1)
 
@@ -124,9 +122,9 @@ class TestLWWRegister(unittest.TestCase):
         lwwregister2 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock1)
         lwwregister3 = classes.LWWRegister(datawrappers.StrWrapper('test'), clock=clock2)
 
-        update = lwwregister1.write(datawrappers.StrWrapper('foo1'), 1)
+        update = lwwregister1.write(datawrappers.StrWrapper('foo1'), b'1')
         lwwregister2.update(update)
-        lwwregister2.write(datawrappers.StrWrapper('bar'), 2)
+        lwwregister2.write(datawrappers.StrWrapper('bar'), b'2')
 
         for item in lwwregister2.history():
             lwwregister1.update(item)
@@ -151,8 +149,8 @@ class TestLWWRegister(unittest.TestCase):
             name=datawrappers.StrWrapper('test register'),
             clock=StrClock()
         )
-        lwwr.write(datawrappers.StrWrapper('first'), 1)
-        lwwr.write(datawrappers.StrWrapper('second'), 1)
+        lwwr.write(datawrappers.StrWrapper('first'), b'1')
+        lwwr.write(datawrappers.StrWrapper('second'), b'1')
         packed = lwwr.pack()
 
         with self.assertRaises(packify.UsageError) as e:

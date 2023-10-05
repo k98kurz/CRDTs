@@ -51,7 +51,7 @@ class GSet:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tressa(isinstance(state_update.data, SerializableType),
-            f'state_update.data must be {SerializableType}')
+            f'state_update.data must be SerializableType ({SerializableType})')
 
         if state_update.data not in self.members:
             self.members.add(state_update.data)
@@ -80,7 +80,7 @@ class GSet:
             total_crc32 += crc32(pack(member))
 
         return (
-            self.clock.read() if until_ts is None else until_ts,
+            crc32(pack(self.clock.read() if until_ts is None else until_ts)),
             len(updates),
             total_crc32 % 2**32,
         )
@@ -129,7 +129,7 @@ class GSet:
             update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
         tert(isinstance(member, SerializableType),
-            f'member must be {SerializableType}')
+            f'member must be SerializableType ({SerializableType})')
 
         ts = self.clock.read()
         state_update = update_class(clock_uuid=self.clock.uuid, ts=ts, data=member)

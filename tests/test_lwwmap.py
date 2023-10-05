@@ -259,23 +259,23 @@ class TestLWWMap(unittest.TestCase):
         lwwm2.update(lwwm1.set(
             'hello world',
             1,
-            1,
+            b'1',
         ))
         lwwm2.update(lwwm1.set(
             b'hello world',
             2,
-            1,
+            b'1',
         ))
         lwwm1.unset('hello world', 1)
         lwwm1.set(
             'not the lipsum',
             420,
-            1,
+            b'1',
         )
         lwwm2.set(
             'not the lipsum',
             b'yellow submarine',
-            2,
+            b'2',
         )
 
         history1 = lwwm1.get_merkle_history()

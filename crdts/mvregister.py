@@ -82,7 +82,7 @@ class MVRegister:
         tressa(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tressa(isinstance(state_update.data, SerializableType),
-            f'state_update.data must be {SerializableType}')
+            f'state_update.data must be SerializableType ({SerializableType})')
 
         # set the value if the update happens after current state
         if self.clock.is_later(state_update.ts, self.last_update):
@@ -104,7 +104,7 @@ class MVRegister:
             desynchronization due to message failure.
         """
         return (
-            self.last_update,
+            crc32(pack(self.last_update)),
             sum([crc32(pack(v)) for v in self.values]) % 2**32,
         )
 
@@ -149,7 +149,7 @@ class MVRegister:
             update_class (StateUpdate by default).
         """
         tressa(isinstance(value, SerializableType),
-            f'value must be {SerializableType}')
+            f'value must be SerializableType ({SerializableType})')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

@@ -132,7 +132,7 @@ class RGArray:
         """
         return resolve_merkle_histories(self, history=history)
 
-    def append(self, item: SerializableType, writer: int, /, *,
+    def append(self, item: SerializableType, writer: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
@@ -140,8 +140,9 @@ class RGArray:
             in the data attribute at index 1.
         """
         tressa(isinstance(item, SerializableType),
-               f'item must be {SerializableType}')
-        tressa(type(writer) is int, 'writer must be int')
+               f'item must be SerializableType ({SerializableType})')
+        tressa(isinstance(writer, SerializableType),
+               f'writer must be SerializableType ({SerializableType})')
 
         ts = self.clock.read()
         state_update = self.items.observe(

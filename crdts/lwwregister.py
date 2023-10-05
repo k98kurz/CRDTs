@@ -27,13 +27,13 @@ class LWWRegister:
     value: SerializableType
     clock: ClockProtocol
     last_update: Any
-    last_writer: int
+    last_writer: SerializableType
 
     def __init__(self, name: SerializableType,
                  value: SerializableType = None,
                  clock: ClockProtocol = None,
                  last_update: Any = None,
-                 last_writer: int = 0) -> None:
+                 last_writer: SerializableType = 0) -> None:
         if clock is None:
             clock = ScalarClock()
         if last_update is None:
@@ -93,8 +93,8 @@ class LWWRegister:
             'state_update.data must be tuple of (int, SerializableType)')
         tressa(len(state_update.data) == 2,
             'state_update.data must be tuple of (int, SerializableType)')
-        tressa(type(state_update.data[0]) is int,
-            'state_update.data[0] must be int writer_id')
+        tressa(isinstance(state_update.data[0], SerializableType),
+            f'state_update.data[0] must be SerializableType ({SerializableType}) writer_id')
         tressa(isinstance(state_update.data[1], SerializableType),
             'state_update.data[1] must be SerializableType')
 
@@ -122,8 +122,8 @@ class LWWRegister:
             desynchronization due to message failure.
         """
         return (
-            self.last_update,
-            self.last_writer,
+            crc32(pack(self.last_update)),
+            crc32(pack(self.last_writer)),
             crc32(pack(self.value)),
         )
 
@@ -163,16 +163,17 @@ class LWWRegister:
         """
         return resolve_merkle_histories(self, history=history)
 
-    def write(self, value: SerializableType, writer: int, /, *,
+    def write(self, value: SerializableType, writer: SerializableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate,
               inject: dict = {}) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
-            update_class (StateUpdate by default). Requires a writer int
-            for tie breaking.
+            update_class (StateUpdate by default). Requires a SerializableType
+            writer id for tie breaking.
         """
         tressa(isinstance(value, SerializableType) or value is None,
             'value must be a SerializableType or None')
-        tressa(type(writer) is int, 'writer must be an int')
+        tressa(isinstance(writer, SerializableType),
+               f'writer must be an SerializableType ({SerializableType})')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

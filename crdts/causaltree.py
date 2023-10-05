@@ -101,9 +101,9 @@ class CausalTree:
         tressa(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
         tressa(isinstance(state_update.data[1], SerializableType),
-            f'state_update.data[1] must be {SerializableType}')
-        tressa(type(state_update.data[2]) is int,
-            'state_update.data[2] must be writer int')
+            f'state_update.data[1] must be SerializableType ({SerializableType})')
+        tressa(isinstance(state_update.data[2], SerializableType),
+            f'state_update.data[2] must be writer SerializableType ({SerializableType})')
         tressa(type(state_update.data[3]) is CTDataWrapper,
             'state_update.data[3] must be CTDataWrapper')
 
@@ -148,7 +148,7 @@ class CausalTree:
         """
         return resolve_merkle_histories(self, history=history)
 
-    def put(self, item: SerializableType, writer: int, uuid: bytes,
+    def put(self, item: SerializableType, writer: SerializableType, uuid: bytes,
             parent_uuid: bytes = b'', /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate,
             inject: dict = {}) -> StateUpdateProtocol:
@@ -156,7 +156,7 @@ class CausalTree:
             default) that puts the item after the parent.
         """
         tressa(isinstance(item, SerializableType),
-               f'item must be {SerializableType}')
+               f'item must be SerializableType ({SerializableType})')
         tressa(type(uuid) is bytes, "uuid must be bytes")
         tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
         inject = {**globals(), **inject}
@@ -173,7 +173,7 @@ class CausalTree:
         self.update(state_update, inject=inject)
         return update_class.unpack(state_update.pack(), inject=inject)
 
-    def put_after(self, item: SerializableType, writer: int,
+    def put_after(self, item: SerializableType, writer: SerializableType,
                   parent_uuid: bytes, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
@@ -183,7 +183,7 @@ class CausalTree:
 
         return self.put(item, writer, uuid, parent_uuid, update_class=update_class)
 
-    def put_first(self, item: SerializableType, writer: int, /, *,
+    def put_first(self, item: SerializableType, writer: SerializableType, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns at least one update_class
@@ -208,7 +208,7 @@ class CausalTree:
 
         return tuple(updates)
 
-    def move_item(self, item: CTDataWrapper, writer: int,
+    def move_item(self, item: CTDataWrapper, writer: SerializableType,
                   parent_uuid: bytes = b'', /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
@@ -232,7 +232,7 @@ class CausalTree:
         self.update(state_update, inject=inject)
         return state_update
 
-    def delete(self, ctdw: CTDataWrapper, writer: int, /, *,
+    def delete(self, ctdw: CTDataWrapper, writer: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by

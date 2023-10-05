@@ -4,6 +4,7 @@ from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
+from binascii import crc32
 from dataclasses import dataclass, field
 from packify import pack, unpack
 from typing import Any
@@ -70,7 +71,7 @@ class PNCounter:
             desynchronization due to message failure.
         """
         return (
-            self.clock.read(),
+            crc32(pack(self.clock.read())),
             self.positive,
             self.negative,
         )

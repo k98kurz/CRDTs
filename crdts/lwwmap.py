@@ -97,8 +97,8 @@ class LWWMap:
             'state_update.data[1] must be Hashable name')
         tressa(isinstance(name, SerializableType),
             'state_update.data[1] must be SerializableType name')
-        tressa(type(writer) is int,
-            'state_update.data[2] must be int writer id')
+        tressa(isinstance(writer, SerializableType),
+            f'state_update.data[2] must be writer SerializableType ({SerializableType})')
         tressa(isinstance(value, SerializableType),
             'state_update.data[3] must be SerializableType value')
 
@@ -146,8 +146,8 @@ class LWWMap:
             total_register_crc32 += crc32(
                 pack(self.registers[name].name) + pack(self.registers[name].value)
             )
-            total_last_update += self.registers[name].last_update
-            total_last_writer += self.registers[name].last_writer
+            total_last_update += crc32(pack(self.registers[name].last_update))
+            total_last_writer += crc32(pack(self.registers[name].last_writer))
 
         return (
             total_last_update % 2**32,
@@ -215,7 +215,7 @@ class LWWMap:
         return resolve_merkle_histories(self, history=history)
 
     def set(self, name: Hashable, value: SerializableType,
-                writer: int, /, *,
+                writer: SerializableType, /, *,
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
@@ -224,10 +224,11 @@ class LWWMap:
         tressa(isinstance(name, Hashable),
             'name must be a Hashable')
         tressa(isinstance(name, SerializableType),
-            'name must be a SerializableType')
-        tressa(isinstance(value, SerializableType) or value is None,
-            'value must be a SerializableType or None')
-        tressa(type(writer) is int, 'writer must be an int')
+            f'name must be a SerializableType ({SerializableType})')
+        tressa(isinstance(value, SerializableType),
+            f'value must be a SerializableType ({SerializableType})')
+        tressa(isinstance(writer, SerializableType),
+               f'writer must be a SerializableType ({SerializableType})')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
@@ -238,14 +239,15 @@ class LWWMap:
 
         return state_update
 
-    def unset(self, name: Hashable, writer: int, /, *,
+    def unset(self, name: Hashable, writer: SerializableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate."""
         tressa(isinstance(name, Hashable),
             'name must be a Hashable')
         tressa(isinstance(name, SerializableType),
-            'name must be a SerializableType')
-        tressa(type(writer) is int, 'writer must be an int')
+            f'name must be a SerializableType ({SerializableType})')
+        tressa(isinstance(writer, SerializableType),
+               f'writer must be a SerializableType ({SerializableType})')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

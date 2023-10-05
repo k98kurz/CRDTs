@@ -32,7 +32,7 @@ class TestCausalTree(unittest.TestCase):
                 b'first',
                 b''
             ),
-            1
+            b'1'
         )
         causaltree.positions.set(
             datawrappers.BytesWrapper(b'second'),
@@ -41,7 +41,7 @@ class TestCausalTree(unittest.TestCase):
                 b'second',
                 b'first'
             ),
-            1
+            b'1'
         )
         view = causaltree.read()
         assert isinstance(view, tuple)

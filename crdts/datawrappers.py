@@ -72,7 +72,7 @@ class CTDataWrapper:
     def __init__(self, value: SerializableType, uuid: bytes, parent_uuid: bytes,
                  visible: bool = True) -> None:
         tressa(isinstance(value, SerializableType),
-               f'value must be {SerializableType}')
+               f'value must be SerializableType ({SerializableType})')
         tressa(type(uuid) is bytes, 'uuid must be bytes')
         tressa(type(parent_uuid) is bytes, 'parent_uuid must be bytes')
         tressa(type(visible) is bool, 'visible must be bool')
@@ -219,10 +219,10 @@ class IntWrapper(DecimalWrapper):
 class RGAItemWrapper(StrWrapper):
     value: SerializableType
     ts: SerializableType
-    writer: int
+    writer: SerializableType
 
     def __init__(self, value: SerializableType, ts: SerializableType,
-                 writer: int) -> None:
+                 writer: SerializableType) -> None:
         tressa(isinstance(value, SerializableType), 'value must be SerializableType')
         tressa(isinstance(ts, SerializableType), 'ts must be SerializableType')
         tressa(type(writer) is int, 'writer must be int')
