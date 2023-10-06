@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .errors import tert, vert
 from dataclasses import dataclass, field
-from packify import pack, unpack
 from uuid import uuid4
 import struct
 
@@ -85,16 +84,6 @@ class ScalarClock:
             f'!I{len(data)-4}s',
             data
         ))
-
-    @staticmethod
-    def serialize_ts(ts: int) -> bytes:
-        """Serialize a timestamp to bytes."""
-        return pack(ts)
-
-    @staticmethod
-    def deserialize_ts(ts: bytes, /, *, inject: dict = {}) -> int:
-        """Deserialize a timestamp from bytes."""
-        return unpack(ts, inject=inject)
 
     def __repr__(self) -> str:
         return f"ScalarClock(counter={self.counter}, uuid={self.uuid.hex()}" + \

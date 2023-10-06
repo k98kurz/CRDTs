@@ -1,35 +1,34 @@
 from __future__ import annotations
+from packify import SerializableType
 from typing import Any, Hashable, Protocol, runtime_checkable
 
-
-# TimestampType = int|float|str|bytes|bytearray|Decimal
 
 @runtime_checkable
 class ClockProtocol(Protocol):
     """Duck typed Protocol showing what a clock must do."""
     uuid: bytes
-    default_ts: Any
+    default_ts: SerializableType
 
-    def read(self, /, *, inject: dict = {}) -> Any:
+    def read(self, /, *, inject: dict = {}) -> SerializableType:
         """Return the current timestamp."""
         ...
 
-    def update(self, data: Any = None) -> Any:
+    def update(self, data: SerializableType = None) -> SerializableType:
         """Update the clock and return the current time stamp."""
         ...
 
     @staticmethod
-    def is_later(ts1: Any, ts2: Any) -> bool:
+    def is_later(ts1: SerializableType, ts2: SerializableType) -> bool:
         """Return True iff ts1 > ts2."""
         ...
 
     @staticmethod
-    def are_concurrent(ts1: Any, ts2: Any) -> bool:
+    def are_concurrent(ts1: SerializableType, ts2: SerializableType) -> bool:
         """Return True if not ts1 > ts2 and not ts2 > ts1."""
         ...
 
     @staticmethod
-    def compare(ts1: Any, ts2: Any) -> int:
+    def compare(ts1: SerializableType, ts2: SerializableType) -> int:
         """Return 1 if ts1 is later than ts2; -1 if ts2 is later than
             ts1; and 0 if they are concurrent/incomparable.
         """
@@ -42,16 +41,6 @@ class ClockProtocol(Protocol):
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> ClockProtocol:
         """Unpack a clock from bytes."""
-        ...
-
-    @staticmethod
-    def serialize_ts(ts: Any) -> bytes:
-        """Serialize a timestamp to bytes."""
-        ...
-
-    @staticmethod
-    def deserialize_ts(ts: bytes, /, *, inject: dict = {}) -> Any:
-        """Deserialize a timestamp from bytes."""
         ...
 
 
