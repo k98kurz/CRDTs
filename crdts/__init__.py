@@ -5,6 +5,7 @@ from crdts.classes import (
     Counter,
     ORSet,
     PNCounter,
+    CounterSet,
     FIArray,
     RGArray,
     LWWRegister,
