@@ -7,7 +7,7 @@ from .datawrappers import (
     NoneWrapper,
     FIAItemWrapper
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -32,11 +32,12 @@ class FIArray:
 
     def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
         """Initialize an FIArray from an LWWMap of item positions and a
-            shared clock.
+            shared clock. Raises TypeError for invalid positions or
+            clock.
         """
-        tressa(type(positions) is LWWMap or positions is None,
+        tert(type(positions) is LWWMap or positions is None,
             'positions must be an LWWMap or None')
-        tressa(isinstance(clock, ClockProtocol) or clock is None,
+        tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
 
         clock = ScalarClock() if clock is None else clock
@@ -51,12 +52,16 @@ class FIArray:
         self.cache = None
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return self.positions.pack()
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> FIArray:
-        """Unpack the data bytes string into an instance."""
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         positions = LWWMap.unpack(data, inject)
         return cls(positions=positions, clock=positions.clock)
 
@@ -86,22 +91,24 @@ class FIArray:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> FIArray:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError for invalid state_update.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
+        tert(type(state_update.data) is tuple,
             'state_update.data must be tuple')
-        tressa(state_update.data[0] in ('o', 'r'),
+        vert(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(isinstance(state_update.data[1], SerializableType),
+        tert(isinstance(state_update.data[1], SerializableType),
             f'state_update.data[1] must be SerializableType ({SerializableType})')
-        tressa(type(state_update.data[2]) is int,
-            'state_update.data[2] must be writer int')
-        tressa(isinstance(state_update.data[3], FIAItemWrapper) or
-               isinstance(state_update.data[3], NoneWrapper),
-            'state_update.data[3] must be FIAItemWrapper|NoneWrapper')
+        tert(isinstance(state_update.data[2], SerializableType),
+            f'state_update.data[2] must be writer {SerializableType}')
+        tert(isinstance(state_update.data[3], FIAItemWrapper) or
+               state_update.data[3] is None,
+            'state_update.data[3] must be FIAItemWrapper|None')
 
         self.positions.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[3], state_update.data[0] == 'o',
@@ -130,8 +137,8 @@ class FIArray:
     @classmethod
     def index_between(cls, first: Decimal, second: Decimal) -> Decimal:
         """Return an index between first and second with a random offset."""
-        tressa(type(first) is Decimal, 'first must be a Decimal')
-        tressa(type(second) is Decimal, 'second must be a Decimal')
+        tert(type(first) is Decimal, 'first must be a Decimal')
+        tert(type(second) is Decimal, 'second must be a Decimal')
 
         return Decimal(first + second)/Decimal(2)
 
@@ -141,7 +148,7 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the index. The FIAItemWrapper
             will be at index 3 of the data attribute of the returned
-            update_class instance.
+            update_class instance. Raises TypeError for invalid item.
         """
         fia_item = FIAItemWrapper(
             value=item,
@@ -170,7 +177,8 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between first and
             second. The FIAItemWrapper will be at index 3 of the data
-            attribute of the returned update_class instance.
+            attribute of the returned update_class instance. Raises
+            TypeError for invalid item.
         """
         first_index = first.index.value
         second_index = second.index.value
@@ -186,7 +194,9 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item before the other item. The
             FIAItemWrapper will be at index 3 of the data attribute of
-            the returned update_class instance.
+            the returned update_class instance. Raises UsageError if
+            other does not already have a position. Raises TypeError for
+            invalid item.
         """
         tressa(other in self.read_full(inject=inject),
                'other must already be assigned a position')
@@ -211,7 +221,9 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item after the other item. The
             FIAItemWrapper will be at index 3 of the data attribute of
-            the returned update_class instance.
+            the returned update_class instance. Raises UsageError if
+            other does not already have a position. Raises TypeError for
+            invalid item.
         """
         tressa(other in self.read_full(inject=inject), 'other must already be assigned a position')
 
@@ -234,7 +246,9 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between 0 and the
             first item. The FIAItemWrapper will be at index 3 of the
-            data attribute of the returned update_class instance.
+            data attribute of the returned update_class instance. Raises
+            UsageError if other does not already have a position. Raises
+            TypeError for invalid item.
         """
         if len(self.read_full(inject=inject)) > 0:
             first = self.read_full(inject=inject)[0]
@@ -253,7 +267,9 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between the last
             item and 1. The FIAItemWrapper will be at index 3 of the
-            data attribute of the returned update_class instance.
+            data attribute of the returned update_class instance. Raises
+            UsageError if other does not already have a position. Raises
+            TypeError for invalid item.
         """
         if len(self.read_full(inject=inject)) > 0:
             last = self.read_full(inject=inject)[-1]
@@ -276,16 +292,18 @@ class FIArray:
             before the before, or directly after the after, or
             halfway between before and after. The FIAItemWrapper will be
             at index 3 of the data attribute of the returned
-            update_class instance.
+            update_class instance. Raises UsageError if one of new_index,
+            before, or after is not set. Raises TypeError for invalid
+            item, writer, new_index, before, or after.
         """
         tressa(new_index is not None or before is not None or
                after is not None,
                'at least one must be specified: new_index, before, or after')
-        tressa(new_index is None or type(new_index) is Decimal,
+        tert(new_index is None or type(new_index) is Decimal,
                'new_index must be Decimal|NoneType')
-        tressa(before is None or isinstance(before, FIAItemWrapper),
+        tert(before is None or isinstance(before, FIAItemWrapper),
                'before must be FIAItemWrapper|NoneType')
-        tressa(after is None or isinstance(after, FIAItemWrapper),
+        tert(after is None or isinstance(after, FIAItemWrapper),
                'after must be FIAItemWrapper|NoneType')
 
         if item in self.cache_full:
@@ -336,7 +354,7 @@ class FIArray:
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Evenly distribute the item indices. Returns tuple of
             update_class (StateUpdate by default) that encode the index
-            updates.
+            updates. Does not apply the updates locally.
         """
         index_space = Decimal("1")/Decimal(len(self.read()) + 1)
         updates = []
@@ -363,7 +381,8 @@ class FIArray:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -373,8 +392,10 @@ class FIArray:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item. Index 3 of the data
             attribute of the returned update_class instance will be the
-            NoneWrapper tombstone.
+            NoneWrapper tombstone. Raises TypeError for invalid item.
         """
+        tert(isinstance(item, FIAItemWrapper), 'item must be FIAItemWrapper')
+
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
@@ -382,7 +403,7 @@ class FIArray:
                 'r',
                 BytesWrapper(item.uuid),
                 writer,
-                NoneWrapper(),
+                None,
             )
         )
 
@@ -404,15 +425,16 @@ class FIArray:
         self.cache_full = items
         self.cache = None
 
-    def update_cache(self, uuid: BytesWrapper, item: FIAItemWrapper|NoneWrapper,
+    def update_cache(self, uuid: BytesWrapper, item: FIAItemWrapper|None,
                      visible: bool, /, *, inject: dict = {}) -> None:
         """Updates cache_full by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
-            the bisect algorithm if necessary. Resets cache.
+            the bisect algorithm if necessary. Resets cache. Raises
+            TypeError for invalid item or visible.
         """
-        tressa(isinstance(item, FIAItemWrapper) or isinstance(item, NoneWrapper),
-               'item must be FIAItemWrapper|NoneWrapper')
-        tressa(type(visible) is bool, 'visible must be bool')
+        tert(isinstance(item, FIAItemWrapper) or item is None,
+               'item must be FIAItemWrapper|None')
+        tert(type(visible) is bool, 'visible must be bool')
 
         positions = self.positions.read(inject={**globals(), **inject})
 

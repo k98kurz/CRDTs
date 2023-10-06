@@ -7,7 +7,7 @@ from .datawrappers import (
     CTDataWrapper,
     NoneWrapper,
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .lwwregister import LWWRegister
 from .merkle import get_merkle_history, resolve_merkle_histories
@@ -31,13 +31,14 @@ class LWWMap:
                 clock: ClockProtocol = None
     ) -> None:
         """Initialize an LWWMap from an ORSet of names, a list of
-            LWWRegisters, and a shared clock.
+            LWWRegisters, and a shared clock. Raises TypeError or
+            UsageError for invalid parameters.
         """
-        tressa(type(names) is ORSet or names is None,
+        tert(type(names) is ORSet or names is None,
             'names must be an ORSet or None')
-        tressa(type(registers) is dict or registers is None,
+        tert(type(registers) is dict or registers is None,
             'registers must be a dict mapping names to LWWRegisters or None')
-        tressa(isinstance(clock, ClockProtocol) or clock is None,
+        tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
 
         names = ORSet() if names is None else names
@@ -49,7 +50,7 @@ class LWWMap:
         for name in registers:
             tressa(name in names.observed or name in names.removed,
                 'each register name must be in the names ORSet')
-            tressa(type(registers[name]) is LWWRegister,
+            tert(type(registers[name]) is LWWRegister,
                 'each element of registers must be an LWWRegister')
             registers[name].clock = clock
 
@@ -58,6 +59,9 @@ class LWWMap:
         self.clock = clock
 
     def pack(self) -> bytes:
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([
             self.clock,
             self.names,
@@ -66,6 +70,9 @@ class LWWMap:
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> LWWMap:
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         clock, names, registers = unpack(data, inject={**globals(), **inject})
         return cls(names, registers, clock)
 
@@ -80,26 +87,28 @@ class LWWMap:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> LWWMap:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError for invalid state_update.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
+        tert(type(state_update.data) is tuple,
             'state_update.data must be tuple of (str, Hashable, int, SerializableType)')
-        tressa(len(state_update.data) == 4,
+        vert(len(state_update.data) == 4,
             'state_update.data must be tuple of (str, Hashable, int, SerializableType)')
 
         op, name, writer, value = state_update.data
-        tressa(type(op) is str and op in ('o', 'r'),
+        tert(type(op) is str and op in ('o', 'r'),
             "state_update.data[0] must be str op one of ('o', 'r')")
-        tressa(isinstance(name, Hashable),
+        tert(isinstance(name, Hashable),
             'state_update.data[1] must be Hashable name')
-        tressa(isinstance(name, SerializableType),
+        tert(isinstance(name, SerializableType),
             'state_update.data[1] must be SerializableType name')
-        tressa(isinstance(writer, SerializableType),
+        tert(isinstance(writer, SerializableType),
             f'state_update.data[2] must be writer SerializableType ({SerializableType})')
-        tressa(isinstance(value, SerializableType),
+        tert(isinstance(value, SerializableType),
             'state_update.data[3] must be SerializableType value')
 
         ts = state_update.ts
@@ -191,7 +200,7 @@ class LWWMap:
                 history.append(update_class(
                     clock_uuid=update.clock_uuid,
                     ts=update.ts,
-                    data=(update.data[0], name, 0, NoneWrapper())
+                    data=(update.data[0], name, 0, None)
                 ))
 
         return tuple(history)
@@ -210,7 +219,8 @@ class LWWMap:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -219,15 +229,15 @@ class LWWMap:
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
-            nodes.
+            nodes. Raises TypeError for invalid name, value, or writer.
         """
-        tressa(isinstance(name, Hashable),
+        tert(isinstance(name, Hashable),
             'name must be a Hashable')
-        tressa(isinstance(name, SerializableType),
+        tert(isinstance(name, SerializableType),
             f'name must be a SerializableType ({SerializableType})')
-        tressa(isinstance(value, SerializableType),
+        tert(isinstance(value, SerializableType),
             f'value must be a SerializableType ({SerializableType})')
-        tressa(isinstance(writer, SerializableType),
+        tert(isinstance(writer, SerializableType),
                f'writer must be a SerializableType ({SerializableType})')
 
         state_update = update_class(
@@ -241,12 +251,14 @@ class LWWMap:
 
     def unset(self, name: Hashable, writer: SerializableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
-        """Removes the key name from the dict. Returns a StateUpdate."""
-        tressa(isinstance(name, Hashable),
+        """Removes the key name from the dict. Returns a StateUpdate.
+            Raises TypeError for invalid name or writer.
+        """
+        tert(isinstance(name, Hashable),
             'name must be a Hashable')
-        tressa(isinstance(name, SerializableType),
+        tert(isinstance(name, SerializableType),
             f'name must be a SerializableType ({SerializableType})')
-        tressa(isinstance(writer, SerializableType),
+        tert(isinstance(writer, SerializableType),
                f'writer must be a SerializableType ({SerializableType})')
 
         state_update = update_class(

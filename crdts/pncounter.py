@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .scalarclock import ScalarClock
@@ -21,7 +21,9 @@ class PNCounter:
     clock: ClockProtocol = field(default_factory=ScalarClock)
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([
             self.positive,
             self.negative,
@@ -29,10 +31,10 @@ class PNCounter:
         ])
 
     @classmethod
-    def unpack(cls, data: bytes, inject: dict = {}) -> PNCounter:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 20, 'data must be more than 20 bytes')
+    def unpack(cls, data: bytes, /, *, inject: dict = {}) -> PNCounter:
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         dependencies = {**globals(), **inject}
         positive, negative, clock = unpack(data, inject=dependencies)
         return cls(
@@ -46,18 +48,21 @@ class PNCounter:
         return self.positive - self.negative
 
     def update(self, state_update: StateUpdateProtocol) -> PNCounter:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError for invalid state_update,
+            state_update.clock_uuid, or state_update.data.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
+        tert(type(state_update.data) is tuple,
             'state_update.data must be tuple of 2 ints')
-        tressa(len(state_update.data) == 2,
+        vert(len(state_update.data) == 2,
             'state_update.data must be tuple of 2 ints')
-        tressa(type(state_update.data[0]) is int,
+        tert(type(state_update.data[0]) is int,
             'state_update.data must be tuple of 2 ints')
-        tressa(type(state_update.data[1]) is int,
+        tert(type(state_update.data[1]) is int,
             'state_update.data must be tuple of 2 ints')
 
         self.positive = max([self.positive, state_update.data[0]])
@@ -108,7 +113,8 @@ class PNCounter:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -116,10 +122,11 @@ class PNCounter:
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
-            propagated to the network.
+            propagated to the network. Raises TypeError or ValueError
+            for invalid amount or update_class.
         """
-        tressa(type(amount) is int, 'amount must be int')
-        tressa(amount > 0, 'amount must be positive')
+        tert(type(amount) is int, 'amount must be int')
+        vert(amount > 0, 'amount must be positive')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,
@@ -134,10 +141,11 @@ class PNCounter:
                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Decrease the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
-            propagated to the network.
+            propagated to the network. Raises TypeError or ValueError
+            for invalid amount or update_class.
         """
-        tressa(type(amount) is int, 'amount must be int')
-        tressa(amount > 0, 'amount must be positive')
+        tert(type(amount) is int, 'amount must be int')
+        vert(amount > 0, 'amount must be positive')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

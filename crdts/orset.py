@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -28,7 +28,9 @@ class ORSet:
     cache: Optional[tuple] = field(default=None)
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([
             self.observed,
             self.observed_metadata,
@@ -39,15 +41,13 @@ class ORSet:
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> ORSet:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 19, 'data must be more than 19 bytes')
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         observed, observed_metadata, removed, removed_metadata, clock = unpack(
             data,
             inject={**globals(), **inject}
         )
-        # observed_metadata = {k:v for k,v in observed_metadata}
-        # removed_metadata = {k:v for k,v in removed_metadata}
         return cls(observed, observed_metadata, removed, removed_metadata, clock)
 
     def read(self, /, *, inject: dict = {}) -> set[SerializableType]:
@@ -64,17 +64,17 @@ class ORSet:
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> ORSet:
         """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
+        tert(type(state_update.data) is tuple,
             'state_update.data must be tuple')
-        tressa(len(state_update.data) == 2,
+        vert(len(state_update.data) == 2,
             'state_update.data must be 2 long')
-        tressa(state_update.data[0] in ('o', 'r'),
+        vert(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(isinstance(state_update.data[1], SerializableType),
+        tert(isinstance(state_update.data[1], SerializableType),
             f'state_update.data[1] must be SerializableType ({SerializableType})')
 
         op, member = state_update.data
@@ -209,7 +209,8 @@ class ORSet:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -217,9 +218,11 @@ class ORSet:
                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that adds the given member to the observed set. The
-            member will be in the data attribute at index 1.
+            member will be in the data attribute at index 1. Raises
+            TypeError for invalid member (must be SerializableType that
+            is also Hashable).
         """
-        tressa(isinstance(member, SerializableType),
+        tert(isinstance(member, SerializableType),
                f'member must be SerializableType ({SerializableType})')
 
         # member = str(member) if type(member) is int else member
@@ -235,9 +238,13 @@ class ORSet:
 
     def remove(self, member: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
-        """Adds the given member to the removed set."""
-        tressa(isinstance(member, SerializableType),
-               f'member must be {str(SerializableType)}')
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that adds the given member to the removed set.
+            Raises TypeError for invalid member (must be
+            SerializableType that is also Hashable).
+        """
+        tert(isinstance(member, SerializableType),
+               f'member must be SerializableType ({SerializableType})')
 
         # member = str(member) if type(member) is int else member
         state_update = update_class(

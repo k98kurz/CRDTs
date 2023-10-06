@@ -7,7 +7,7 @@ from .datawrappers import (
     CTDataWrapper,
     NoneWrapper,
 )
-from .errors import tressa, tert
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -28,12 +28,13 @@ class CausalTree:
     cache: list[CTDataWrapper]
 
     def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
-        """Initialize a CausalTree from an LWWMap of item positions and a
-            shared clock.
+        """Initialize a CausalTree from an LWWMap of item positions and
+            a shared clock. Raises TypeError for invalid positions or
+            clock.
         """
-        tressa(type(positions) is LWWMap or positions is None,
+        tert(type(positions) is LWWMap or positions is None,
             'positions must be an LWWMap or None')
-        tressa(isinstance(clock, ClockProtocol) or clock is None,
+        tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
 
         clock = ScalarClock() if clock is None else clock
@@ -44,12 +45,16 @@ class CausalTree:
         self.cache = None
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return self.positions.pack()
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> CausalTree:
-        """Unpack the data bytes string into an instance."""
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         positions = LWWMap.unpack(data, inject=inject)
         return cls(positions=positions, clock=positions.clock)
 
@@ -92,19 +97,23 @@ class CausalTree:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> CausalTree:
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError for invalid state_update.clock_uuid
+            or state_update.data.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
+        tert(type(state_update.data) is tuple,
             'state_update.data must be tuple')
-        tressa(state_update.data[0] in ('o', 'r'),
+        vert(state_update.data[0] in ('o', 'r'),
             'state_update.data[0] must be in (\'o\', \'r\')')
-        tressa(isinstance(state_update.data[1], SerializableType),
+        tert(isinstance(state_update.data[1], SerializableType),
             f'state_update.data[1] must be SerializableType ({SerializableType})')
-        tressa(isinstance(state_update.data[2], SerializableType),
+        tert(isinstance(state_update.data[2], SerializableType),
             f'state_update.data[2] must be writer SerializableType ({SerializableType})')
-        tressa(type(state_update.data[3]) is CTDataWrapper,
+        tert(type(state_update.data[3]) is CTDataWrapper,
             'state_update.data[3] must be CTDataWrapper')
 
         inject = {**globals(), **inject}
@@ -144,7 +153,8 @@ class CausalTree:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -152,13 +162,16 @@ class CausalTree:
             parent_uuid: bytes = b'', /, *,
             update_class: type[StateUpdateProtocol] = StateUpdate,
             inject: dict = {}) -> StateUpdateProtocol:
-        """Creates, applies, and returns a update_class (StateUpdate by
-            default) that puts the item after the parent.
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that puts the item after the parent. Raises
+            TypeError on invalid item, writer, uuid, or parent_uuid.
         """
-        tressa(isinstance(item, SerializableType),
+        tert(isinstance(item, SerializableType),
                f'item must be SerializableType ({SerializableType})')
-        tressa(type(uuid) is bytes, "uuid must be bytes")
-        tressa(type(parent_uuid) is bytes, "parent_uuid must be bytes")
+        tert(isinstance(writer, SerializableType),
+               f'writer must be SerializableType ({SerializableType})')
+        tert(type(uuid) is bytes, "uuid must be bytes")
+        tert(type(parent_uuid) is bytes, "parent_uuid must be bytes")
         inject = {**globals(), **inject}
         state_update = update_class(
             clock_uuid=self.clock.uuid,
@@ -177,7 +190,8 @@ class CausalTree:
                   parent_uuid: bytes, /, *,
                   update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
-            after the parent item.
+            after the parent item. Raises TypeError on invalid item,
+            writer, or parent_uuid.
         """
         uuid = uuid4().bytes
 
@@ -191,7 +205,7 @@ class CausalTree:
             item. Any ties for first place will be resolved by making
             the new item the parent of those other first items, and
             those update_class instances will also be created, applied,
-            and returned.
+            and returned. Raises TypeError on invalid item or writer.
         """
         updates: list[StateUpdateProtocol] = []
         updates.append(self.put(item, writer, uuid4().bytes, b'',
@@ -213,9 +227,10 @@ class CausalTree:
                   update_class: type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that moves the item to after the new parent.
+            default) that moves the item to after the new parent. Raises
+            TypeError on invalid item, writer, or parent_uuid.
         """
-        tressa(isinstance(item, CTDataWrapper), "item must be CTDataWrapper")
+        tert(isinstance(item, CTDataWrapper), "item must be CTDataWrapper")
 
         item.parent_uuid = parent_uuid
 
@@ -236,7 +251,8 @@ class CausalTree:
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that deletes the item specified by ctdw.
+            default) that deletes the item specified by ctdw. Raises
+            TypeError or UsageError on invalid ctdw or writer.
         """
         tert(isinstance(ctdw, CTDataWrapper), 'ctdw must be instance of CTDataWrapper')
         tressa(ctdw.uuid in self.positions.registers,
@@ -283,9 +299,10 @@ class CausalTree:
     def update_cache(self, item: CTDataWrapper, /, *, inject: dict = {}) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
-            the bisect algorithm if necessary. Resets the cache.
+            the bisect algorithm if necessary. Resets the cache. Raises
+            TypeError on invalid item.
         """
-        tressa(isinstance(item, CTDataWrapper), 'item must be CTDataWrapper')
+        tert(isinstance(item, CTDataWrapper), 'item must be CTDataWrapper')
 
         positions = self.positions.read(inject=inject)
 

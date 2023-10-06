@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa
+from .errors import tert, vert
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .scalarclock import ScalarClock
@@ -16,14 +16,16 @@ class Counter:
     clock: ClockProtocol = field(default_factory=ScalarClock)
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([self.counter, self.clock])
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> Counter:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 8, 'data must be more than 8 bytes')
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         counter, clock = unpack(data, inject={**globals(), **inject})
         return cls(counter, clock)
 
@@ -33,12 +35,15 @@ class Counter:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> Counter:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError on invalid state_update.clock_uuid
+            or state_update.data.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is int, 'state_update.data must be an int')
+        tert(type(state_update.data) is int, 'state_update.data must be an int')
 
         self.counter = max([self.counter, state_update.data])
         self.clock.update(state_update.ts)
@@ -85,7 +90,8 @@ class Counter:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -94,10 +100,11 @@ class Counter:
                  inject: dict = {}) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
-            propagated to the network.
+            propagated to the network. Raises TypeError or ValueError
+            for invalid amount.
         """
-        tressa(type(amount) is int, 'amount must be int')
-        tressa(amount > 0, 'amount must be positive')
+        tert(type(amount) is int, 'amount must be int')
+        vert(amount > 0, 'amount must be positive')
 
         state_update = update_class(
             clock_uuid=self.clock.uuid,

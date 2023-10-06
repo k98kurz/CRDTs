@@ -283,7 +283,7 @@ class TestFIArray(unittest.TestCase):
         assert update.data[0] == 'r'
         assert isinstance(update.data[1], datawrappers.BytesWrapper)
         assert update.data[2] == 1
-        assert update.data[3]== datawrappers.NoneWrapper()
+        assert update.data[3] is None
 
     def test_FIArray_delete_removes_item(self):
         fiarray = classes.FIArray()

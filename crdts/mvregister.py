@@ -8,7 +8,7 @@ from .datawrappers import (
     RGAItemWrapper,
     StrWrapper,
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -32,10 +32,20 @@ class MVRegister:
                  values: list[SerializableType] = [],
                  clock: ClockProtocol = None,
                  last_update: Any = None) -> None:
+        """Initialize an MVRegister instance from name, values, clock,
+            and last_update (all but the first are optional). Raises
+            TypeError for invalid name, values, or clock.
+        """
         if clock is None:
             clock = ScalarClock()
         if last_update is None:
             last_update = clock.default_ts
+
+        tert(isinstance(name, SerializableType), f'name must be {SerializableType}')
+        tert(isinstance(values, list), f'values must be list[{SerializableType}]')
+        tert(isinstance(clock, ClockProtocol), 'clock must be ClockProtocol or None')
+        tert(all([isinstance(v, SerializableType) for v in values]),
+             f'values must be list[{SerializableType}]')
 
         self.name = name
         self.values = values
@@ -43,7 +53,9 @@ class MVRegister:
         self.last_update = last_update
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([
             self.name,
             self.clock,
@@ -53,9 +65,9 @@ class MVRegister:
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> MVRegister:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 26, 'data must be at least 26 bytes')
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         name, clock, last_update, values = unpack(
             data, inject={**globals(), **inject}
         )
@@ -73,15 +85,19 @@ class MVRegister:
     @classmethod
     def compare_values(cls, value1: SerializableType,
                        value2: SerializableType) -> bool:
+        """Return True if value1 is greater than value2, else False."""
         return pack(value1) > pack(value2)
 
     def update(self, state_update: StateUpdateProtocol) -> MVRegister:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError for invalid state_update,
+            state_update.clock_uuid, or state_update.data.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, SerializableType),
+        tert(isinstance(state_update.data, SerializableType),
             f'state_update.data must be SerializableType ({SerializableType})')
 
         # set the value if the update happens after current state
@@ -139,16 +155,18 @@ class MVRegister:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
     def write(self, value: SerializableType, /, *,
               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
-            update_class (StateUpdate by default).
+            update_class (StateUpdate by default). Raises TypeError for
+            invalid value.
         """
-        tressa(isinstance(value, SerializableType),
+        tert(isinstance(value, SerializableType),
             f'value must be SerializableType ({SerializableType})')
 
         state_update = update_class(

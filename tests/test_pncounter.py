@@ -119,7 +119,7 @@ class TestPNCounter(unittest.TestCase):
         assert 'StrClock' in str(e.exception)
 
         # inject and repeat
-        unpacked = classes.PNCounter.unpack(packed, {'StrClock': StrClock})
+        unpacked = classes.PNCounter.unpack(packed, inject={'StrClock': StrClock})
 
         assert unpacked.clock == pnc.clock
         assert unpacked.read() == pnc.read()

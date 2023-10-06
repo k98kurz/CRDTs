@@ -94,10 +94,16 @@ class Document:
         self.parts = parts
 
     def pack(self) -> bytes:
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         ...
 
     @classmethod
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> Document:
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         ...
 
     def update(self, state_update: StateUpdateProtocol, /, *,
@@ -126,6 +132,7 @@ class Document:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)

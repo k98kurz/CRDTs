@@ -8,7 +8,7 @@ from .datawrappers import (
     RGAItemWrapper,
     StrWrapper,
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -33,11 +33,21 @@ class LWWRegister:
                  value: SerializableType = None,
                  clock: ClockProtocol = None,
                  last_update: Any = None,
-                 last_writer: SerializableType = 0) -> None:
+                 last_writer: SerializableType = None) -> None:
+        """Initialize an LWWRegister from a name, a value, and a shared
+            clock. Raises TypeError for invalid parameters.
+        """
         if clock is None:
             clock = ScalarClock()
         if last_update is None:
             last_update = clock.default_ts
+
+        tert(isinstance(name, SerializableType), f'name must be {SerializableType}')
+        tert(isinstance(value, SerializableType), f'value must be {SerializableType}')
+        tert(isinstance(clock, ClockProtocol) or clock is None,
+             f'clock must be ClockProtocol or None')
+        tert(isinstance(last_writer, SerializableType),
+             f'last_writer must be {SerializableType}')
 
         self.name = name
         self.value = value
@@ -46,7 +56,9 @@ class LWWRegister:
         self.last_writer = last_writer
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([
             self.name,
             self.clock,
@@ -57,9 +69,9 @@ class LWWRegister:
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> LWWRegister:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 26, 'data must be at least 26 bytes')
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         name, clock, value, last_update, last_writer = unpack(
             data, inject={**globals(), **inject}
         )
@@ -84,18 +96,21 @@ class LWWRegister:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> LWWRegister:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError, ValueError, or UsageError for invalid
+            state_update.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(type(state_update.data) is tuple,
+        tert(type(state_update.data) is tuple,
             'state_update.data must be tuple of (int, SerializableType)')
-        tressa(len(state_update.data) == 2,
+        vert(len(state_update.data) == 2,
             'state_update.data must be tuple of (int, SerializableType)')
-        tressa(isinstance(state_update.data[0], SerializableType),
+        tert(isinstance(state_update.data[0], SerializableType),
             f'state_update.data[0] must be SerializableType ({SerializableType}) writer_id')
-        tressa(isinstance(state_update.data[1], SerializableType),
+        tert(isinstance(state_update.data[1], SerializableType),
             'state_update.data[1] must be SerializableType')
 
         # set the value if the update happens after current state
@@ -159,7 +174,8 @@ class LWWRegister:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -168,11 +184,12 @@ class LWWRegister:
               inject: dict = {}) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default). Requires a SerializableType
-            writer id for tie breaking.
+            writer id for tie breaking. Raises TypeError for invalid
+            value or writer.
         """
-        tressa(isinstance(value, SerializableType) or value is None,
+        tert(isinstance(value, SerializableType) or value is None,
             'value must be a SerializableType or None')
-        tressa(isinstance(writer, SerializableType),
+        tert(isinstance(writer, SerializableType),
                f'writer must be an SerializableType ({SerializableType})')
 
         state_update = update_class(

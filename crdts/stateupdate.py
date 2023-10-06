@@ -1,20 +1,19 @@
 from __future__ import annotations
 from .errors import tert, vert
 from dataclasses import dataclass
-from packify import unpack, pack
+from packify import unpack, pack, SerializableType
 from typing import Any, Hashable
 
 
 @dataclass
 class StateUpdate:
     clock_uuid: bytes
-    ts: Any
+    ts: SerializableType
     data: Hashable
 
     def pack(self) -> bytes:
         """Serialize a StateUpdate. Assumes that all types within
-            update.data and update.ts are either built-in types or
-            PackableProtocols accessible from this scope.
+            update.data and update.ts are packable by packify.
         """
         return pack([
             self.clock_uuid,
@@ -26,7 +25,7 @@ class StateUpdate:
     def unpack(cls, data: bytes, /, *, inject: dict = {}) -> StateUpdate:
         """Deserialize a StateUpdate. Assumes that all types within
             update.data and update.ts are either built-in types or
-            PackableProtocols accessible from this scope.
+            packify.Packables accessible from the inject dict.
         """
         tert(type(data) in (bytes, bytearray), 'data must be bytes or bytearray')
         vert(len(data) >= 12, 'data must be at least 12 long')

@@ -8,7 +8,7 @@ from .datawrappers import (
     NoneWrapper,
     RGAItemWrapper,
 )
-from .errors import tressa
+from .errors import tressa, tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -32,10 +32,12 @@ class RGArray:
     cache: tuple[Any]
 
     def __init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None:
-        """Initialize an RGA from an ORSet of items and a shared clock."""
-        tressa(type(items) in (ORSet, NoneType),
+        """Initialize an RGA from an ORSet of items and a shared clock.
+            Raises TypeError for invalid items or clock.
+        """
+        tert(type(items) in (ORSet, NoneType),
             'items must be ORSet or None')
-        tressa(isinstance(clock, ClockProtocol) or clock is None,
+        tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
 
         items = ORSet() if items is None else items
@@ -48,12 +50,16 @@ class RGArray:
         self.calculate_cache()
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return self.items.pack()
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> RGArray:
-        """Unpack the data bytes string into an instance."""
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         items = ORSet.unpack(data, inject={**globals(), **inject})
         return cls(items=items, clock=items.clock)
 
@@ -82,13 +88,14 @@ class RGArray:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> RGArray:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern).  Raises
+            TypeError or ValueError for invalid amount or update_class.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-
-        tressa(isinstance(state_update.data[1], RGAItemWrapper), 'item must be RGAItemWrapper')
+        tert(isinstance(state_update.data[1], RGAItemWrapper), 'item must be RGAItemWrapper')
 
         self.items.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[1] in self.items.read())
@@ -128,7 +135,8 @@ class RGArray:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 
@@ -137,11 +145,12 @@ class RGArray:
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item. The RGAItemWrapper will be
-            in the data attribute at index 1.
+            in the data attribute at index 1. Raises TypeError for
+            invalid item, writer, or update_class.
         """
-        tressa(isinstance(item, SerializableType),
+        tert(isinstance(item, SerializableType),
                f'item must be SerializableType ({SerializableType})')
-        tressa(isinstance(writer, SerializableType),
+        tert(isinstance(writer, SerializableType),
                f'writer must be SerializableType ({SerializableType})')
 
         ts = self.clock.read()
@@ -158,9 +167,10 @@ class RGArray:
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
-            default) that deletes the specified item.
+            default) that deletes the specified item. Raises TypeError
+            for invalid item or update_class.
         """
-        tressa(isinstance(item, RGAItemWrapper), 'item must be RGAItemWrapper')
+        tert(isinstance(item, RGAItemWrapper), 'item must be RGAItemWrapper')
 
         state_update = self.items.remove(item, update_class=update_class)
 
@@ -184,10 +194,11 @@ class RGArray:
     def update_cache(self, item: RGAItemWrapper, visible: bool) -> None:
         """Updates the cache by finding the correct insertion index for
             the given item, then inserting it there or removing it. Uses
-            the bisect algorithm if necessary. Resets the cache.
+            the bisect algorithm if necessary. Resets the cache. Raises
+            TypeError for invalid item or visible.
         """
-        tressa(isinstance(item, RGAItemWrapper), 'item must be RGAItemWrapper')
-        tressa(type(visible) is bool, 'visible must be bool')
+        tert(isinstance(item, RGAItemWrapper), 'item must be RGAItemWrapper')
+        tert(type(visible) is bool, 'visible must be bool')
 
         if self.cache_full is None:
             self.calculate_cache()

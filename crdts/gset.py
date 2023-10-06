@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa, tert
+from .errors import tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -21,7 +21,9 @@ class GSet:
     metadata: dict[SerializableType, Any] = field(default_factory=dict)
 
     def pack(self) -> bytes:
-        """Pack the data and metadata into a bytes string."""
+        """Pack the data and metadata into a bytes string. Raises
+            packify.UsageError on failure.
+        """
         return pack([
             self.clock,
             self.members,
@@ -30,9 +32,9 @@ class GSet:
 
     @classmethod
     def unpack(cls, data: bytes, inject: dict = {}) -> GSet:
-        """Unpack the data bytes string into an instance."""
-        tressa(type(data) is bytes, 'data must be bytes')
-        tressa(len(data) > 8, 'data must be more than 8 bytes')
+        """Unpack the data bytes string into an instance. Raises
+            packify.UsageError or ValueError on failure.
+        """
         clock, members, metadata = unpack(
             data,
             inject={**globals(), **inject}
@@ -45,12 +47,15 @@ class GSet:
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> GSet:
-        """Apply an update and return self (monad pattern)."""
-        tressa(isinstance(state_update, StateUpdateProtocol),
+        """Apply an update and return self (monad pattern). Raises
+            TypeError or ValueError for invalid state_update.clock_uuid
+            or state_update.data.
+        """
+        tert(isinstance(state_update, StateUpdateProtocol),
             'state_update must be instance implementing StateUpdateProtocol')
-        tressa(state_update.clock_uuid == self.clock.uuid,
+        vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tressa(isinstance(state_update.data, SerializableType),
+        tert(isinstance(state_update.data, SerializableType),
             f'state_update.data must be SerializableType ({SerializableType})')
 
         if state_update.data not in self.members:
@@ -121,7 +126,8 @@ class GSet:
     def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
-            synchronization.
+            synchronization. Raises TypeError or ValueError for invalid
+            input.
         """
         return resolve_merkle_histories(self, history=history)
 

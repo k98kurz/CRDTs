@@ -33,7 +33,8 @@ def get_merkle_history(crdt: CRDTProtocol, /, *,
 def resolve_merkle_histories(crdt: CRDTProtocol, history: list[bytes, list[bytes]]) -> list[bytes]:
     """Accept a history of form [root, leaves] from another node.
         Return the leaves that need to be resolved and merged for
-        synchronization.
+        synchronization. Raises TypeError or ValueError for invalid
+        input.
     """
     tert(type(history) in (list, tuple), 'history must be [[bytes, ], bytes]')
     vert(len(history) >= 2, 'history must be [[bytes, ], bytes]')
