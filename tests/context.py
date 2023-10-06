@@ -83,10 +83,10 @@ class StrClock:
 
         return cls(counter=str(counter, 'utf-8'), uuid=uuid)
 
-    @classmethod
-    def serialize_ts(cls, ts: str) -> bytes:
+    @staticmethod
+    def serialize_ts(ts: str) -> bytes:
         return bytes(ts, 'utf-8')
 
-    @classmethod
-    def deserialize_ts(cls, ts: bytes, /, *, inject: dict = {}) -> str:
+    @staticmethod
+    def deserialize_ts(ts: bytes, /, *, inject: dict = {}) -> str:
         return str(ts, 'utf-8')

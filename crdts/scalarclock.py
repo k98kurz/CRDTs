@@ -86,13 +86,13 @@ class ScalarClock:
             data
         ))
 
-    @classmethod
-    def serialize_ts(cls, ts: int) -> bytes:
+    @staticmethod
+    def serialize_ts(ts: int) -> bytes:
         """Serialize a timestamp to bytes."""
         return pack(ts)
 
-    @classmethod
-    def deserialize_ts(cls, ts: bytes, /, *, inject: dict = {}) -> int:
+    @staticmethod
+    def deserialize_ts(ts: bytes, /, *, inject: dict = {}) -> int:
         """Deserialize a timestamp from bytes."""
         return unpack(ts, inject=inject)
 

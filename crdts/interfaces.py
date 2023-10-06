@@ -44,13 +44,13 @@ class ClockProtocol(Protocol):
         """Unpack a clock from bytes."""
         ...
 
-    @classmethod
-    def serialize_ts(cls, ts: Any) -> bytes:
+    @staticmethod
+    def serialize_ts(ts: Any) -> bytes:
         """Serialize a timestamp to bytes."""
         ...
 
-    @classmethod
-    def deserialize_ts(cls, ts: bytes, /, *, inject: dict = {}) -> Any:
+    @staticmethod
+    def deserialize_ts(ts: bytes, /, *, inject: dict = {}) -> Any:
         """Deserialize a timestamp from bytes."""
         ...
 
