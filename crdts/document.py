@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from packify import pack, unpack
 from types import NoneType
-from typing import Any
+from typing import Any, Type
 from uuid import uuid4
 
 
@@ -111,7 +111,7 @@ class Document:
         ...
 
     def update_part(self, part: Identifier, update: StateUpdateProtocol, /, *,
-                    update_class: type[StateUpdateProtocol] = StateUpdate,
+                    update_class: Type[StateUpdateProtocol] = StateUpdate,
                     inject: dict = {}) -> StateUpdateProtocol:
         ...
 
@@ -119,7 +119,7 @@ class Document:
         ...
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {

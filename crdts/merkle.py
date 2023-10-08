@@ -2,10 +2,11 @@ from .errors import tert, vert
 from .interfaces import CRDTProtocol, StateUpdateProtocol
 from .stateupdate import StateUpdate
 from hashlib import sha256
+from typing import Type
 
 
 def get_merkle_history(crdt: CRDTProtocol, /, *,
-                        update_class: type[StateUpdateProtocol] = StateUpdate
+                        update_class: Type[StateUpdateProtocol] = StateUpdate
                         ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
     """Get a Merklized history for the StateUpdates of the form
         [root, [content_id for update in crdt.history()], {

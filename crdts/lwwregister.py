@@ -8,7 +8,7 @@ from .datawrappers import (
     RGAItemWrapper,
     StrWrapper,
 )
-from .errors import tressa, tert, vert
+from .errors import tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -18,7 +18,7 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from packify import SerializableType, pack, unpack
-from typing import Any
+from typing import Any, Type
 
 
 class LWWRegister:
@@ -143,7 +143,8 @@ class LWWRegister:
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate
+                ) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -161,7 +162,7 @@ class LWWRegister:
         ),)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -180,7 +181,7 @@ class LWWRegister:
         return resolve_merkle_histories(self, history=history)
 
     def write(self, value: SerializableType, writer: SerializableType, /, *,
-              update_class: type[StateUpdateProtocol] = StateUpdate,
+              update_class: Type[StateUpdateProtocol] = StateUpdate,
               inject: dict = {}) -> StateUpdateProtocol:
         """Writes the new value to the register and returns an
             update_class (StateUpdate by default). Requires a SerializableType

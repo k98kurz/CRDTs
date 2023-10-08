@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa, tert, vert
+from .errors import tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -10,15 +10,14 @@ from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from packify import SerializableType, pack, unpack
-from typing import Any, Optional
+from typing import Any, Optional, Type
 
 
 @dataclass
 class ORSet:
     """Implements the Observed Removed Set (ORSet) CRDT. Comprised of
         two Sets with a read method that removes the removed set members
-        from the observed set. Add-biased. Note that int members are
-        converted to str for json compatibility.
+        from the observed set. Add-biased.
     """
     observed: set[SerializableType] = field(default_factory=set)
     observed_metadata: dict[SerializableType, StateUpdateProtocol] = field(default_factory=dict)
@@ -87,7 +86,10 @@ class ORSet:
                 not self.clock.is_later(self.removed_metadata[member], ts)
             ):
                 self.observed.add(member)
-                oldts = self.observed_metadata[member] if member in self.observed_metadata else self.clock.default_ts
+                if member in self.observed_metadata:
+                    oldts = self.observed_metadata[member]
+                else:
+                    oldts = self.clock.default_ts
                 if self.clock.is_later(ts, oldts):
                     self.observed_metadata[member] = ts
 
@@ -106,7 +108,10 @@ class ORSet:
                 self.clock.is_later(ts, self.observed_metadata[member])
             ):
                 self.removed.add(member)
-                oldts = self.removed_metadata[member] if member in self.removed_metadata else self.clock.default_ts
+                if member in self.removed_metadata:
+                    oldts = self.removed_metadata[member]
+                else:
+                    oldts = self.clock.default_ts
                 if self.clock.is_later(ts, oldts):
                     self.removed_metadata[member] = ts
 
@@ -159,7 +164,8 @@ class ORSet:
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate
+                ) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -168,9 +174,11 @@ class ORSet:
         updates = []
 
         for o in self.observed:
-            if from_ts is not None and self.clock.is_later(from_ts, self.observed_metadata[o]):
+            if from_ts is not None and \
+                self.clock.is_later(from_ts, self.observed_metadata[o]):
                 continue
-            if until_ts is not None and self.clock.is_later(self.observed_metadata[o], until_ts):
+            if until_ts is not None and \
+                self.clock.is_later(self.observed_metadata[o], until_ts):
                 continue
             updates.append(
                 update_class(
@@ -181,9 +189,11 @@ class ORSet:
             )
 
         for r in self.removed:
-            if from_ts is not None and self.clock.is_later(from_ts, self.removed_metadata[r]):
+            if from_ts is not None and \
+                self.clock.is_later(from_ts, self.removed_metadata[r]):
                 continue
-            if until_ts is not None and self.clock.is_later(self.removed_metadata[r], until_ts):
+            if until_ts is not None and \
+                self.clock.is_later(self.removed_metadata[r], until_ts):
                 continue
             updates.append(
                 update_class(
@@ -196,7 +206,7 @@ class ORSet:
         return tuple(updates)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -206,7 +216,8 @@ class ORSet:
         """
         return get_merkle_history(self, update_class=update_class)
 
-    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]
+                                 ) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization. Raises TypeError or ValueError for invalid
@@ -215,7 +226,8 @@ class ORSet:
         return resolve_merkle_histories(self, history=history)
 
     def observe(self, member: SerializableType, /, *,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                update_class: Type[StateUpdateProtocol] = StateUpdate
+                ) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that adds the given member to the observed set. The
             member will be in the data attribute at index 1. Raises
@@ -225,7 +237,6 @@ class ORSet:
         tert(isinstance(member, SerializableType),
                f'member must be SerializableType ({SerializableType})')
 
-        # member = str(member) if type(member) is int else member
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),
@@ -237,7 +248,8 @@ class ORSet:
         return state_update
 
     def remove(self, member: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+               update_class: Type[StateUpdateProtocol] = StateUpdate
+               ) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that adds the given member to the removed set.
             Raises TypeError for invalid member (must be
@@ -246,7 +258,6 @@ class ORSet:
         tert(isinstance(member, SerializableType),
                f'member must be SerializableType ({SerializableType})')
 
-        # member = str(member) if type(member) is int else member
         state_update = update_class(
             clock_uuid=self.clock.uuid,
             ts=self.clock.read(),

@@ -16,7 +16,7 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from packify import pack, unpack, SerializableType
-from typing import Any
+from typing import Any, Type
 
 
 class MVMap:
@@ -31,13 +31,14 @@ class MVMap:
                 clock: ClockProtocol = None
     ) -> None:
         """Initialize an MVMap from an ORSet of names, a list of
-            MVRegisters, and a shared clock.
+            MVRegisters, and a shared clock. Raises TypeError or
+            UsageError for invalid arguments.
         """
-        tressa(type(names) is ORSet or names is None,
+        tert(type(names) is ORSet or names is None,
             'names must be an ORSet or None')
-        tressa(type(registers) is dict or registers is None,
+        tert(type(registers) is dict or registers is None,
             'registers must be a dict mapping names to MVRegisters or None')
-        tressa(isinstance(clock, ClockProtocol) or clock is None,
+        tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
 
         names = ORSet() if names is None else names
@@ -49,7 +50,7 @@ class MVMap:
         for name in registers:
             tressa(name in names.observed or name in names.removed,
                 'each register name must be in the names ORSet')
-            tressa(type(registers[name]) is MVRegister,
+            tert(type(registers[name]) is MVRegister,
                 'each element of registers must be an MVRegister')
             registers[name].clock = clock
 
@@ -159,7 +160,7 @@ class MVMap:
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdateProtocols that will
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.
@@ -199,7 +200,7 @@ class MVMap:
         return tuple(history)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -218,7 +219,7 @@ class MVMap:
         return resolve_merkle_histories(self, history=history)
 
     def set(self, name: SerializableType, value: SerializableType, /,
-                *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
             nodes. Raises TypeError for invalid name or value.
@@ -238,7 +239,7 @@ class MVMap:
         return state_update
 
     def unset(self, name: SerializableType, /, *,
-              update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+              update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate.
             Raises TypeError for invalid name.
         """

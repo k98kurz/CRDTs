@@ -16,7 +16,7 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from packify import SerializableType, pack, unpack
-from typing import Any, Hashable
+from typing import Any, Hashable, Type
 
 
 class LWWMap:
@@ -166,7 +166,7 @@ class LWWMap:
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdateProtocols that will
             converge to the underlying data. Useful for
             resynchronization by replaying updates from divergent nodes.
@@ -206,7 +206,7 @@ class LWWMap:
         return tuple(history)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -226,7 +226,7 @@ class LWWMap:
 
     def set(self, name: Hashable, value: SerializableType,
                 writer: SerializableType, /, *,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Extends the dict with name: value. Returns an update_class
             (StateUpdate by default) that should be propagated to all
             nodes. Raises TypeError for invalid name, value, or writer.
@@ -250,7 +250,7 @@ class LWWMap:
         return state_update
 
     def unset(self, name: Hashable, writer: SerializableType, /, *,
-              update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+              update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Removes the key name from the dict. Returns a StateUpdate.
             Raises TypeError for invalid name or writer.
         """

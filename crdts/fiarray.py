@@ -18,8 +18,8 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from bisect import bisect
 from decimal import Decimal
-from packify import SerializableType, pack, unpack
-from typing import Any
+from packify import SerializableType, pack
+from typing import Any, Type
 from uuid import uuid4
 
 
@@ -123,7 +123,7 @@ class FIArray:
         return self.positions.checksums(from_ts=from_ts, until_ts=until_ts)
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
@@ -143,7 +143,7 @@ class FIArray:
         return Decimal(first + second)/Decimal(2)
 
     def put(self, item: SerializableType, writer: SerializableType, index: Decimal, /, *,
-            update_class: type[StateUpdateProtocol] = StateUpdate,
+            update_class: Type[StateUpdateProtocol] = StateUpdate,
             inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the index. The FIAItemWrapper
@@ -172,7 +172,7 @@ class FIArray:
 
     def put_between(self, item: SerializableType, writer: SerializableType,
                     first: FIAItemWrapper, second: FIAItemWrapper, /, *,
-                    update_class: type[StateUpdateProtocol] = StateUpdate,
+                    update_class: Type[StateUpdateProtocol] = StateUpdate,
                     inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between first and
@@ -189,7 +189,7 @@ class FIArray:
 
     def put_before(self, item: SerializableType, writer: SerializableType,
                    other: FIAItemWrapper, /, *,
-                   update_class: type[StateUpdateProtocol] = StateUpdate,
+                   update_class: Type[StateUpdateProtocol] = StateUpdate,
                    inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item before the other item. The
@@ -216,7 +216,7 @@ class FIArray:
 
     def put_after(self, item: SerializableType, writer: SerializableType,
                   other: FIAItemWrapper, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item after the other item. The
@@ -241,7 +241,7 @@ class FIArray:
         return self.put(item, writer, index, update_class=update_class, inject=inject)
 
     def put_first(self, item: SerializableType, writer: SerializableType, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between 0 and the
@@ -262,7 +262,7 @@ class FIArray:
         return self.put(item, writer, index, update_class=update_class, inject=inject)
 
     def put_last(self, item: SerializableType, writer: SerializableType, /, *,
-                 update_class: type[StateUpdateProtocol] = StateUpdate,
+                 update_class: Type[StateUpdateProtocol] = StateUpdate,
                  inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at an index between the last
@@ -285,7 +285,7 @@ class FIArray:
     def move_item(self, item: FIAItemWrapper, writer: SerializableType, /, *,
                   new_index: Decimal = None, after: FIAItemWrapper = None,
                   before: FIAItemWrapper = None,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item at the new index, or directly
@@ -350,7 +350,7 @@ class FIArray:
         return state_update
 
     def normalize(self, writer: SerializableType, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Evenly distribute the item indices. Returns tuple of
             update_class (StateUpdate by default) that encode the index
@@ -368,7 +368,7 @@ class FIArray:
         return tuple(updates)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -395,7 +395,7 @@ class FIArray:
         return self.read().index(item, _start)
 
     def append(self, item: SerializableType, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate
+               update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that appends
             the item to the end of the list returned by read().
@@ -403,7 +403,7 @@ class FIArray:
         return (self.put_last(item, writer, update_class=update_class),)
 
     def remove(self, index: int, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate
+               update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that removes
             the item at the index in the list returned by read(). Should
@@ -416,7 +416,7 @@ class FIArray:
         return (self.delete(item, writer, update_class=update_class),)
 
     def delete(self, item: FIAItemWrapper, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate,
+               update_class: Type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item. Index 3 of the data

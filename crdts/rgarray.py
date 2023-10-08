@@ -8,7 +8,7 @@ from .datawrappers import (
     NoneWrapper,
     RGAItemWrapper,
 )
-from .errors import tressa, tert, vert
+from .errors import tert, vert
 from .interfaces import (
     ClockProtocol,
     StateUpdateProtocol,
@@ -19,12 +19,13 @@ from .stateupdate import StateUpdate
 from bisect import bisect
 from packify import SerializableType, pack
 from types import NoneType
-from typing import Any
+from typing import Any, Type
 
 
 class RGArray:
-    """Implements the Replicated Growable Array CRDT. This uses the ORSet
-        to handle CRDT logic and provides a logical view over top of it.
+    """Implements the Replicated Growable Array CRDT. This uses the
+        ORSet to handle CRDT logic and provides a logical view over top
+        of it.
     """
     items: ORSet
     clock: ClockProtocol
@@ -95,7 +96,8 @@ class RGArray:
             'state_update must be instance implementing StateUpdateProtocol')
         vert(state_update.clock_uuid == self.clock.uuid,
             'state_update.clock_uuid must equal CRDT.clock.uuid')
-        tert(isinstance(state_update.data[1], RGAItemWrapper), 'item must be RGAItemWrapper')
+        tert(isinstance(state_update.data[1], RGAItemWrapper),
+             'item must be RGAItemWrapper')
 
         self.items.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[1] in self.items.read())
@@ -109,7 +111,8 @@ class RGArray:
         return self.items.checksums(from_ts=from_ts, until_ts=until_ts)
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate
+                ) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying all updates from
@@ -122,7 +125,7 @@ class RGArray:
         )
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -149,7 +152,7 @@ class RGArray:
         return self.read().index(item, _start)
 
     def append(self, item: SerializableType, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate,
+               update_class: Type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item. The RGAItemWrapper will be
@@ -177,7 +180,7 @@ class RGArray:
         return (state_update,)
 
     def remove(self, index: int, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate
+               update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that removes
             the item at the index in the list returned by read().
@@ -189,7 +192,7 @@ class RGArray:
         return (self.delete(item, update_class=update_class),)
 
     def delete(self, item: RGAItemWrapper, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate,
+               update_class: Type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the specified item. Raises TypeError

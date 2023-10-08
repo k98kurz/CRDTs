@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa, tert, vert
+from .errors import tert, vert
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .gset import GSet
@@ -7,7 +7,7 @@ from .pncounter import PNCounter
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from packify import SerializableType, pack, unpack
-from typing import Any, Hashable
+from typing import Any, Hashable, Type
 from uuid import uuid4
 
 
@@ -126,7 +126,7 @@ class CounterSet:
         ))
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -163,7 +163,7 @@ class CounterSet:
         return tuple(checksums)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -182,7 +182,7 @@ class CounterSet:
         return resolve_merkle_histories(self, history=history)
 
     def increase(self, counter_id: Hashable = b'', amount: int = 1, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Increase the PNCounter with the given counter_id by the given
             amount. Returns the update_class (StateUpdate by default)
@@ -208,7 +208,7 @@ class CounterSet:
         return state_update
 
     def decrease(self, counter_id: Hashable = b'', amount: int = 1, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Decrease the PNCounter with the given counter_id by the given
             amount. Returns the update_class (StateUpdate by default)

@@ -10,7 +10,7 @@ from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from packify import SerializableType, pack, unpack
-from typing import Any
+from typing import Any, Type
 
 
 @dataclass
@@ -91,7 +91,7 @@ class GSet:
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes. If from_ts and/
@@ -113,7 +113,7 @@ class GSet:
         return tuple(updates)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -132,7 +132,7 @@ class GSet:
         return resolve_merkle_histories(self, history=history)
 
     def add(self, member: SerializableType, /, *,
-            update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+            update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Create, apply, and return a StateUpdate adding member to the set."""
         tert(isinstance(member, SerializableType),
             f'member must be SerializableType ({SerializableType})')

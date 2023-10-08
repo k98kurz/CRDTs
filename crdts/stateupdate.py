@@ -2,7 +2,7 @@ from __future__ import annotations
 from .errors import tert, vert
 from dataclasses import dataclass
 from packify import unpack, pack, SerializableType
-from typing import Any, Hashable
+from typing import Hashable
 
 
 @dataclass

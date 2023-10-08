@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .errors import tressa, tert, vert
+from .errors import tert, vert
 from .interfaces import ClockProtocol, StateUpdateProtocol
 from .merkle import get_merkle_history, resolve_merkle_histories
 from .scalarclock import ScalarClock
@@ -7,7 +7,7 @@ from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from packify import pack, unpack
-from typing import Any
+from typing import Any, Type
 
 
 @dataclass
@@ -71,7 +71,8 @@ class PNCounter:
 
         return self
 
-    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[int]:
+    def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None
+                  ) -> tuple[int]:
         """Returns any checksums for the underlying data to detect
             desynchronization due to message failure.
         """
@@ -82,7 +83,8 @@ class PNCounter:
         )
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate
+                ) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of update_class (StateUpdate by
             default) that will converge to the underlying data. Useful
             for resynchronization by replaying updates from divergent
@@ -100,7 +102,7 @@ class PNCounter:
         ),)
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -110,7 +112,8 @@ class PNCounter:
         """
         return get_merkle_history(self, update_class=update_class)
 
-    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]:
+    def resolve_merkle_histories(self, history: list[bytes, list[bytes]]
+                                 ) -> list[bytes]:
         """Accept a history of form [root, leaves] from another node.
             Return the leaves that need to be resolved and merged for
             synchronization. Raises TypeError or ValueError for invalid
@@ -119,7 +122,8 @@ class PNCounter:
         return resolve_merkle_histories(self, history=history)
 
     def increase(self, amount: int = 1, /, *,
-                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                 update_class: Type[StateUpdateProtocol] = StateUpdate
+                 ) -> StateUpdateProtocol:
         """Increase the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
             propagated to the network. Raises TypeError or ValueError
@@ -138,7 +142,8 @@ class PNCounter:
         return state_update
 
     def decrease(self, amount: int = 1, /, *,
-                 update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                 update_class: Type[StateUpdateProtocol] = StateUpdate
+                 ) -> StateUpdateProtocol:
         """Decrease the counter by the given amount (default 1). Returns
             the update_class (StateUpdate by default) that should be
             propagated to the network. Raises TypeError or ValueError

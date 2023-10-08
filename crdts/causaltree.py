@@ -17,7 +17,7 @@ from .merkle import get_merkle_history, resolve_merkle_histories
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from packify import SerializableType, pack, unpack
-from typing import Any
+from typing import Any, Type
 from uuid import uuid4
 
 
@@ -128,7 +128,7 @@ class CausalTree:
         return self.positions.checksums(from_ts=from_ts, until_ts=until_ts)
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
@@ -140,7 +140,7 @@ class CausalTree:
         )
 
     def get_merkle_history(self, /, *,
-                           update_class: type[StateUpdateProtocol] = StateUpdate
+                           update_class: Type[StateUpdateProtocol] = StateUpdate
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -160,7 +160,7 @@ class CausalTree:
 
     def put(self, item: SerializableType, writer: SerializableType, uuid: bytes,
             parent_uuid: bytes = b'', /, *,
-            update_class: type[StateUpdateProtocol] = StateUpdate,
+            update_class: Type[StateUpdateProtocol] = StateUpdate,
             inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that puts the item after the parent. Raises
@@ -188,7 +188,7 @@ class CausalTree:
 
     def put_after(self, item: SerializableType, writer: SerializableType,
                   parent_uuid: bytes, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
+                  update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class that puts the item
             after the parent item. Raises TypeError on invalid item,
             writer, or parent_uuid.
@@ -198,7 +198,7 @@ class CausalTree:
         return self.put(item, writer, uuid, parent_uuid, update_class=update_class)
 
     def put_first(self, item: SerializableType, writer: SerializableType, /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns at least one update_class
             (StateUpdate by default) that puts the item as the first
@@ -224,7 +224,7 @@ class CausalTree:
 
     def move_item(self, item: CTDataWrapper, writer: SerializableType,
                   parent_uuid: bytes = b'', /, *,
-                  update_class: type[StateUpdateProtocol] = StateUpdate,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that moves the item to after the new parent. Raises
@@ -256,7 +256,7 @@ class CausalTree:
         return [c.value for c in self.read_full()].index(item, _start)
 
     def append(self, item: SerializableType, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate
+               update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that appends
             the item to the end of the list returned by read().
@@ -268,7 +268,7 @@ class CausalTree:
         return self.put_first(item, writer, update_class=update_class)
 
     def remove(self, index: int, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate
+               update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that removes
             the item at the index in the list returned by read(). Should
@@ -278,7 +278,7 @@ class CausalTree:
         return (self.delete(ctdw, writer, update_class=update_class),)
 
     def delete(self, ctdw: CTDataWrapper, writer: SerializableType, /, *,
-               update_class: type[StateUpdateProtocol] = StateUpdate,
+               update_class: Type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that deletes the item specified by ctdw. Raises

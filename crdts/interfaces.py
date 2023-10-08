@@ -1,6 +1,6 @@
 from __future__ import annotations
 from packify import SerializableType
-from typing import Any, Hashable, Protocol, runtime_checkable
+from typing import Any, Hashable, Protocol, Type, runtime_checkable
 
 
 @runtime_checkable
@@ -74,14 +74,14 @@ class CRDTProtocol(Protocol):
         ...
 
     def history(self, /, *, from_ts: Any = None, until_ts: Any = None,
-                update_class: type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]:
+                update_class: Type[StateUpdateProtocol] = None) -> tuple[StateUpdateProtocol]:
         """Returns a concise history of StateUpdates that will converge
             to the underlying data. Useful for resynchronization by
             replaying all updates from divergent nodes.
         """
         ...
 
-    def get_merkle_history(self, /, *, update_class: type[StateUpdateProtocol]
+    def get_merkle_history(self, /, *, update_class: Type[StateUpdateProtocol]
                            ) -> list[bytes, list[bytes], dict[bytes, bytes]]:
         """Get a Merklized history for the StateUpdates of the form
             [root, [content_id for update in self.history()], {
@@ -108,14 +108,14 @@ class ListProtocol(Protocol):
         """
         ...
 
-    def append(self, item, writer, /, *, update_class: type[StateUpdateProtocol]
+    def append(self, item, writer, /, *, update_class: Type[StateUpdateProtocol]
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that appends
             the item to the end of the list returned by read().
         """
         ...
 
-    def remove(self, index: int, writer, /, *, update_class: type[StateUpdateProtocol]
+    def remove(self, index: int, writer, /, *, update_class: Type[StateUpdateProtocol]
                ) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class that removes
             the item at the index in the list returned by read(). Should
