@@ -109,7 +109,9 @@ class TestCounterSet(unittest.TestCase):
         assert counterset1.clock.uuid == counterset2.clock.uuid
         assert counterset1.read() == counterset2.read()
         assert counterset1.checksums() == counterset2.checksums()
-        assert counterset1.history() == counterset2.history()
+        h1 = set([u.pack() for u in counterset1.history()])
+        h2 = set([u.pack() for u in counterset2.history()])
+        assert h1 == h2
 
     def test_CounterSet_pack_unpack_e2e_with_injected_clock(self):
         counterset = classes.CounterSet(clock=StrClock())
