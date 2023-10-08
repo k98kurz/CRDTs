@@ -140,13 +140,23 @@ class RGArray:
         """
         return resolve_merkle_histories(self, history=history)
 
+    def index(self, item: SerializableType, _start: int = 0, _stop: int = None) -> int:
+        """Returns the int index of the item in the list returned by
+            read(). Raises ValueError if the item is not present.
+        """
+        if _stop:
+            return self.read().index(item, _start, _stop)
+        return self.read().index(item, _start)
+
     def append(self, item: SerializableType, writer: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,
-               inject: dict = {}) -> StateUpdateProtocol:
+               inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Creates, applies, and returns an update_class (StateUpdate by
             default) that appends the item. The RGAItemWrapper will be
             in the data attribute at index 1. Raises TypeError for
-            invalid item, writer, or update_class.
+            invalid item, writer, or update_class. Note that this will
+            always return a tuple with only one update_class, but it is
+            a tuple for consistency with the ListProtocol.
         """
         tert(isinstance(item, SerializableType),
                f'item must be SerializableType ({SerializableType})')
@@ -159,9 +169,24 @@ class RGArray:
             update_class=update_class
         )
 
+        tert(isinstance(state_update, StateUpdateProtocol),
+             'update_class must implement StateUpdateProtocol')
+
         self.update(state_update, inject=inject)
 
-        return state_update
+        return (state_update,)
+
+    def remove(self, index: int, /, *,
+               update_class: type[StateUpdateProtocol] = StateUpdate
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that removes
+            the item at the index in the list returned by read().
+        """
+        items = self.read_full()
+        tert(type(index) is int, f"index must be int between 0 and {len(items)-1}")
+        vert(0 <= index < len(items), f"index must be int between 0 and {len(items)-1}")
+        item = items[index]
+        return (self.delete(item, update_class=update_class),)
 
     def delete(self, item: RGAItemWrapper, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,

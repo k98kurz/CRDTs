@@ -23,6 +23,42 @@ class TestCausalTree(unittest.TestCase):
     def test_CausalTree_implements_CRDTProtocol(self):
         assert isinstance(classes.CausalTree(), interfaces.CRDTProtocol)
 
+    def test_CausalTree_implements_ListProtocol(self):
+        assert isinstance(classes.CausalTree(), interfaces.ListProtocol)
+
+    def test_CausalTree_append_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+        causaltree = classes.CausalTree()
+        view1 = causaltree.read()
+
+        item = b'hello'
+        state_updates = causaltree.append(item, 1)
+        assert isinstance(state_updates, tuple)
+        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
+
+        view2 = causaltree.read()
+        assert view1 != view2
+        assert view2[0] == item
+
+    def test_CausalTree_index_returns_int(self):
+        causaltree = classes.CausalTree()
+        causaltree.append('item1', 123)
+        causaltree.append('item2', 123)
+        assert causaltree.index('item1') == 0
+        assert causaltree.index('item2') == 1
+
+    def test_CausalTree_remove_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+        causaltree = classes.CausalTree()
+        causaltree.append('item1', 123)
+        causaltree.append('item2', 123)
+        view = causaltree.read()
+        assert 'item1' in view
+        index = causaltree.index('item1')
+        state_updates = causaltree.remove(index, 123)
+        assert isinstance(state_updates, tuple)
+        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
+        assert causaltree.read() != view
+        assert 'item1' not in causaltree.read()
+
     def test_CausalTree_read_returns_tuple_of_underlying_items(self):
         causaltree = classes.CausalTree()
         causaltree.positions.set(

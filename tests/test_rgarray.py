@@ -23,21 +23,45 @@ class TestRGArray(unittest.TestCase):
     def test_RGArray_implements_CRDTProtocol(self):
         assert isinstance(classes.RGArray(), interfaces.CRDTProtocol)
 
+    def test_RGArray_implements_ListProtocol(self):
+        assert isinstance(classes.RGArray(), interfaces.ListProtocol)
+
     def test_RGArray_read_returns_tuple(self):
         rga = classes.RGArray()
         assert type(rga.read()) is tuple
 
-    def test_RGArray_append_returns_StateUpdateProtocol_and_changes_read(self):
+    def test_RGArray_append_returns_tuple_StateUpdateProtocol_and_changes_read(self):
         rga = classes.RGArray()
         view1 = rga.read()
 
         item = datawrappers.BytesWrapper(b'hello')
-        state_update = rga.append(item, 1)
-        assert isinstance(state_update, interfaces.StateUpdateProtocol)
+        state_updates = rga.append(item, 1)
+        assert isinstance(state_updates, tuple)
+        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
 
         view2 = rga.read()
         assert view1 != view2
         assert view2[0] == item
+
+    def test_RGArray_index_returns_int(self):
+        rga = classes.RGArray()
+        rga.append('item1', 123)
+        rga.append('item2', 123)
+        assert rga.index('item1') == 0
+        assert rga.index('item2') == 1
+
+    def test_RGArray_remove_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+        rga = classes.RGArray()
+        rga.append('item1', 123)
+        rga.append('item2', 123)
+        view = rga.read()
+        assert 'item1' in view
+        index = rga.index('item1')
+        updates = rga.remove(index)
+        assert isinstance(updates, tuple)
+        assert all([isinstance(u, interfaces.StateUpdateProtocol) for u in updates])
+        assert rga.read() != view
+        assert 'item1' not in rga.read()
 
     def test_RGArray_delete_returns_StateUpdateProtocol_and_changes_read(self):
         rga = classes.RGArray()
@@ -76,8 +100,8 @@ class TestRGArray(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
 
-        update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)
-        update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 2)
+        update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)[0]
+        update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 2)[0]
         rga1.update(update2)
         rga2.update(update1)
 
@@ -90,8 +114,8 @@ class TestRGArray(unittest.TestCase):
         rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
 
         # order alphabetically by wrapper class name as tie breaker
-        update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)
-        update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 1)
+        update1 = rga1.append(datawrappers.StrWrapper('item1'), 1)[0]
+        update2 = rga2.append(datawrappers.DecimalWrapper(Decimal('0.1')), 1)[0]
         rga1.update(update2)
         rga2.update(update1)
 
@@ -105,8 +129,8 @@ class TestRGArray(unittest.TestCase):
         rga2 = classes.RGArray(clock=classes.ScalarClock(uuid=rga1.clock.uuid))
 
         # order by wrapped value ascending as final tie breaker
-        update1 = rga1.append(datawrappers.StrWrapper('item0'), 1)
-        update2 = rga2.append(datawrappers.StrWrapper('item1'), 1)
+        update1 = rga1.append(datawrappers.StrWrapper('item0'), 1)[0]
+        update2 = rga2.append(datawrappers.StrWrapper('item1'), 1)[0]
         rga1.update(update2)
         rga2.update(update1)
 
@@ -134,7 +158,7 @@ class TestRGArray(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
-        update = rga1.append(datawrappers.StrWrapper('item'), 1)
+        update = rga1.append(datawrappers.StrWrapper('item'), 1)[0]
         view = rga1.read_full()
         rga2.update(update)
 
@@ -159,8 +183,8 @@ class TestRGArray(unittest.TestCase):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
 
-        update1 = rga1.append(datawrappers.BytesWrapper(b'item1'), 1)
-        update2 = rga1.append(datawrappers.IntWrapper(321), 1)
+        update1 = rga1.append(datawrappers.BytesWrapper(b'item1'), 1)[0]
+        update2 = rga1.append(datawrappers.IntWrapper(321), 1)[0]
         rga2.update(update2)
         rga2.update(update1)
 
@@ -224,7 +248,7 @@ class TestRGArray(unittest.TestCase):
 
     def test_RGArray_with_injected_StateUpdateProtocol_class(self):
         rga = classes.RGArray()
-        update = rga.append(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)
+        update = rga.append(datawrappers.StrWrapper('first'), 1, update_class=CustomStateUpdate)[0]
         assert type(update) is CustomStateUpdate
         assert type(rga.history(update_class=CustomStateUpdate)[0]) is CustomStateUpdate
 
@@ -233,7 +257,7 @@ class TestRGArray(unittest.TestCase):
         rga2 = classes.RGArray()
         rga2.clock.uuid = rga1.clock.uuid
         for i in range(10):
-            update = rga1.append(datawrappers.IntWrapper(i), i)
+            update = rga1.append(datawrappers.IntWrapper(i), i)[0]
             rga2.update(update)
         assert rga1.checksums() == rga2.checksums()
 
@@ -274,8 +298,8 @@ class TestRGArray(unittest.TestCase):
     def test_RGArray_merkle_history_e2e(self):
         rga1 = classes.RGArray()
         rga2 = classes.RGArray(clock=classes.ScalarClock(0, rga1.clock.uuid))
-        rga2.update(rga1.append('hello world', 1))
-        rga2.update(rga1.append(b'hello world', 1))
+        rga2.update(rga1.append('hello world', 1)[0])
+        rga2.update(rga1.append(b'hello world', 1)[0])
         rga1.delete(rga1.read_full()[0])
         rga1.append('not the lipsum', 1)
         rga2.append(b'yellow submarine', 2)

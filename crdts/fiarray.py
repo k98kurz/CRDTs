@@ -386,6 +386,35 @@ class FIArray:
         """
         return resolve_merkle_histories(self, history=history)
 
+    def index(self, item: SerializableType, _start: int = 0, _stop: int = None) -> int:
+        """Returns the int index of the item in the list returned by
+            read(). Raises ValueError if the item is not present.
+        """
+        if _stop:
+            return self.read().index(item, _start, _stop)
+        return self.read().index(item, _start)
+
+    def append(self, item: SerializableType, writer: SerializableType, /, *,
+               update_class: type[StateUpdateProtocol] = StateUpdate
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that appends
+            the item to the end of the list returned by read().
+        """
+        return (self.put_last(item, writer, update_class=update_class),)
+
+    def remove(self, index: int, writer: SerializableType, /, *,
+               update_class: type[StateUpdateProtocol] = StateUpdate
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that removes
+            the item at the index in the list returned by read(). Should
+            raise ValueError if the index is out of bounds.
+        """
+        items = self.read_full()
+        tert(type(index) is int, f"index must be int between 0 and {len(items)-1}")
+        vert(0 <= index < len(items), f"index must be int between 0 and {len(items)-1}")
+        item = items[index]
+        return (self.delete(item, writer, update_class=update_class),)
+
     def delete(self, item: FIAItemWrapper, writer: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:

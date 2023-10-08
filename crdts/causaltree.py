@@ -247,6 +247,36 @@ class CausalTree:
         self.update(state_update, inject=inject)
         return state_update
 
+    def index(self, item: SerializableType, _start: int = 0, _stop: int = None) -> int:
+        """Returns the int index of the item in the list returned by
+            read(). Raises ValueError if the item is not present.
+        """
+        if _stop:
+            return [c.value for c in self.read_full()].index(item, _start, _stop)
+        return [c.value for c in self.read_full()].index(item, _start)
+
+    def append(self, item: SerializableType, writer: SerializableType, /, *,
+               update_class: type[StateUpdateProtocol] = StateUpdate
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that appends
+            the item to the end of the list returned by read().
+        """
+        items = self.read_full()
+        if len(items):
+            last = self.read_full()[-1]
+            return self.put_after(item, writer, last.uuid, update_class=update_class)
+        return self.put_first(item, writer, update_class=update_class)
+
+    def remove(self, index: int, writer: SerializableType, /, *,
+               update_class: type[StateUpdateProtocol] = StateUpdate
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that removes
+            the item at the index in the list returned by read(). Should
+            raise ValueError if the index is out of bounds.
+        """
+        ctdw = self.read_full()[index]
+        return (self.delete(ctdw, writer, update_class=update_class),)
+
     def delete(self, ctdw: CTDataWrapper, writer: SerializableType, /, *,
                update_class: type[StateUpdateProtocol] = StateUpdate,
                inject: dict = {}) -> StateUpdateProtocol:

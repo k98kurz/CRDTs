@@ -18,6 +18,7 @@ from crdts.interfaces import (
     StateUpdateProtocol,
     ClockProtocol,
     CRDTProtocol,
+    ListProtocol,
     DataWrapperProtocol,
 )
 from crdts.datawrappers import (

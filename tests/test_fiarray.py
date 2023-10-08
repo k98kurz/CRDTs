@@ -26,6 +26,42 @@ class TestFIArray(unittest.TestCase):
     def test_FIArray_implements_CRDTProtocol(self):
         assert isinstance(classes.FIArray(), interfaces.CRDTProtocol)
 
+    def test_FIArray_implements_ListProtocol(self):
+        assert isinstance(classes.FIArray(), interfaces.ListProtocol)
+
+    def test_FIArray_append_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+        fia = classes.FIArray()
+        view1 = fia.read()
+
+        item = b'hello'
+        state_updates = fia.append(item, 1)
+        assert isinstance(state_updates, tuple)
+        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
+
+        view2 = fia.read()
+        assert view1 != view2
+        assert view2[0] == item
+
+    def test_FIArray_index_returns_int(self):
+        fia = classes.FIArray()
+        fia.append('item1', 123)
+        fia.append('item2', 123)
+        assert fia.index('item1') == 0
+        assert fia.index('item2') == 1
+
+    def test_FIArray_remove_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+        fia = classes.FIArray()
+        fia.append('item1', 123)
+        fia.append('item2', 123)
+        view = fia.read()
+        assert 'item1' in view
+        index = fia.index('item1')
+        state_updates = fia.remove(index, 123)
+        assert isinstance(state_updates, tuple)
+        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
+        assert fia.read() != view
+        assert 'item1' not in fia.read()
+
     def test_FIArray_read_returns_tuple_of_underlying_items(self):
         fiarray = classes.FIArray()
         first = datawrappers.FIAItemWrapper(

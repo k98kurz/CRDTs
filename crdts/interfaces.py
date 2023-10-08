@@ -100,6 +100,31 @@ class CRDTProtocol(Protocol):
 
 
 @runtime_checkable
+class ListProtocol(Protocol):
+    def index(self, item, _start: int = 0, _stop: int = -1) -> int:
+        """Returns the int index of the item in the list returned by
+            read(). Should raise a ValueError if the item is not
+            present.
+        """
+        ...
+
+    def append(self, item, writer, /, *, update_class: type[StateUpdateProtocol]
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that appends
+            the item to the end of the list returned by read().
+        """
+        ...
+
+    def remove(self, index: int, writer, /, *, update_class: type[StateUpdateProtocol]
+               ) -> tuple[StateUpdateProtocol]:
+        """Creates, applies, and returns an update_class that removes
+            the item at the index in the list returned by read(). Should
+            raise ValueError if the index is out of bounds.
+        """
+        ...
+
+
+@runtime_checkable
 class DataWrapperProtocol(Protocol):
     """Duck type protocol for values that can be written to a LWWRegister,
         included in a GSet or ORSet, or be used as the key for a LWWMap.
