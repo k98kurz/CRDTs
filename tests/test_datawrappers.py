@@ -143,9 +143,9 @@ class TestDataWrappers(unittest.TestCase):
             datawrappers.RGAItemWrapper(
                 datawrappers.BytesWrapper(b'123'),
                 datawrappers.BytesWrapper(b'321'),
-                'not an int'
+                lambda: "not a packify.SerializableType"
             )
-        assert str(e.exception) == 'writer must be int'
+        assert str(e.exception) == 'writer must be SerializableType'
 
     def test_RGAItemWrapper_pack_returns_bytes(self):
         rgatw = datawrappers.RGAItemWrapper(

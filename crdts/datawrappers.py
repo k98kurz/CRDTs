@@ -225,7 +225,7 @@ class RGAItemWrapper(StrWrapper):
                  writer: SerializableType) -> None:
         tressa(isinstance(value, SerializableType), 'value must be SerializableType')
         tressa(isinstance(ts, SerializableType), 'ts must be SerializableType')
-        tressa(type(writer) is int, 'writer must be int')
+        tressa(isinstance(writer, SerializableType), 'writer must be SerializableType')
 
         self.value = value
         self.ts = ts
