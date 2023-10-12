@@ -10,7 +10,7 @@ from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from packify import SerializableType, pack, unpack
-from typing import Any, Optional, Type
+from typing import Any, Callable, Optional, Type
 
 
 @dataclass
@@ -25,6 +25,7 @@ class ORSet:
     removed_metadata: dict[SerializableType, StateUpdateProtocol] = field(default_factory=dict)
     clock: ClockProtocol = field(default_factory=ScalarClock)
     cache: Optional[tuple] = field(default=None)
+    listeners: list[Callable] = field(default_factory=list)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -76,6 +77,7 @@ class ORSet:
         tert(isinstance(state_update.data[1], SerializableType),
             f'state_update.data[1] must be SerializableType ({SerializableType})')
 
+        self.invoke_listeners(state_update)
         op, member = state_update.data
         ts = state_update.ts
 
@@ -267,3 +269,18 @@ class ORSet:
         self.update(state_update)
 
         return state_update
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

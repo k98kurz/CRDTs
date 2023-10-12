@@ -17,7 +17,7 @@ from .merkle import get_merkle_history, resolve_merkle_histories
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from packify import SerializableType, pack, unpack
-from typing import Any, Type
+from typing import Any, Callable, Type
 from uuid import uuid4
 
 
@@ -26,8 +26,10 @@ class CausalTree:
     positions: LWWMap
     clock: ClockProtocol
     cache: list[CTDataWrapper]
+    listeners: list[Callable]
 
-    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
+    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None,
+                 listeners: list[Callable] = None) -> None:
         """Initialize a CausalTree from an LWWMap of item positions and
             a shared clock. Raises TypeError for invalid positions or
             clock.
@@ -36,6 +38,13 @@ class CausalTree:
             'positions must be an LWWMap or None')
         tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
+        if listeners is None:
+            listeners = []
+        tert(type(listeners) is list,
+             "listeners must be list[Callable[[StateUpdateProtocol], None]]")
+        for listener in listeners:
+            tert(callable(listener),
+                 "listeners must be list[Callable[[StateUpdateProtocol], None]]")
 
         clock = ScalarClock() if clock is None else clock
         positions = LWWMap(clock=clock) if positions is None else positions
@@ -43,6 +52,7 @@ class CausalTree:
         self.positions = positions
         self.clock = clock
         self.cache = None
+        self.listeners = listeners
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -118,6 +128,7 @@ class CausalTree:
 
         inject = {**globals(), **inject}
         state_update.data[3].visible = state_update.data[0] == 'o'
+        self.invoke_listeners(state_update)
         self.positions.update(state_update, inject=inject)
         self.update_cache(state_update.data[3], inject=inject)
 
@@ -418,3 +429,18 @@ class CausalTree:
                 self.cache.insert(index, item)
                 add_orphans()
                 return
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

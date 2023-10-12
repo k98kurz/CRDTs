@@ -19,7 +19,7 @@ from .stateupdate import StateUpdate
 from bisect import bisect
 from packify import SerializableType, pack
 from types import NoneType
-from typing import Any, Type
+from typing import Any, Callable, Type
 
 
 class RGArray:
@@ -31,8 +31,10 @@ class RGArray:
     clock: ClockProtocol
     cache_full: list[RGAItemWrapper]
     cache: tuple[Any]
+    listeners: list[Callable]
 
-    def __init__(self, items: ORSet = None, clock: ClockProtocol = None) -> None:
+    def __init__(self, items: ORSet = None, clock: ClockProtocol = None,
+                 listeners: list[Callable] = None) -> None:
         """Initialize an RGA from an ORSet of items and a shared clock.
             Raises TypeError for invalid items or clock.
         """
@@ -40,6 +42,13 @@ class RGArray:
             'items must be ORSet or None')
         tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
+        if listeners is None:
+            listeners = []
+        tert(type(listeners) is list,
+             "listeners must be list[Callable[[StateUpdateProtocol], None]]")
+        for listener in listeners:
+            tert(callable(listener),
+                 "listeners must be list[Callable[[StateUpdateProtocol], None]]")
 
         items = ORSet() if items is None else items
         clock = items.clock if clock is None else clock
@@ -47,6 +56,7 @@ class RGArray:
 
         self.items = items
         self.clock = clock
+        self.listeners = listeners
 
         self.calculate_cache()
 
@@ -99,6 +109,7 @@ class RGArray:
         tert(isinstance(state_update.data[1], RGAItemWrapper),
              'item must be RGAItemWrapper')
 
+        self.invoke_listeners(state_update)
         self.items.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[1] in self.items.read())
 
@@ -247,3 +258,18 @@ class RGArray:
                 self.cache_full.remove(item)
 
         self.cache = None
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

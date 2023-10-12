@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from itertools import permutations
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
@@ -247,6 +246,22 @@ class TestGSet(unittest.TestCase):
             gset2.update(classes.StateUpdate.unpack(cidmap1[cid]))
 
         assert gset1.checksums() == gset2.checksums()
+
+    def test_GSet_event_listeners_e2e(self):
+        gset = classes.GSet()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        gset.add('item')
+        assert len(logs) == 0
+        gset.add_listener(add_log)
+        gset.add('item')
+        assert len(logs) == 1
+        gset.remove_listener(add_log)
+        gset.add('item')
+        assert len(logs) == 1
 
 
 if __name__ == '__main__':

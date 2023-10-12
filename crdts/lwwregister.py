@@ -18,7 +18,7 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from binascii import crc32
 from packify import SerializableType, pack, unpack
-from typing import Any, Type
+from typing import Any, Callable, Type
 
 
 class LWWRegister:
@@ -28,12 +28,14 @@ class LWWRegister:
     clock: ClockProtocol
     last_update: Any
     last_writer: SerializableType
+    listeners: list[Callable]
 
     def __init__(self, name: SerializableType,
                  value: SerializableType = None,
                  clock: ClockProtocol = None,
                  last_update: Any = None,
-                 last_writer: SerializableType = None) -> None:
+                 last_writer: SerializableType = None,
+                 listeners: list[Callable] = None) -> None:
         """Initialize an LWWRegister from a name, a value, and a shared
             clock. Raises TypeError for invalid parameters.
         """
@@ -48,12 +50,20 @@ class LWWRegister:
              f'clock must be ClockProtocol or None')
         tert(isinstance(last_writer, SerializableType),
              f'last_writer must be {SerializableType}')
+        if listeners is None:
+            listeners = []
+        tert(type(listeners) is list,
+             "listeners must be list[Callable[[StateUpdateProtocol], None]]")
+        for listener in listeners:
+            tert(callable(listener),
+                 "listeners must be list[Callable[[StateUpdateProtocol], None]]")
 
         self.name = name
         self.value = value
         self.clock = clock
         self.last_update = last_update
         self.last_writer = last_writer
+        self.listeners = listeners
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -112,6 +122,8 @@ class LWWRegister:
             f'state_update.data[0] must be SerializableType ({SerializableType}) writer_id')
         tert(isinstance(state_update.data[1], SerializableType),
             'state_update.data[1] must be SerializableType')
+
+        self.invoke_listeners(state_update)
 
         # set the value if the update happens after current state
         if self.clock.is_later(state_update.ts, self.last_update):
@@ -201,3 +213,18 @@ class LWWRegister:
         self.update(state_update, inject=inject)
 
         return state_update
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

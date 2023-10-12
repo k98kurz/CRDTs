@@ -7,7 +7,7 @@ from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from packify import pack, unpack
-from typing import Any, Type
+from typing import Any, Callable, Type
 
 
 @dataclass
@@ -19,6 +19,7 @@ class PNCounter:
     positive: int = field(default=0)
     negative: int = field(default=0)
     clock: ClockProtocol = field(default_factory=ScalarClock)
+    listeners: list[Callable] = field(default_factory=list)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -65,6 +66,7 @@ class PNCounter:
         tert(type(state_update.data[1]) is int,
             'state_update.data must be tuple of 2 ints')
 
+        self.invoke_listeners(state_update)
         self.positive = max([self.positive, state_update.data[0]])
         self.negative = max([self.negative, state_update.data[1]])
         self.clock.update(state_update.ts)
@@ -160,3 +162,18 @@ class PNCounter:
         self.update(state_update)
 
         return state_update
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

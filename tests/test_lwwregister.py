@@ -231,6 +231,22 @@ class TestLWWRegister(unittest.TestCase):
 
         assert lwwr1.checksums() == lwwr2.checksums()
 
+    def test_LWWRegister_event_listeners_e2e(self):
+        lwwr = classes.LWWRegister('test')
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        lwwr.write('value', 'writer id')
+        assert len(logs) == 0
+        lwwr.add_listener(add_log)
+        lwwr.write('value', 'writer id')
+        assert len(logs) == 1
+        lwwr.remove_listener(add_log)
+        lwwr.write('value', 'writer id')
+        assert len(logs) == 1
+
 
 if __name__ == '__main__':
     unittest.main()

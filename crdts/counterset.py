@@ -7,7 +7,7 @@ from .pncounter import PNCounter
 from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from packify import SerializableType, pack, unpack
-from typing import Any, Hashable, Type
+from typing import Any, Callable, Hashable, Type
 from uuid import uuid4
 
 
@@ -19,10 +19,12 @@ class CounterSet:
     clock: ClockProtocol
     counter_ids: GSet
     counters: dict[SerializableType, PNCounter]
+    listeners: list[Callable]
 
     def __init__(self, uuid: bytes = None, clock: ClockProtocol = None,
                  counter_ids: GSet = None,
-                 counters: dict[SerializableType, PNCounter] = None) -> None:
+                 counters: dict[SerializableType, PNCounter] = None,
+                 listeners: list[Callable] = None) -> None:
         """Initialize a CounterSet from a uuid, a clock, a GSet, and a
             dict mapping names to PNCounters (all parameters optional).
         """
@@ -39,10 +41,18 @@ class CounterSet:
                    'counters must be dict[SerializableType, PNCounter]')
             tert(isinstance(v, PNCounter),
                    'counters must be dict[SerializableType, PNCounter]')
+        if listeners is None:
+            listeners = []
+        tert(type(listeners) is list,
+             "listeners must be list[Callable[[StateUpdateProtocol], None]]")
+        for listener in listeners:
+            tert(callable(listener),
+                 "listeners must be list[Callable[[StateUpdateProtocol], None]]")
 
         self.clock = clock
         self.counter_ids = counter_ids
         self.counters = counters
+        self.listeners = listeners
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -108,6 +118,7 @@ class CounterSet:
         tert(type(state_update.data[2]) is int,
             'state_update.data must be tuple of [Hashable and SerializableType, int, int]')
 
+        self.invoke_listeners(state_update)
         counter_id, positive, negative = state_update.data
 
         self.counter_ids.update(state_update.__class__(
@@ -232,3 +243,18 @@ class CounterSet:
         )
         self.update(state_update)
         return state_update
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from itertools import permutations
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
@@ -293,6 +292,28 @@ class TestORSet(unittest.TestCase):
 
         assert ors1.get_merkle_history() == ors2.get_merkle_history()
         assert ors1.checksums() == ors2.checksums()
+
+    def test_ORSet_event_listeners_e2e(self):
+        orset = classes.ORSet()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        orset.observe('item')
+        assert len(logs) == 0
+        orset.remove('item')
+        assert len(logs) == 0
+        orset.add_listener(add_log)
+        orset.observe('item')
+        assert len(logs) == 1
+        orset.remove('item')
+        assert len(logs) == 2
+        orset.remove_listener(add_log)
+        orset.observe('item')
+        assert len(logs) == 2
+        orset.remove('item')
+        assert len(logs) == 2
 
 
 if __name__ == '__main__':

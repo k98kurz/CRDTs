@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from itertools import permutations
 from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
@@ -351,6 +350,24 @@ class TestRGArray(unittest.TestCase):
         # print(rga1.read_full())
         # print(rga2.read_full())
         assert rga1.checksums() == rga2.checksums(), f"\n{rga1.read_full()}\n{rga2.read_full()}"
+
+    def test_RGArray_event_listeners_e2e(self):
+        rga = classes.RGArray()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        rga.append('item', 'writer id')
+        assert len(logs) == 0
+        rga.add_listener(add_log)
+        rga.append('item', 'writer id')
+        assert len(logs) == 1
+        rga.append('item', 'writer id')
+        assert len(logs) == 2
+        rga.remove_listener(add_log)
+        rga.append('item', 'writer id')
+        assert len(logs) == 2
 
 
 if __name__ == '__main__':

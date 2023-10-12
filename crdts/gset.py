@@ -10,7 +10,7 @@ from .stateupdate import StateUpdate
 from binascii import crc32
 from dataclasses import dataclass, field
 from packify import SerializableType, pack, unpack
-from typing import Any, Type
+from typing import Any, Callable, Type
 
 
 @dataclass
@@ -19,6 +19,7 @@ class GSet:
     members: set[SerializableType] = field(default_factory=set)
     clock: ClockProtocol = field(default_factory=ScalarClock)
     metadata: dict[SerializableType, Any] = field(default_factory=dict)
+    listeners: list[Callable] = field(default_factory=list)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -57,6 +58,8 @@ class GSet:
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tert(isinstance(state_update.data, SerializableType),
             f'state_update.data must be SerializableType ({SerializableType})')
+
+        self.invoke_listeners(state_update)
 
         if state_update.data not in self.members:
             self.members.add(state_update.data)
@@ -142,3 +145,18 @@ class GSet:
         self.update(state_update)
 
         return state_update
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

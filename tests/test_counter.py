@@ -1,6 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
 import unittest
@@ -190,6 +188,22 @@ class TestCounter(unittest.TestCase):
         assert len(diff2) == 1
         assert diff1[0] == history2[1][0]
         assert diff2[0] == history1[1][0]
+
+    def test_Counter_event_listeners_e2e(self):
+        counter = classes.Counter()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        counter.increase()
+        assert len(logs) == 0
+        counter.add_listener(add_log)
+        counter.increase()
+        assert len(logs) == 1
+        counter.remove_listener(add_log)
+        counter.increase()
+        assert len(logs) == 1
 
 
 if __name__ == '__main__':

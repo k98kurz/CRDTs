@@ -1,6 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
 import unittest
@@ -181,6 +179,28 @@ class TestCounterSet(unittest.TestCase):
         assert len(diff2) == 1
         assert diff1[0] == history2[1][0]
         assert diff2[0] == history1[1][0]
+
+    def test_CounterSet_event_listeners_e2e(self):
+        counterset = classes.CounterSet()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        counterset.increase()
+        assert len(logs) == 0
+        counterset.decrease()
+        assert len(logs) == 0
+        counterset.add_listener(add_log)
+        counterset.increase()
+        assert len(logs) == 1
+        counterset.decrease()
+        assert len(logs) == 2
+        counterset.remove_listener(add_log)
+        counterset.increase()
+        assert len(logs) == 2
+        counterset.decrease()
+        assert len(logs) == 2
 
 
 if __name__ == '__main__':

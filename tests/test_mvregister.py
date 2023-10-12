@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from decimal import Decimal
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
@@ -264,6 +263,22 @@ class TestMVRegister(unittest.TestCase):
             mvr2.update(classes.StateUpdate.unpack(cidmap1[cid]))
 
         assert mvr1.checksums() == mvr2.checksums()
+
+    def test_MVRegister_event_listeners_e2e(self):
+        mvr = classes.MVRegister('test')
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        mvr.write('value')
+        assert len(logs) == 0
+        mvr.add_listener(add_log)
+        mvr.write('value')
+        assert len(logs) == 1
+        mvr.remove_listener(add_log)
+        mvr.write('value')
+        assert len(logs) == 1
 
 
 if __name__ == '__main__':

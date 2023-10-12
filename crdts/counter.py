@@ -6,7 +6,7 @@ from .scalarclock import ScalarClock
 from .stateupdate import StateUpdate
 from dataclasses import dataclass, field
 from packify import pack, unpack
-from typing import Any, Type
+from typing import Any, Callable, Type
 
 
 @dataclass
@@ -14,6 +14,7 @@ class Counter:
     """Implements the Counter CRDT."""
     counter: int = field(default=0)
     clock: ClockProtocol = field(default_factory=ScalarClock)
+    listeners: list[Callable] = field(default_factory=list)
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -45,6 +46,7 @@ class Counter:
             'state_update.clock_uuid must equal CRDT.clock.uuid')
         tert(type(state_update.data) is int, 'state_update.data must be an int')
 
+        self.invoke_listeners(state_update)
         self.counter = max([self.counter, state_update.data])
         self.clock.update(state_update.ts)
 
@@ -114,3 +116,18 @@ class Counter:
         self.update(state_update, inject=inject)
 
         return state_update
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

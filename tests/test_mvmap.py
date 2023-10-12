@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from itertools import permutations
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
 import packify
@@ -304,6 +303,22 @@ class TestMVMap(unittest.TestCase):
 
         assert mvm1.checksums() == mvm2.checksums()
         assert mvm1.get_merkle_history() == mvm2.get_merkle_history()
+
+    def test_MVMap_event_listeners_e2e(self):
+        mvm = classes.MVMap()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        mvm.set('name', 'value')
+        assert len(logs) == 0
+        mvm.add_listener(add_log)
+        mvm.set('name', 'value')
+        assert len(logs) == 1
+        mvm.remove_listener(add_log)
+        mvm.set('name', 'value')
+        assert len(logs) == 1
 
 
 if __name__ == '__main__':

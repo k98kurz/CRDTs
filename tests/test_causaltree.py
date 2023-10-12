@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from decimal import Decimal
 from itertools import permutations
 from context import classes, interfaces, datawrappers, errors, StrClock, CustomStateUpdate
@@ -555,6 +554,24 @@ class TestCausalTree(unittest.TestCase):
         chk1 = ct1.checksums()
         chk2 = ct2.checksums()
         assert chk1 == chk2, f"\n{ct1.positions.read()}\n{ct2.positions.read()}"
+
+    def test_CausalTree_event_listeners_e2e(self):
+        ct = classes.CausalTree()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        ct.put_first('item', 'writer id')
+        assert len(logs) == 0
+        ct.add_listener(add_log)
+        ct.put_first('item', 'writer id')
+        assert len(logs) == 2
+        ct.put_after('item', 'writer id', ct.read_full()[0].uuid)
+        assert len(logs) == 3
+        ct.remove_listener(add_log)
+        ct.put_first('item', 'writer id')
+        assert len(logs) == 3
 
     def debug_info(self, ct1: classes.CausalTree, ct2: classes.CausalTree, history) -> str:
         result = f'expected {ct1.read()} but encountered {ct2.read()}\n\n'
