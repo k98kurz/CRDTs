@@ -19,7 +19,7 @@ from .stateupdate import StateUpdate
 from bisect import bisect
 from decimal import Decimal
 from packify import SerializableType, pack
-from typing import Any, Type
+from typing import Any, Callable, Type
 from uuid import uuid4
 
 
@@ -29,8 +29,10 @@ class FIArray:
     clock: ClockProtocol
     cache_full: list[FIAItemWrapper]
     cache: list[SerializableType]
+    listeners: list[Callable]
 
-    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None) -> None:
+    def __init__(self, positions: LWWMap = None, clock: ClockProtocol = None,
+                 listeners: list[Callable] = None) -> None:
         """Initialize an FIArray from an LWWMap of item positions and a
             shared clock. Raises TypeError for invalid positions or
             clock.
@@ -39,6 +41,13 @@ class FIArray:
             'positions must be an LWWMap or None')
         tert(isinstance(clock, ClockProtocol) or clock is None,
             'clock must be a ClockProtocol or None')
+        if listeners is None:
+            listeners = []
+        tert(type(listeners) is list,
+             "listeners must be list[Callable[[StateUpdateProtocol], None]]")
+        for listener in listeners:
+            tert(callable(listener),
+                 "listeners must be list[Callable[[StateUpdateProtocol], None]]")
 
         clock = ScalarClock() if clock is None else clock
         positions = LWWMap(clock=clock) if positions is None else positions
@@ -50,6 +59,7 @@ class FIArray:
         self.clock = clock
         self.cache_full = None
         self.cache = None
+        self.listeners = listeners
 
     def pack(self) -> bytes:
         """Pack the data and metadata into a bytes string. Raises
@@ -110,6 +120,7 @@ class FIArray:
                state_update.data[3] is None,
             'state_update.data[3] must be FIAItemWrapper|None')
 
+        self.invoke_listeners(state_update)
         self.positions.update(state_update)
         self.update_cache(state_update.data[1], state_update.data[3], state_update.data[0] == 'o',
                           inject=inject)
@@ -232,7 +243,7 @@ class FIArray:
 
         if len(self.read_full(inject=inject)) > first_index+1:
             next = self.read_full(inject=inject)[first_index+1]
-            next_index = next.index
+            next_index = next.index.value
         else:
             next_index = Decimal(1)
 
@@ -329,7 +340,7 @@ class FIArray:
                                                    Decimal("1"))
                 else:
                     before = self.cache_full[afidx+1]
-                    new_index = self.index_between(after.index,
+                    new_index = self.index_between(after.index.value,
                                                    before.index.value)
 
         item.index.value = new_index
@@ -448,7 +459,7 @@ class FIArray:
         positions = self.positions.read(inject={**globals(), **inject})
         items: list[FIAItemWrapper] = [v for k, v in positions.items()]
         # sort by (index, serialized value)
-        items.sort(key=lambda item: (item.index, pack(item.value)))
+        items.sort(key=lambda item: (item.index.value, pack(item.value)))
 
         # set instance values
         self.cache_full = items
@@ -482,9 +493,24 @@ class FIArray:
             # sort by (index, serialized value)
             index = bisect(
                 self.cache_full,
-                (item.index, pack(item.value)),
-                key=lambda a: (a.index, pack(a.value))
+                (item.index.value, pack(item.value)),
+                key=lambda a: (a.index.value, pack(a.value))
             )
             self.cache_full.insert(index, item)
 
         self.cache = None
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        tert(callable(listener),
+             "listener must be Callable[[StateUpdateProtocol], None]")
+        self.listeners.append(listener)
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        self.listeners.remove(listener)
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
+        for listener in self.listeners:
+            listener(state_update)

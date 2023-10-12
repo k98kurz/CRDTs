@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from decimal import Decimal
 from itertools import permutations
 from uuid import uuid4
@@ -536,6 +535,23 @@ class TestFIArray(unittest.TestCase):
         # print(fia2.read_full())
         assert fia1.checksums() == fia2.checksums(), f"\n{fia1.read_full()}\n{fia2.read_full()}"
 
+    def test_FIArray_event_listeners_e2e(self):
+        fia = classes.FIArray()
+        logs = []
+        def add_log(update: interfaces.StateUpdateProtocol):
+            logs.append(update)
+
+        assert len(logs) == 0
+        fia.put_first('item', 'writer id')
+        assert len(logs) == 0
+        fia.add_listener(add_log)
+        fia.put_first('item', 'writer id')
+        assert len(logs) == 1
+        fia.put_after('item', 'writer id', fia.read_full()[0])
+        assert len(logs) == 2
+        fia.remove_listener(add_log)
+        fia.put_first('item', 'writer id')
+        assert len(logs) == 2
 
 if __name__ == '__main__':
     unittest.main()
