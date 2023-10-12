@@ -1,6 +1,6 @@
 from __future__ import annotations
 from packify import SerializableType
-from typing import Any, Hashable, Protocol, Type, runtime_checkable
+from typing import Any, Callable, Hashable, Protocol, Type, runtime_checkable
 
 
 @runtime_checkable
@@ -64,7 +64,9 @@ class CRDTProtocol(Protocol):
 
     def update(self, state_update: StateUpdateProtocol, /, *,
                inject: dict = {}) -> CRDTProtocol:
-        """Apply an update and return self (monad pattern)."""
+        """Apply an update and return self (monad pattern). Should call
+            self.invoke_listeners after validating the state_update.
+        """
         ...
 
     def checksums(self, /, *, from_ts: Any = None, until_ts: Any = None) -> tuple[Any]:
@@ -96,6 +98,18 @@ class CRDTProtocol(Protocol):
             Return the leaves that need to be resolved and merged for
             synchronization.
         """
+        ...
+
+    def add_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Adds a listener that is called on each update."""
+        ...
+
+    def remove_listener(self, listener: Callable[[StateUpdateProtocol], None]) -> None:
+        """Removes a listener if it was previously added."""
+        ...
+
+    def invoke_listeners(self, state_update: StateUpdateProtocol) -> None:
+        """Invokes all event listeners, passing them the state_update."""
         ...
 
 
