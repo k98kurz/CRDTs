@@ -127,7 +127,6 @@ class CausalTree:
             'state_update.data[3] must be CTDataWrapper')
 
         inject = {**globals(), **inject}
-        state_update.data[3].visible = state_update.data[0] == 'o'
         self.invoke_listeners(state_update)
         self.positions.update(state_update, inject=inject)
         self.update_cache(state_update.data[3], inject=inject)
@@ -381,7 +380,6 @@ class CausalTree:
             if ctdw.uuid != item.uuid:
                 continue
             del self.cache[i]
-            ctdw.visible = item.visible
             children = remove_children(ctdw)
             for child in children:
                 self.update_cache(child)

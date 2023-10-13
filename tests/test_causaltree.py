@@ -179,8 +179,10 @@ class TestCausalTree(unittest.TestCase):
         causaltree.put_first(b'first', 1)
         assert b'first' in causaltree.read()
         first = causaltree.read_full()[0]
+        view1 = causaltree.read()
         causaltree.delete(first, 1)
         assert b'first' not in causaltree.read(), causaltree.read_full()
+        assert len(view1) > len(causaltree.read())
 
     def test_CausalTree_move_item_changes_view_and_results_in_correct_ordering(self):
         causaltree = classes.CausalTree()

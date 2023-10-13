@@ -130,8 +130,7 @@ class LWWRegister:
             self.last_update = state_update.ts
             self.last_writer = state_update.data[0]
             self.value = state_update.data[1]
-
-        if self.clock.are_concurrent(state_update.ts, self.last_update):
+        elif self.clock.are_concurrent(state_update.ts, self.last_update):
             # use writer int and value as tie breakers for concurrent updates
             if (state_update.data[0] > self.last_writer) or (
                     state_update.data[0] == self.last_writer and
