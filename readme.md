@@ -337,16 +337,18 @@ at the links in the Usage section above.
 
 ## Tests
 
-Clone the repository, then open a terminal in the root directory and run the
-following:
+Clone the repository, create a virtual env if desired, then open a terminal in
+the root directory and run the following:
 
 ```bash
+pip install -r requirements.txt
 find ./tests -name test_*.py -exec python {} \;
 ```
 
 Alternately, for non-POSIX systems, run the following:
 
 ```
+pip install -r requirements.txt
 python test_datawrappers.py
 python test_scalarclock.py
 python test_serialization.py
