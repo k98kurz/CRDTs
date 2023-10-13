@@ -27,47 +27,12 @@ counter = Counter(clock=ScalarClock(uuid=clock_uuid))
 Each instance instantiated with default values will have a clock with a UUID
 (UUID4). This can then be shared across a network of nodes.
 
-### Methods
+The counter can then be increased by an arbitrary amount (1 by default):
 
-Below is documentation for the methods generated automatically by autodox.
-
-#### `pack() -> bytes:`
-
-Pack the data and metadata into a bytes string.
-
-#### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> Counter:`
-
-Unpack the data bytes string into an instance.
-
-#### `read(/, *, inject: dict = {}) -> int:`
-
-Return the eventually consistent data view.
-
-#### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> Counter:`
-
-Apply an update and return self (monad pattern).
-
-#### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
-
-Returns any checksums for the underlying data to detect desynchronization due to
-message failure.
-
-#### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
-
-Returns a concise history of update_class (StateUpdate by default) that will
-converge to the underlying data. Useful for resynchronization by replaying
-updates from divergent nodes.
-
-#### `increase(amount: int = 1, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
-
-Increase the counter by the given amount (default 1). Returns the update_class
-(StateUpdate by default) that should be propagated to the network.
-
-#### `__init__(counter: int = 0, clock: ClockProtocol = <factory>):`
-
-#### `__repr__():`
-
-#### `__eq__():`
+```python
+counter.increase()
+counter.increase(420)
+```
 
 ### Usage Example
 
@@ -92,3 +57,70 @@ for update in counter.history():
 # prove they have the same state
 assert counter.read() == counter2.read()
 ```
+
+### Methods
+
+Below is documentation for the methods generated automatically by autodox.
+
+#### `__init__(counter: int = 0, clock: ClockProtocol = <factory>, listeners: list[Callable] = <factory>):`
+
+#### `pack() -> bytes:`
+
+Pack the data and metadata into a bytes string. Raises packify.UsageError on
+failure.
+
+#### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> Counter:`
+
+Unpack the data bytes string into an instance. Raises packify.UsageError or
+ValueError on failure.
+
+#### `read(/, *, inject: dict = {}) -> int:`
+
+Return the eventually consistent data view.
+
+#### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> Counter:`
+
+Apply an update and return self (monad pattern). Raises TypeError or ValueError
+on invalid state_update.clock_uuid or state_update.data.
+
+#### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
+
+Returns any checksums for the underlying data to detect desynchronization due to
+message failure.
+
+#### `history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+
+Returns a concise history of update_class (StateUpdate by default) that will
+converge to the underlying data. Useful for resynchronization by replaying
+updates from divergent nodes.
+
+#### `get_merkle_history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> list[bytes, list[bytes], dict[bytes, bytes]]:`
+
+Get a Merklized history for the StateUpdates of the form [root, [content_id for
+update in self.history()], { content_id: packed for update in self.history()}]
+where packed is the result of update.pack() and content_id is the sha256 of the
+packed update.
+
+#### `resolve_merkle_histories(history: list[bytes, list[bytes]]) -> list[bytes]:`
+
+Accept a history of form [root, leaves] from another node. Return the leaves
+that need to be resolved and merged for synchronization. Raises TypeError or
+ValueError for invalid input.
+
+#### `increase(amount: int = 1, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Increase the counter by the given amount (default 1). Returns the update_class
+(StateUpdate by default) that should be propagated to the network. Raises
+TypeError or ValueError for invalid amount.
+
+#### `add_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
+
+Adds a listener that is called on each update.
+
+#### `remove_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
+
+Removes a listener if it was previously added.
+
+#### `invoke_listeners(state_update: StateUpdateProtocol) -> None:`
+
+Invokes all event listeners, passing them the state_update.

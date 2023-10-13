@@ -31,25 +31,33 @@ orset = ORSet(clock=ScalarClock(uuid=clock_uuid))
 Each instance instantiated with default values will have a clock with a UUID
 (UUID4). This can then be shared across a network of nodes.
 
-Note that items must meet the following type alias to work properly.
+Items can then be added and removed using the `observe` and `remove` methods:
 
 ```python
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+orset.observe("foo")
+orset.remove("bar")
 ```
+
+Note that items must meet the `packify.SerializableType` type alias to work properly:
+
+`packify.interface.Packable | dict | list | set | tuple | int | float | decimal.Decimal | str | bytes | bytearray | None`
+
+Custom data types can be used if a class implementing the `DataWrapperProtocol`
+is first used to wrap the item. This ensures reliable serialization.
 
 ### Usage Example
 
 Below is an example of how to use this CRDT.
 
 ```python
-from crdts import ORSet, DecimalWrapper
+from crdts import ORSet
 from decimal import Decimal
 
 orset = ORSet()
 orset.observe('a string item')
 orset.remove('pre-emptive removals are ok')
 orset.remove('hello world')
-orset.observe(DecimalWrapper(Decimal('0.5')))
+orset.observe(Decimal('0.5'))
 
 # simulate a replica
 orset2 = ORSet()
@@ -57,7 +65,7 @@ orset2.clock.uuid = orset.clock.uuid
 
 # create some concurrent updates
 orset2.observe('hello world')
-orset2.observe(DecimalWrapper(Decimal('420.69')))
+orset2.observe(Decimal('420.69'))
 
 # synchronize
 for update in orset.history():
@@ -74,45 +82,71 @@ assert orset.read() == orset2.read()
 
 Below is documentation for the methods generated automatically by autodox.
 
-#### `pack() -> bytes:`
+##### `__init__(observed: set[SerializableType] = <factory>, observed_metadata: dict[SerializableType, StateUpdateProtocol] = <factory>, removed: set[SerializableType] = <factory>, removed_metadata: dict[SerializableType, StateUpdateProtocol] = <factory>, clock: ClockProtocol = <factory>, cache: Optional[tuple] = None, listeners: list[Callable] = <factory>):`
 
-Pack the data and metadata into a bytes string.
+##### `pack() -> bytes:`
 
-#### `@classmethod unpack(data: bytes, inject: dict = {}) -> ORSet:`
+Pack the data and metadata into a bytes string. Raises packify.UsageError on
+failure.
 
-Unpack the data bytes string into an instance.
+##### `@classmethod unpack(data: bytes, inject: dict = {}) -> ORSet:`
 
-#### `read(/, *, inject: dict = {}) -> set[SerializableType]:`
+Unpack the data bytes string into an instance. Raises packify.UsageError or
+ValueError on failure.
+
+##### `read(/, *, inject: dict = {}) -> set[SerializableType]:`
 
 Return the eventually consistent data view.
 
-#### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> ORSet:`
+##### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> ORSet:`
 
 Apply an update and return self (monad pattern).
 
-#### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
+##### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
 
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-#### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+##### `history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying
 updates from divergent nodes.
 
-#### `observe(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `get_merkle_history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> list[bytes, list[bytes], dict[bytes, bytes]]:`
+
+Get a Merklized history for the StateUpdates of the form [root, [content_id for
+update in self.history()], { content_id: packed for update in self.history()}]
+where packed is the result of update.pack() and content_id is the sha256 of the
+packed update.
+
+##### `resolve_merkle_histories(history: list[bytes, list[bytes]]) -> list[bytes]:`
+
+Accept a history of form [root, leaves] from another node. Return the leaves
+that need to be resolved and merged for synchronization. Raises TypeError or
+ValueError for invalid input.
+
+##### `observe(member: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that adds
 the given member to the observed set. The member will be in the data attribute
-at index 1.
+at index 1. Raises TypeError for invalid member (must be SerializableType that
+is also Hashable).
 
-#### `remove(member: SerializableType, /, *, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+##### `remove(member: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Adds the given member to the removed set.
+Creates, applies, and returns an update_class (StateUpdate by default) that adds
+the given member to the removed set. Raises TypeError for invalid member (must
+be SerializableType that is also Hashable).
 
-#### `__init__(observed: set[SerializableType] = <factory>, observed_metadata: dict[SerializableType, StateUpdateProtocol] = <factory>, removed: set[SerializableType] = <factory>, removed_metadata: dict[SerializableType, StateUpdateProtocol] = <factory>, clock: ClockProtocol = <factory>, cache: Optional[tuple] = None):`
+##### `add_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
 
-#### `__repr__():`
+Adds a listener that is called on each update.
 
-#### `__eq__():`
+##### `remove_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
+
+Removes a listener if it was previously added.
+
+##### `invoke_listeners(state_update: StateUpdateProtocol) -> None:`
+
+Invokes all event listeners, passing them the state_update.

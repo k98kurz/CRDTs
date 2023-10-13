@@ -601,10 +601,18 @@ after, or halfway between before and after. The FIAItemWrapper will be at index
 if one of new_index, before, or after is not set. Raises TypeError for invalid
 item, writer, new_index, before, or after.
 
-##### `normalize(writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `normalize(writer: SerializableType, max_index: Decimal = 1.0, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
 
 Evenly distribute the item indices. Returns tuple of update_class (StateUpdate
-by default) that encode the index updates. Does not apply the updates locally.
+by default) that encode the index updates. Applies each update as it is
+generated.
+
+##### `normalize_list(writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+
+Calls normalize with a max_index calculated for use with the append method as
+the primary mechanism for adding to the list. Returns tuple of update_class
+(StateUpdate by default) that encode the index updates. Applies each update as
+it is generated.
 
 ##### `get_merkle_history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> list[bytes, list[bytes], dict[bytes, bytes]]:`
 

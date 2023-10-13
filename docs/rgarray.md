@@ -61,12 +61,20 @@ rgaitem = rga.read_full()[0]
 rga.delete(rgaitem)
 ```
 
-Note that items must meet the following type alias to work properly with
-`append`.
+Alternately, the `ListProtocol` methods can be used for deletion:
 
 ```python
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+rga.append('something', writer_id)
+index = rga.index('something')
+rga.remove(index)
 ```
+
+Note that items must meet the `packify.SerializableType` type alias to work properly:
+
+`packify.interface.Packable | dict | list | set | tuple | int | float | decimal.Decimal | str | bytes | bytearray | None`
+
+Custom data types can be used if a class implementing the `DataWrapperProtocol`
+is first used to wrap the item. This ensures reliable serialization.
 
 ### Usage Example
 
@@ -113,13 +121,20 @@ assert rga.read() == rga2.read()
 
 Below is documentation for the methods generated automatically by autodox.
 
+#### `__init__(items: ORSet = None, clock: ClockProtocol = None, listeners: list[Callable] = None) -> None:`
+
+Initialize an RGA from an ORSet of items and a shared clock. Raises TypeError
+for invalid items or clock.
+
 #### `pack() -> bytes:`
 
-Pack the data and metadata into a bytes string.
+Pack the data and metadata into a bytes string. Raises packify.UsageError on
+failure.
 
 #### `@classmethod unpack(data: bytes, inject: dict = {}) -> RGArray:`
 
-Unpack the data bytes string into an instance.
+Unpack the data bytes string into an instance. Raises packify.UsageError or
+ValueError on failure.
 
 #### `read(/, *, inject: dict = {}) -> tuple[SerializableType]:`
 
@@ -134,28 +149,55 @@ preparing deletion updates -- only a RGAItemWrapper can be used for delete.
 
 #### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> RGArray:`
 
-Apply an update and return self (monad pattern).
+Apply an update and return self (monad pattern). Raises TypeError or ValueError
+for invalid amount or update_class.
 
 #### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
 
 Returns any checksums for the underlying data to detect desynchronization due to
 message failure.
 
-#### `history(/, *, update_class: type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+#### `history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of update_class (StateUpdate by default) that will
 converge to the underlying data. Useful for resynchronization by replaying all
 updates from divergent nodes.
 
-#### `append(item: SerializableType, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+#### `get_merkle_history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> list[bytes, list[bytes], dict[bytes, bytes]]:`
+
+Get a Merklized history for the StateUpdates of the form [root, [content_id for
+update in self.history()], { content_id: packed for update in self.history()}]
+where packed is the result of update.pack() and content_id is the sha256 of the
+packed update.
+
+#### `resolve_merkle_histories(history: list[bytes, list[bytes]]) -> list[bytes]:`
+
+Accept a history of form [root, leaves] from another node. Return the leaves
+that need to be resolved and merged for synchronization. Raises TypeError or
+ValueError for invalid input.
+
+#### `index(item: SerializableType, _start: int = 0, _stop: int = None) -> int:`
+
+Returns the int index of the item in the list returned by read(). Raises
+ValueError if the item is not present.
+
+#### `append(item: SerializableType, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
-appends the item. The RGAItemWrapper will be in the data attribute at index 1.
+appends the item to the end of the list returned by read(). The RGAItemWrapper
+will be in the data attribute at index 1. Raises TypeError for invalid item,
+writer, or update_class.
 
-#### `delete(item: RGAItemWrapper, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+#### `remove(index: int, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
-deletes the specified item.
+removes the item at the index in the list returned by read(). Raises ValueError
+if the index is out of bounds or TypeError if index is not an int.
+
+#### `delete(item: RGAItemWrapper, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Creates, applies, and returns an update_class (StateUpdate by default) that
+deletes the specified item. Raises TypeError for invalid item or update_class.
 
 #### `calculate_cache() -> None:`
 
@@ -166,8 +208,16 @@ list. Resets the cache.
 
 Updates the cache by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
-Resets the cache.
+Resets the cache. Raises TypeError for invalid item or visible.
 
-#### `__init__(items: ORSet = None, clock: ClockProtocol = None) -> None:`
+#### `add_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
 
-Initialize an RGA from an ORSet of items and a shared clock.
+Adds a listener that is called on each update.
+
+#### `remove_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
+
+Removes a listener if it was previously added.
+
+#### `invoke_listeners(state_update: StateUpdateProtocol) -> None:`
+
+Invokes all event listeners, passing them the state_update.

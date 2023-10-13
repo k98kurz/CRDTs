@@ -30,7 +30,7 @@ To create a local representation of a shared instance, use a shared, unique
 bytes value as the clock UUID:
 
 ```python
-from crdts import ScalarClock
+from crdts import CausalTree, ScalarClock
 
 writer_id = 1
 clock_uuid = b'12345 should be unique' # probably shared from another node
@@ -48,7 +48,7 @@ Items can then be added to the CausalTree with the `put_first` and `put_after`
 methods, and these items can then be moved by using the `move_item` method.
 
 ```python
-update = causaltree.put_first('first item', writer_id)
+update = causaltree.put_first('first item', writer_id)[0]
 first_item = update.data[3]
 causaltree.put_after('second item', writer_id, first_item.uuid)
 
@@ -56,14 +56,21 @@ assert causaltree.read() == ('first item', 'second item')
 full_list = causaltree.read_full()
 ```
 
-Note that items must meet the following type alias to work properly.
+Alternately, the `ListProtocol` methods can be used for deletion:
 
 ```python
-SerializableType = DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType
+causaltree.append('something', writer_id)
+index = causaltree.index('something')
+causaltree.remove(index)
 ```
 
+Note that items must meet the `packify.SerializableType` type alias to work properly:
+
+`packify.interface.Packable | dict | list | set | tuple | int | float | decimal.Decimal | str | bytes | bytearray | None`
+
 Custom data types can be used if a class implementing the `DataWrapperProtocol`
-is first used to wrap the item. This ensures reliable serialization.
+is first used to wrap the item. This ensures reliable serialization, as well as
+comparisons between elements for deterministic ordering.
 
 Additionally, it is possible that some items get excluded from the data views
 returned by `read` and `read_full` due to being orphans or having circular
@@ -109,13 +116,20 @@ assert causaltree.read() == ct2.read()
 
 Below is documentation for the methods generated automatically by autodox.
 
+#### `__init__(positions: LWWMap = None, clock: ClockProtocol = None, listeners: list[Callable] = None) -> None:`
+
+Initialize a CausalTree from an LWWMap of item positions and a shared clock.
+Raises TypeError for invalid positions or clock.
+
 #### `pack() -> bytes:`
 
-Pack the data and metadata into a bytes string.
+Pack the data and metadata into a bytes string. Raises packify.UsageError on
+failure.
 
 #### `@classmethod unpack(data: bytes, /, *, inject: dict = {}) -> CausalTree:`
 
-Unpack the data bytes string into an instance.
+Unpack the data bytes string into an instance. Raises packify.UsageError or
+ValueError on failure.
 
 #### `read(/, *, inject: dict = {}) -> tuple[SerializableType]:`
 
@@ -125,8 +139,8 @@ deletion updates.
 #### `read_full(/, *, inject: dict = {}) -> tuple[CTDataWrapper]:`
 
 Return the full, eventually consistent list of items with tombstones and
-complete DataWrapperProtocols rather than the underlying values. Use this for
-preparing deletion updates -- only a DataWrapperProtocol can be used for delete.
+complete CTDataWrappers rather than just the underlying values. Use this for
+preparing deletion updates -- only a CTDataWrapper can be used for delete.
 
 #### `read_excluded(/, *, inject: dict = {}) -> list[CTDataWrapper]:`
 
@@ -136,43 +150,80 @@ own descendant).
 
 #### `update(state_update: StateUpdateProtocol, /, *, inject: dict = {}) -> CausalTree:`
 
+Apply an update and return self (monad pattern). Raises TypeError or ValueError
+for invalid state_update.clock_uuid or state_update.data.
+
 #### `checksums(/, *, until_ts: Any = None, from_ts: Any = None) -> tuple[int]:`
 
 Returns checksums for the underlying data to detect desynchronization due to
 network partition.
 
-#### `history(/, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
+#### `history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate, until_ts: Any = None, from_ts: Any = None) -> tuple[StateUpdateProtocol]:`
 
 Returns a concise history of StateUpdates that will converge to the underlying
 data. Useful for resynchronization by replaying all updates from divergent
 nodes.
 
-#### `put(item: SerializableType, writer: int, uuid: bytes, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+#### `get_merkle_history(/, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> list[bytes, list[bytes], dict[bytes, bytes]]:`
 
-Creates, applies, and returns a update_class (StateUpdate by default) that puts
-the item after the parent.
+Get a Merklized history for the StateUpdates of the form [root, [content_id for
+update in self.history()], { content_id: packed for update in self.history()}]
+where packed is the result of update.pack() and content_id is the sha256 of the
+packed update.
 
-#### `put_after(item: SerializableType, writer: int, parent_uuid: bytes, /, *, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+#### `resolve_merkle_histories(history: list[bytes, list[bytes]]) -> list[bytes]:`
+
+Accept a history of form [root, leaves] from another node. Return the leaves
+that need to be resolved and merged for synchronization. Raises TypeError or
+ValueError for invalid input.
+
+#### `put(item: SerializableType, writer: SerializableType, uuid: bytes, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Creates, applies, and returns an update_class (StateUpdate by default) that puts
+the item after the parent. Raises TypeError on invalid item, writer, uuid, or
+parent_uuid.
+
+#### `put_after(item: SerializableType, writer: SerializableType, parent_uuid: bytes, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class that puts the item after the
-parent item.
+parent item. Raises TypeError on invalid item, writer, or parent_uuid.
 
-#### `put_first(item: DataWrapperProtocol, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> tuple[StateUpdateProtocol]:`
+#### `put_first(item: SerializableType, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
 
 Creates, applies, and returns at least one update_class (StateUpdate by default)
 that puts the item as the first item. Any ties for first place will be resolved
 by making the new item the parent of those other first items, and those
-update_class instances will also be created, applied, and returned.
+update_class instances will also be created, applied, and returned. Raises
+TypeError on invalid item or writer.
 
-#### `move_item(item: CTDataWrapper, writer: int, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
-
-Creates, applies, and returns an update_class (StateUpdate by default) that
-moves the item to after the new parent.
-
-#### `delete(ctdw: CTDataWrapper, writer: int, /, *, inject: dict = {}, update_class: type[StateUpdateProtocol] = <class 'crdts.stateupdate.StateUpdate'>) -> StateUpdateProtocol:`
+#### `move_item(item: CTDataWrapper, writer: SerializableType, parent_uuid: bytes = b'', /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class (StateUpdate by default) that
-deletes the item specified by ctdw.
+moves the item to after the new parent. Raises TypeError on invalid item,
+writer, or parent_uuid.
+
+#### `index(item: SerializableType, _start: int = 0, _stop: int = None) -> int:`
+
+Returns the int index of the item in the list returned by read_full(). Raises
+ValueError if the item is not present.
+
+#### `append(item: SerializableType, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Creates, applies, and returns an update_class (StateUpdate by default) that
+appends the item to the end of the list returned by read(). Raises TypeError on
+invalid item or writer.
+
+#### `remove(index: int, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Creates, applies, and returns an update_class (StateUpdate by default) that
+removes the item at the index in the list returned by read(). Raises ValueError
+if the index is out of bounds. Raises TypeError if index is not an int.
+
+#### `delete(ctdw: CTDataWrapper, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
+
+Creates, applies, and returns an update_class (StateUpdate by default) that
+deletes the item specified by ctdw. Raises TypeError or UsageError on invalid
+ctdw or writer.
 
 #### `calculate_cache(/, *, inject: dict = {}) -> None:`
 
@@ -183,4 +234,16 @@ list.
 
 Updates the cache by finding the correct insertion index for the given item,
 then inserting it there or removing it. Uses the bisect algorithm if necessary.
-Resets the cache.
+Resets the cache. Raises TypeError on invalid item.
+
+#### `add_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
+
+Adds a listener that is called on each update.
+
+#### `remove_listener(listener: Callable[[StateUpdateProtocol], None]) -> None:`
+
+Removes a listener if it was previously added.
+
+#### `invoke_listeners(state_update: StateUpdateProtocol) -> None:`
+
+Invokes all event listeners, passing them the state_update.
