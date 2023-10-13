@@ -1391,17 +1391,17 @@ Invokes all event listeners, passing them the state_update.
 
 #### Methods
 
-##### `index(_start: int = 0, _stop: int = -1) -> int:`
+##### `index(item: SerializableType, _start: int = 0, _stop: int = -1) -> int:`
 
 Returns the int index of the item in the list returned by read(). Should raise a
 ValueError if the item is not present.
 
-##### `append(update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol:`
+##### `append(item: SerializableType, writer: SerializableType, update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class that appends the item to the end
 of the list returned by read().
 
-##### `remove(index: int, update_class: Type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:`
+##### `remove(index: int, writer: SerializableType, update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol:`
 
 Creates, applies, and returns an update_class that removes the item at the index
 in the list returned by read(). Should raise ValueError if the index is out of
