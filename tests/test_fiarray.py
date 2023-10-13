@@ -28,14 +28,13 @@ class TestFIArray(unittest.TestCase):
     def test_FIArray_implements_ListProtocol(self):
         assert isinstance(classes.FIArray(), interfaces.ListProtocol)
 
-    def test_FIArray_append_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+    def test_FIArray_append_returns_StateUpdateProtocol_and_changes_read(self):
         fia = classes.FIArray()
         view1 = fia.read()
 
         item = b'hello'
-        state_updates = fia.append(item, 1)
-        assert isinstance(state_updates, tuple)
-        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
+        state_update = fia.append(item, 1)
+        assert isinstance(state_update, interfaces.StateUpdateProtocol)
 
         view2 = fia.read()
         assert view1 != view2
@@ -48,16 +47,15 @@ class TestFIArray(unittest.TestCase):
         assert fia.index('item1') == 0
         assert fia.index('item2') == 1
 
-    def test_FIArray_remove_returns_tuple_StateUpdateProtocol_and_changes_read(self):
+    def test_FIArray_remove_returns_StateUpdateProtocol_and_changes_read(self):
         fia = classes.FIArray()
         fia.append('item1', 123)
         fia.append('item2', 123)
         view = fia.read()
         assert 'item1' in view
         index = fia.index('item1')
-        state_updates = fia.remove(index, 123)
-        assert isinstance(state_updates, tuple)
-        assert all([isinstance(su, interfaces.StateUpdateProtocol) for su in state_updates])
+        state_update = fia.remove(index, 123)
+        assert isinstance(state_update, interfaces.StateUpdateProtocol)
         assert fia.read() != view
         assert 'item1' not in fia.read()
 

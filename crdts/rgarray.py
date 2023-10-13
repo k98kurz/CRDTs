@@ -164,14 +164,12 @@ class RGArray:
 
     def append(self, item: SerializableType, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate,
-               inject: dict = {}) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns a tuple of update_class objects
-            (StateUpdates by default) that append the item to the end of
-            the list returned by read(). The RGAItemWrapper will be in
-            the data attribute at index 1. Raises TypeError for invalid
-            item, writer, or update_class. Note that this will always
-            return a tuple with only one update_class, but it is a tuple
-            for consistency with the ListProtocol.
+               inject: dict = {}) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that appends the item to the end of the list
+            returned by read(). The RGAItemWrapper will be in the data
+            attribute at index 1. Raises TypeError for invalid item,
+            writer, or update_class.
         """
         tert(isinstance(item, SerializableType),
                f'item must be SerializableType ({SerializableType})')
@@ -189,21 +187,21 @@ class RGArray:
 
         self.update(state_update, inject=inject)
 
-        return (state_update,)
+        return state_update
 
     def remove(self, index: int, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate
-               ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns a tuple of update_class objects
-            (StateUpdates by default) that remove the item at the index
-            in the list returned by read(). Raises ValueError if the
-            index is out of bounds or TypeError if index is not an int.
+               ) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that removes the item at the index in the list
+            returned by read(). Raises ValueError if the index is out of
+            bounds or TypeError if index is not an int.
         """
         items = self.read_full()
         tert(type(index) is int, f"index must be int between 0 and {len(items)-1}")
         vert(0 <= index < len(items), f"index must be int between 0 and {len(items)-1}")
         item = items[index]
-        return (self.delete(item, update_class=update_class),)
+        return self.delete(item, update_class=update_class)
 
     def delete(self, item: RGAItemWrapper, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate,

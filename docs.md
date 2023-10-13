@@ -624,18 +624,17 @@ ValueError for invalid input.
 Returns the int index of the item in the list returned by read(). Raises
 ValueError if the item is not present.
 
-##### `append(item: SerializableType, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `append(item: SerializableType, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects (StateUpdates by
-default) that append the item to the end of the list returned by read(). Raises
-TypeError for invalid item.
+Creates, applies, and returns an update_class (StateUpdate by default) that
+appends the item to the end of the list returned by read(). Raises TypeError for
+invalid item.
 
-##### `remove(index: int, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `remove(index: int, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects (StateUpdates by
-default) that remove the item at the index in the list returned by read(). Raise
-ValueError if the index is out of bounds. Raises TypeError for invalid item or
-index.
+Creates, applies, and returns an update_class (StateUpdate by default) that
+removes the item at the index in the list returned by read(). Raise ValueError
+if the index is out of bounds. Raises TypeError for invalid item or index.
 
 ##### `delete(item: FIAItemWrapper, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
@@ -741,21 +740,18 @@ ValueError for invalid input.
 Returns the int index of the item in the list returned by read(). Raises
 ValueError if the item is not present.
 
-##### `append(item: SerializableType, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `append(item: SerializableType, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects (StateUpdates by
-default) that append the item to the end of the list returned by read(). The
-RGAItemWrapper will be in the data attribute at index 1. Raises TypeError for
-invalid item, writer, or update_class. Note that this will always return a tuple
-with only one update_class, but it is a tuple for consistency with the
-ListProtocol.
+Creates, applies, and returns an update_class (StateUpdate by default) that
+appends the item to the end of the list returned by read(). The RGAItemWrapper
+will be in the data attribute at index 1. Raises TypeError for invalid item,
+writer, or update_class.
 
-##### `remove(index: int, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `remove(index: int, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects (StateUpdates by
-default) that remove the item at the index in the list returned by read().
-Raises ValueError if the index is out of bounds or TypeError if index is not an
-int.
+Creates, applies, and returns an update_class (StateUpdate by default) that
+removes the item at the index in the list returned by read(). Raises ValueError
+if the index is out of bounds or TypeError if index is not an int.
 
 ##### `delete(item: RGAItemWrapper, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
@@ -1226,18 +1222,17 @@ writer, or parent_uuid.
 Returns the int index of the item in the list returned by read_full(). Raises
 ValueError if the item is not present.
 
-##### `append(item: SerializableType, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `append(item: SerializableType, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects (StateUpdates by
-default) that append the item to the end of the list returned by read(). Raises
-TypeError on invalid item or writer.
+Creates, applies, and returns an update_class (StateUpdate by default) that
+appends the item to the end of the list returned by read(). Raises TypeError on
+invalid item or writer.
 
-##### `remove(index: int, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> tuple[StateUpdateProtocol]:`
+##### `remove(index: int, writer: SerializableType, /, *, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects (StateUpdates by
-default) that remove the item at the index in the list returned by read().
-Raises ValueError if the index is out of bounds or TypeError if index is not an
-int.
+Creates, applies, and returns an update_class (StateUpdate by default) that
+removes the item at the index in the list returned by read(). Raises ValueError
+if the index is out of bounds. Raises TypeError if index is not an int.
 
 ##### `delete(ctdw: CTDataWrapper, writer: SerializableType, /, *, inject: dict = {}, update_class: Type[StateUpdateProtocol] = StateUpdate) -> StateUpdateProtocol:`
 
@@ -1401,16 +1396,16 @@ Invokes all event listeners, passing them the state_update.
 Returns the int index of the item in the list returned by read(). Should raise a
 ValueError if the item is not present.
 
-##### `append(update_class: Type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:`
+##### `append(update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects that append the
-item to the end of the list returned by read().
+Creates, applies, and returns an update_class that appends the item to the end
+of the list returned by read().
 
 ##### `remove(index: int, update_class: Type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:`
 
-Creates, applies, and returns a tuple of update_class objects that remove the
-item at the index in the list returned by read(). Should raise ValueError if the
-index is out of bounds.
+Creates, applies, and returns an update_class that removes the item at the index
+in the list returned by read(). Should raise ValueError if the index is out of
+bounds.
 
 ### `DataWrapperProtocol(Protocol)`
 

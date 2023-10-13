@@ -407,28 +407,26 @@ class FIArray:
 
     def append(self, item: SerializableType, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate
-               ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns a tuple of update_class objects
-            (StateUpdates by default) that append the item to the end of
-            the list returned by read(). Raises TypeError for invalid
-            item.
+               ) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that appends the item to the end of the list
+            returned by read(). Raises TypeError for invalid item.
         """
-        return (self.put_last(item, writer, update_class=update_class),)
+        return self.put_last(item, writer, update_class=update_class)
 
     def remove(self, index: int, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate
-               ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns a tuple of update_class objects
-            (StateUpdates by default) that remove the item at the index
-            in the list returned by read(). Raise ValueError if the
-            index is out of bounds. Raises TypeError for invalid item or
-            index.
+               ) -> StateUpdateProtocol:
+        """Creates, applies, and returns an update_class (StateUpdate by
+            default) that removes the item at the index in the list
+            returned by read(). Raise ValueError if the index is out of
+            bounds. Raises TypeError for invalid item or index.
         """
         items = self.read_full()
         tert(type(index) is int, f"index must be int between 0 and {len(items)-1}")
         vert(0 <= index < len(items), f"index must be int between 0 and {len(items)-1}")
         item = items[index]
-        return (self.delete(item, writer, update_class=update_class),)
+        return self.delete(item, writer, update_class=update_class)
 
     def delete(self, item: FIAItemWrapper, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate,

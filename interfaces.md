@@ -113,16 +113,16 @@ Invokes all event listeners, passing them the state_update.
 Returns the int index of the item in the list returned by read(). Should raise a
 ValueError if the item is not present.
 
-##### `append(update_class: Type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:`
+##### `append(update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol:`
 
-Creates, applies, and returns a tuple of update_class objects that append the
-item to the end of the list returned by read().
+Creates, applies, and returns an update_class that appends the item to the end
+of the list returned by read().
 
 ##### `remove(index: int, update_class: Type[StateUpdateProtocol]) -> tuple[StateUpdateProtocol]:`
 
-Creates, applies, and returns a tuple of update_class objects that remove the
-item at the index in the list returned by read(). Should raise ValueError if the
-index is out of bounds.
+Creates, applies, and returns an update_class that removes the item at the index
+in the list returned by read(). Should raise ValueError if the index is out of
+bounds.
 
 ### `DataWrapperProtocol(Protocol)`
 
