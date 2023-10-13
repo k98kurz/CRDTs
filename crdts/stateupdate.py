@@ -7,6 +7,7 @@ from typing import Hashable
 
 @dataclass
 class StateUpdate:
+    """Default class for encoding delta states."""
     clock_uuid: bytes
     ts: SerializableType
     data: Hashable

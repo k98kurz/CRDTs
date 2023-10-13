@@ -124,16 +124,18 @@ class ListProtocol(Protocol):
 
     def append(self, item, writer, /, *, update_class: Type[StateUpdateProtocol]
                ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns an update_class that appends
-            the item to the end of the list returned by read().
+        """Creates, applies, and returns a tuple of update_class objects
+            that append the item to the end of the list returned by
+            read().
         """
         ...
 
     def remove(self, index: int, writer, /, *, update_class: Type[StateUpdateProtocol]
                ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns an update_class that removes
-            the item at the index in the list returned by read(). Should
-            raise ValueError if the index is out of bounds.
+        """Creates, applies, and returns a tuple of update_class objects
+            that remove the item at the index in the list returned by
+            read(). Should raise ValueError if the index is out of
+            bounds.
         """
         ...
 

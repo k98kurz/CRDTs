@@ -260,7 +260,7 @@ class CausalTree:
 
     def index(self, item: SerializableType, _start: int = 0, _stop: int = None) -> int:
         """Returns the int index of the item in the list returned by
-            read(). Raises ValueError if the item is not present.
+            read_full(). Raises ValueError if the item is not present.
         """
         if _stop:
             return [c.value for c in self.read_full()].index(item, _start, _stop)
@@ -269,8 +269,10 @@ class CausalTree:
     def append(self, item: SerializableType, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns an update_class that appends
-            the item to the end of the list returned by read().
+        """Creates, applies, and returns a tuple of update_class objects
+            (StateUpdates by default) that append the item to the end of
+            the list returned by read(). Raises TypeError on invalid
+            item or writer.
         """
         items = self.read_full()
         if len(items):
@@ -281,11 +283,15 @@ class CausalTree:
     def remove(self, index: int, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate
                ) -> tuple[StateUpdateProtocol]:
-        """Creates, applies, and returns an update_class that removes
-            the item at the index in the list returned by read(). Should
-            raise ValueError if the index is out of bounds.
+        """Creates, applies, and returns a tuple of update_class objects
+            (StateUpdates by default) that remove the item at the index
+            in the list returned by read(). Raises ValueError if the
+            index is out of bounds or TypeError if index is not an int.
         """
-        ctdw = self.read_full()[index]
+        items = self.read_full()
+        tert(type(index) is int, f"index must be int between 0 and {len(items)-1}")
+        vert(0 <= index < len(items), f"index must be int between 0 and {len(items)-1}")
+        ctdw = items[index]
         return (self.delete(ctdw, writer, update_class=update_class),)
 
     def delete(self, ctdw: CTDataWrapper, writer: SerializableType, /, *,
