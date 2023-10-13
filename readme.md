@@ -14,6 +14,7 @@ the following CRDTs (class names in parentheses):
 - Positive-Negative Counter (PNCounter)
 - Grow-only Set (GSet)
 - Observed-Removed Set (ORSet)
+- Grow-only Positive-Negative Counter Set (CounterSet)
 - Fractionally-Indexed Array (FIArray)
 - Replicated Growable Array (RGArray)
 - Last-Writer-Wins Register (LWWRegister)
@@ -55,16 +56,17 @@ Each implementation must include a full test suite to be considered complete.
 - [x] CausalTree
 - [x] Decent documentation
 - [x] Merklized feature: [delta-state content IDs] <- state root hash
-- [ ] ListProtocol: RGArray, FIArray, CausalTree
-- [ ] Refactor: change writer_id from int to SerializableType
-- [ ] New CRDT: CounterSet
-- [ ] New CRDT: Graph
+- [x] ListProtocol: RGArray, FIArray, CausalTree
+- [x] Refactor: change writer_id from int to SerializableType
+- [x] New CRDT: CounterSet
+- [x] Hooks/event listeners
+- [ ] Remove most data wrappers
 - [ ] New CRDT: Document
-- [ ] Hooks/event listeners
 
 ## Setup and Usage
 
-Requires python 3.10+.
+Requires python 3.10+. Uses the [packify](https://pypi.org/project/packify)
+library as a universal serializer.
 
 ### Setup
 
@@ -88,6 +90,16 @@ gets history of state deltas (updates) that converge to the local CRDT state
 - `get_merkle_history(self, ...) -> list[bytes, list[bytes], dict[bytes, bytes]]`
 - `resolve_merkle_histories(self, history: list[bytes, list[bytes]]) -> list[bytes]`
 
+CRDTs that encode lists (RGArray, FIArray, and CasaulTree) also follow the
+`ListProtocol` with these methods:
+
+- `index(_start: int = 0, _stop: int = -1) -> int`: returns the int index of the
+item in the list returned by `read()`.
+- `append(update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol`:
+appends the item to the end of the list returned by `read()`
+- `remove(index: int, update_class: Type[StateUpdateProtocol]) -> StateUpdateProtocol`
+removes the item at the index from the list returned by `read()`
+
 Beyond this, each CRDT has its own specific methods unique to the type. Full
 documentation for each class in this library can be found in the
 [docs.md](https://github.com/k98kurz/CRDTs/blob/master/docs.md) file generated
@@ -98,6 +110,7 @@ Documentation explaining how each CRDT works can be found here:
 - [ORSet](https://github.com/k98kurz/CRDTs/blob/master/docs/orset.md)
 - [Counter](https://github.com/k98kurz/CRDTs/blob/master/docs/counter.md)
 - [PNCounter](https://github.com/k98kurz/CRDTs/blob/master/docs/pncounter.md)
+- [CounterSet](https://github.com/k98kurz/CRDTs/blob/master/docs/counterset.md)
 - [RGArray](https://github.com/k98kurz/CRDTs/blob/master/docs/rgarray.md)
 - [LWWRegister](https://github.com/k98kurz/CRDTs/blob/master/docs/lwwregister.md)
 - [LWWMap](https://github.com/k98kurz/CRDTs/blob/master/docs/lwwmap.md)
@@ -124,7 +137,7 @@ custom class implementing the `PackableProtocol` interface will be compatible
 with these functions and must be injected into `deserialize_part`, e.g.
 `deserialize_part(data, inject={'MyPackableClass': MyPackableClass})`.
 
-#### Synchronization
+#### Synchronization (Checksums)
 
 Note that the `checksums` and `history` methods for every CRDT support timestamp
 constraints `from_ts` and `until_ts`. This allows for nodes to synchronize
@@ -134,6 +147,10 @@ feature is left to the library consumer, but I would start with something like
 the following:
 
 ```python
+from crdts import CRDTProtocol, StateUpdate
+from typing import Any
+import math
+
 def make_ts_buckets(max_ts: int, max_bucket_size: int = 16) -> list[tuple[int, int]]:
     """Divides checksums and updates into buckets of form (from_ts, until_ts)
         based upon the max_ts and max_bucket_size.
@@ -155,14 +172,14 @@ def make_synchronization_dict(crdt: CRDTProtocol) -> dict[tuple[int, int], tuple
     }
 
 def check_synchronization_dict(crdt: CRDTProtocol,
-        sync: dict[tuple[int, int]], tuple[Any]) -> list[tuple[int, int]]:
+        sync: dict[tuple[int, int], tuple[Any]]) -> list[tuple[int, int]]:
     """Checks a CRDT against a synchronization dict. If the checksums differ for
         any timestamp bucket, include that timestamp bucket in the return list.
         The state updates for those buckets can then be requested from the
         remote replica.
     """
     different_buckets = []
-    for bucket, chksms in sync:
+    for bucket, chksms in sync.items():
         if crdt.checksums(from_ts=bucket[0], until_ts=bucket[1]) != chksms:
             different_buckets.append(bucket)
     return different_buckets
@@ -191,6 +208,96 @@ number of buckets equal to the log base 2 of the max timestamp:
 - ...
 - ts=1024, bucket_count=10
 
+This can be further optimized by dropping the assumption that the minimum
+timestamp will be 0, but it will be necessary to fallback to a minimum of 0 for
+guaranteed synchronization.
+
+#### Synchronization (Merklized)
+
+A simpler method for synchronization uses the Merkle history feature. Each CRDT
+object has the two methods `get_merkle_history` and `resolve_merkle_histories`
+for this purpose. This uses a Merkle tree where the state updates are the leaves.
+It is a shallow tree with a dynamic degree; i.e. the root is the combination of
+all leaves, as is used in BitTorrent, rather than a balanced binary tree, as is
+used in Bitcoin blocks.
+
+The `get_merkle_history` method returns a list containing the following:
+
+- The merkle root at index 0
+- The list of leaf (state update) hashes at index 1
+- A dict mapping leaf hashes to packed state updates at index 2
+
+The first step in synchronization will be to exchange the Merkle history roots.
+If they differ, then the leaf hashes must also be exchanged. This can be done in
+one step to reduce network latencies at the potential cost of bandwidth in the
+case where synchronization is not required.
+
+The `resolve_merkle_histories` method takes an argument equal to the first two
+indices of the return value of `get_merkle_history` and returns a list
+containing the leaf hashes required from the remote node for synchronization.
+
+The state updates are requested from the remote node using these leaf hashes,
+and the remote node uses the dict at index 2 of the `get_merkle_history` value
+to look up those leaves before shipping them already-packed updates. The updates
+are then unpacked and fed into the `update` method of the CRDT. When both nodes
+have exchanged the leaves their local CRDTs specified via
+`resolve_merkle_histories`, they will be in the same state.
+
+This relies upon the deterministic packing of delta states into bytes and may
+not be appropriate if, for example, nodes generate signatures for state updates
+but do not retain the full, original updates they encounter during
+synchronization. Also note that because this does not consider timestamps, one
+of the nodes will likely receive stale updates if, for example, an item was
+removed from an `ORSet` or a key was unset in a `LWWMap`.
+
+If the shared state gets particularly large, for example in the case of a
+replicated key-value database, then this synchronization mechanism will probably
+have greater bandwidth overhead than using a timestamp-based synchronization
+scheme.
+
+#### Event Listeners
+
+Each CRDT will emit an event upon receiving and validating an update but before
+applying it. An event listener can be added by calling the `add_listener`
+method or removed by calling the `remove_listener` method. The listener function
+will be called with the state update as the only argument.
+
+```python
+from crdts import PNCounter, StateUpdateProtocol
+
+logs = []
+
+def hook(update: StateUpdateProtocol):
+    assert isinstance(update, StateUpdateProtocol)
+    logs.append(update)
+
+counter = PNCounter()
+
+# without event listener
+counter.increase()
+assert len(logs) == 0
+
+# add event listener
+counter.add_listener(hook)
+
+# with event listener
+counter.increase()
+assert len(logs) == 1
+counter.decrease()
+assert len(logs) == 2
+
+# remove event listener
+counter.remove_listener(hook)
+logs = []
+
+# without event listener
+counter.increase()
+assert len(logs) == 0
+```
+
+Note that several event listeners can be added, and they will be called
+sequentially when the event is emitted.
+
 ## Interfaces and Classes
 
 Below are listed the interfaces and classes. Detailed documentaiton can be found
@@ -203,24 +310,13 @@ at the links in the Usage section above.
 - DataWrapperProtocol(Protocol)
 - StateUpdateProtocol(Protocol)
 
-### Type Alias
-
-There is a type alias, `SerializableType`, used in several places. It is equal
-to the following: `DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType`.
-
 ### Classes
-- NoneWrapper(DataWrapperProtocol)
+
 - StateUpdate(StateUpdateProtocol)
 - ScalarClock(ClockProtocol)
-- StrWrapper(DataWrapperProtocol)
-- BytesWrapper(StrWrapper)
-- CTDataWrapper(DataWrapperProtocol)
-- DecimalWrapper(StrWrapper)
-- IntWrapper(DecimalWrapper)
-- RGAItemWrapper(StrWrapper)
-- NoneWrapper(DataWrapperProtocol)
 - GSet(CRDTProtocol)
 - Counter(CRDTProtocol)
+- CounterSet(CRDTProtocol)
 - ORSet(CRDTProtocol)
 - PNCounter(CRDTProtocol)
 - RGArray (CRDTProtocol)
@@ -229,6 +325,13 @@ to the following: `DataWrapperProtocol|int|float|str|bytes|bytearray|NoneType`.
 - MVRegister(CRDTProtocol)
 - MVMap(CRDTProtocol)
 - FIArray(CRDTProtocol)
+- NoneWrapper(DataWrapperProtocol)
+- StrWrapper(DataWrapperProtocol)
+- BytesWrapper(DataWrapperProtocol)
+- DecimalWrapper(DataWrapperProtocol)
+- IntWrapper(DataWrapperProtocol)
+- RGAItemWrapper(DataWrapperProtocol)
+- CTDataWrapper(DataWrapperProtocol)
 
 ## Tests
 
@@ -248,6 +351,7 @@ python test_serialization.py
 python test_stateupdate.py
 python test_causaltree.py
 python test_counter.py
+python test_counterset.py
 python test_fiarray.py
 python test_gset.py
 python test_lwwmap.py
@@ -259,9 +363,10 @@ python test_pncounter.py
 python test_rgarray.py
 ```
 
-The 234 tests demonstrate the intended (and actual) behavior of the classes, as
-well as some contrived examples of how they are used. Perusing the tests will be
-informative to anyone seeking to use this package.
+The 280 tests demonstrate the intended (and actual) behavior of the classes, as
+well as some contrived examples of how they are used. Perusing the tests may be
+informative to anyone seeking to use this package, though everything has
+thorough type annotations to make development easy via a typical code editor LSP.
 
 ## ISC License
 

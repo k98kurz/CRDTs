@@ -8,7 +8,7 @@ version = "0.0.4"
 authors = [
   { name="k98kurz", email="k98kurz@gmail.com" },
 ]
-description = "A library of Conflict-free Replicated Data Types (11 included)"
+description = "A library of Conflict-free Replicated Data Types (12 included)"
 readme = "readme.md"
 requires-python = ">=3.10"
 classifiers = [
