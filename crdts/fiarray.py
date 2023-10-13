@@ -360,14 +360,15 @@ class FIArray:
 
         return state_update
 
-    def normalize(self, writer: SerializableType, /, *,
+    def normalize(self, writer: SerializableType,
+                  max_index: Decimal = Decimal("1.0"), /, *,
                   update_class: Type[StateUpdateProtocol] = StateUpdate,
                   inject: dict = {}) -> tuple[StateUpdateProtocol]:
         """Evenly distribute the item indices. Returns tuple of
             update_class (StateUpdate by default) that encode the index
-            updates. Does not apply the updates locally.
+            updates. Applies each update as it is generated.
         """
-        index_space = Decimal("1")/Decimal(len(self.read()) + 1)
+        index_space = max_index/Decimal(len(self.read()) + 1)
         updates = []
         items = self.read_full()
         for i in range(len(items)):
@@ -377,6 +378,20 @@ class FIArray:
                 update_class=update_class, inject=inject
             ))
         return tuple(updates)
+
+    def normalize_list(self, writer: SerializableType, /, *,
+                  update_class: Type[StateUpdateProtocol] = StateUpdate,
+                  inject: dict = {}) -> tuple[StateUpdateProtocol]:
+        """Calls normalize with a max_index calculated for use with the
+            append method as the primary mechanism for adding to the
+            list. Returns tuple of update_class (StateUpdate by default)
+            that encode the index updates. Applies each update as it is
+            generated.
+        """
+        max_index = Decimal('1E-20') * (1 + len(self.read()))
+        return self.normalize(
+            writer, max_index, update_class=update_class, inject=inject
+        )
 
     def get_merkle_history(self, /, *,
                            update_class: Type[StateUpdateProtocol] = StateUpdate
@@ -412,7 +427,12 @@ class FIArray:
             default) that appends the item to the end of the list
             returned by read(). Raises TypeError for invalid item.
         """
-        return self.put_last(item, writer, update_class=update_class)
+        # return self.put_last(item, writer, update_class=update_class)
+        full = self.read_full()
+        last_index = full[-1].index.value if len(full) > 0 else Decimal(0)
+        index = last_index + Decimal('1E-20')
+
+        return self.put(item, writer, index, update_class=update_class)
 
     def remove(self, index: int, writer: SerializableType, /, *,
                update_class: Type[StateUpdateProtocol] = StateUpdate
