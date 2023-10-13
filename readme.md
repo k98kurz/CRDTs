@@ -296,7 +296,9 @@ assert len(logs) == 0
 ```
 
 Note that several event listeners can be added, and they will be called
-sequentially when the event is emitted.
+sequentially when the event is emitted. Registered event listeners can also be
+triggered using the `invoke_listeners` method, which is used internally by the
+`update` method of each CRDT.
 
 ## Interfaces and Classes
 
