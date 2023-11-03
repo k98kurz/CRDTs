@@ -88,8 +88,8 @@ Below is documentation for the methods generated automatically by autodox.
 
 #### `__init__(names: ORSet = None, registers: dict = None, clock: ClockProtocol = None, listeners: list[Callable] = None) -> None:`
 
-Initialize an MVMap from an ORSet of names, a list of MVRegisters, and a shared
-clock. Raises TypeError or UsageError for invalid arguments.
+Initialize an MVMap from an ORSet of names, a dict mapping names to MVRegisters,
+and a shared clock. Raises TypeError or UsageError for invalid arguments.
 
 #### `pack() -> bytes:`
 

@@ -888,8 +888,9 @@ https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crd
 
 ##### `__init__(names: ORSet = None, registers: dict = None, clock: ClockProtocol = None, listeners: list[Callable] = None) -> None:`
 
-Initialize an LWWMap from an ORSet of names, a list of LWWRegisters, and a
-shared clock. Raises TypeError or UsageError for invalid parameters.
+Initialize an LWWMap from an ORSet of names, a dict mapping names to
+LWWRegisters, and a shared clock. Raises TypeError or UsageError for invalid
+parameters.
 
 ##### `pack() -> bytes:`
 
@@ -1057,8 +1058,8 @@ https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crd
 
 ##### `__init__(names: ORSet = None, registers: dict = None, clock: ClockProtocol = None, listeners: list[Callable] = None) -> None:`
 
-Initialize an MVMap from an ORSet of names, a list of MVRegisters, and a shared
-clock. Raises TypeError or UsageError for invalid arguments.
+Initialize an MVMap from an ORSet of names, a dict mapping names to MVRegisters,
+and a shared clock. Raises TypeError or UsageError for invalid arguments.
 
 ##### `pack() -> bytes:`
 

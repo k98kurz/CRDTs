@@ -31,9 +31,9 @@ class MVMap:
     def __init__(self, names: ORSet = None, registers: dict = None,
                 clock: ClockProtocol = None, listeners: list[Callable] = None
     ) -> None:
-        """Initialize an MVMap from an ORSet of names, a list of
-            MVRegisters, and a shared clock. Raises TypeError or
-            UsageError for invalid arguments.
+        """Initialize an MVMap from an ORSet of names, a dict mapping
+            names to MVRegisters, and a shared clock. Raises TypeError
+            or UsageError for invalid arguments.
         """
         tert(type(names) is ORSet or names is None,
             'names must be an ORSet or None')

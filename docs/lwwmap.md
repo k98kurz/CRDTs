@@ -87,8 +87,9 @@ Below is documentation for the methods generated automatically by autodox.
 
 #### `__init__(names: ORSet = None, registers: dict = None, clock: ClockProtocol = None, listeners: list[Callable] = None) -> None:`
 
-Initialize an LWWMap from an ORSet of names, a list of LWWRegisters, and a
-shared clock. Raises TypeError or UsageError for invalid parameters.
+Initialize an LWWMap from an ORSet of names, a dict mapping names to
+LWWRegisters, and a shared clock. Raises TypeError or UsageError for invalid
+parameters.
 
 #### `pack() -> bytes:`
 
