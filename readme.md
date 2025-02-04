@@ -26,7 +26,8 @@ the following CRDTs (class names in parentheses):
 These are implemented as delta-CRDTs with small update messages and additional
 methods for resynchronization to recover from dropped messages/transmission
 failures. See [Efficient State-based CRDTs by
-Delta-Mutation](https://arxiv.org/abs/1410.2803) for details.
+Delta-Mutation](https://arxiv.org/abs/1410.2803) for details. (NB: the exact
+scheme used in this package was designed independently.)
 
 For synchronization without a separate logical clock package, a simple Lamport
 `ScalarClock` class is included, though any logical clock that fulfills the
